@@ -6,6 +6,7 @@ import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
 
 import { useAuthStore } from '@/store/auth';
+import { useCartStore } from '@/store/cart';
 import { useThemeStore } from '@/store/theme';
 
 export const unstable_settings = {
@@ -16,6 +17,7 @@ export default function RootLayout() {
   const system      = useColorScheme();
   const { mode }    = useThemeStore();
   const { isLoggedIn } = useAuthStore();
+  const hydrateCart = useCartStore((s) => s.hydrate);
   const segments    = useSegments();
   const router      = useRouter();
 
@@ -25,6 +27,9 @@ export default function RootLayout() {
 
   const [isReady, setIsReady] = useState(false);
   useEffect(() => { setIsReady(true); }, []);
+  useEffect(() => {
+    hydrateCart();
+  }, [hydrateCart]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -41,6 +46,8 @@ export default function RootLayout() {
       <Stack>
         <Stack.Screen name="(auth)"      options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)"      options={{ headerShown: false }} />
+        <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="seller/publish" options={{ headerShown: false }} />
         <Stack.Screen name="modal"       options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
       </Stack>
