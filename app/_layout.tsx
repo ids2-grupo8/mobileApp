@@ -2,22 +2,27 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
+import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuthStore } from '@/store/auth';
+import { useThemeStore } from '@/store/theme';
 
 export const unstable_settings = {
   anchor: '(auth)',
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  const system      = useColorScheme();
+  const { mode }    = useThemeStore();
   const { isLoggedIn } = useAuthStore();
-  const segments = useSegments();
-  const router = useRouter();
+  const segments    = useSegments();
+  const router      = useRouter();
 
-  // Wait one render cycle so the Stack is mounted before any navigation
+  // Resolve effective scheme from our store
+  const effective = mode === 'system' ? (system ?? 'dark') : mode;
+  const navTheme  = effective === 'dark' ? DarkTheme : DefaultTheme;
+
   const [isReady, setIsReady] = useState(false);
   useEffect(() => { setIsReady(true); }, []);
 
@@ -32,14 +37,14 @@ export default function RootLayout() {
   }, [isReady, isLoggedIn, segments, router]);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={navTheme}>
       <Stack>
-        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        <Stack.Screen name="(auth)"      options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)"      options={{ headerShown: false }} />
+        <Stack.Screen name="modal"       options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
       </Stack>
-      <StatusBar style="light" />
+      <StatusBar style={effective === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }

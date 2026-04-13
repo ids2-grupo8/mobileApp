@@ -1,0 +1,337 @@
+[
+  {
+    "type": "tap",
+    "time": 55.82243083299545,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/8",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 28,
+        "y": 803,
+        "width": 384,
+        "height": 52
+      },
+      "attributes": {
+        "text": "Continuar",
+        "title": "",
+        "label": "Continuar",
+        "placeholder": "",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "Continuar",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "Button",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 231.08333333333337,
+      "y": 845.1666666666667
+    },
+    "appId": "",
+    "position": {
+      "x": 0.5263857251328778,
+      "y": 0.8849912739965097
+    },
+    "localPosition": {
+      "x": 0.5288628472222223,
+      "y": 0.8108974358974373
+    }
+  },
+  {
+    "type": "tap",
+    "time": 57.502626457993756,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/1/0/0/0/4/0",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 29,
+        "y": 268,
+        "width": 382,
+        "height": 47
+      },
+      "attributes": {
+        "text": "",
+        "title": "",
+        "label": "",
+        "placeholder": "tu@email.com",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "TextField",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 120.84895833333333,
+      "y": 290.61458333333337
+    },
+    "appId": "",
+    "position": {
+      "x": 0.2752823652239939,
+      "y": 0.30430846422338576
+    },
+    "localPosition": {
+      "x": 0.2404422993019197,
+      "y": 0.4811613475177313
+    }
+  },
+  {
+    "type": "typeText",
+    "text": "facundo.calderan@yopmail.com"
+  },
+  {
+    "type": "tap",
+    "time": 66.58197320799809,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/1/0/0/0/6/0",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 29,
+        "y": 361,
+        "width": 382,
+        "height": 47
+      },
+      "attributes": {
+        "text": "",
+        "title": "",
+        "label": "",
+        "placeholder": "Mínimo 8 caracteres",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "SecureTextField",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 141.69791666666669,
+      "y": 399.82291666666663
+    },
+    "appId": "",
+    "position": {
+      "x": 0.32277429764616555,
+      "y": 0.41866273996509595
+    },
+    "localPosition": {
+      "x": 0.29502072425828973,
+      "y": 0.8260195035460984
+    }
+  },
+  {
+    "type": "typeText",
+    "text": "Facu1234"
+  },
+  {
+    "type": "keypress",
+    "time": 71.42666304200247,
+    "key": "\r",
+    "shiftKey": false,
+    "character": "Enter"
+  },
+  {
+    "type": "tap",
+    "time": 75.30860566699994,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/1/2",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 154,
+        "y": 866,
+        "width": 131,
+        "height": 48
+      },
+      "attributes": {
+        "text": "",
+        "title": "",
+        "label": "",
+        "placeholder": "",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "Button",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 218.53125,
+      "y": 872.234375
+    },
+    "appId": "",
+    "position": {
+      "x": 0.49779328018223234,
+      "y": 0.9133344240837696
+    },
+    "localPosition": {
+      "x": 0.4926049618320611,
+      "y": 0.1298828125
+    }
+  },
+  {
+    "type": "tap",
+    "time": 76.99185500000021,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/1/3",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 285,
+        "y": 866,
+        "width": 131,
+        "height": 48
+      },
+      "attributes": {
+        "text": "",
+        "title": "",
+        "label": "",
+        "placeholder": "",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "Button",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 333.453125,
+      "y": 891.125
+    },
+    "appId": "",
+    "position": {
+      "x": 0.7595743166287016,
+      "y": 0.9331151832460733
+    },
+    "localPosition": {
+      "x": 0.36987118320610685,
+      "y": 0.5234375
+    }
+  },
+  {
+    "type": "tap",
+    "time": 80.07505429199955,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/1/0/0/0/1",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 333,
+        "y": 90,
+        "width": 87,
+        "height": 31
+      },
+      "attributes": {
+        "text": "Editar perfil",
+        "title": "",
+        "label": "Editar perfil",
+        "placeholder": "",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "Editar perfil",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "Button",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 363.59375,
+      "y": 106.859375
+    },
+    "appId": "",
+    "position": {
+      "x": 0.8282317767653758,
+      "y": 0.1118946335078534
+    },
+    "localPosition": {
+      "x": 0.3516522988505747,
+      "y": 0.5438508064516129
+    }
+  },
+  {
+    "type": "tap",
+    "time": 82.44805537498905,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/4/0/0/0/6",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 24,
+        "y": 570,
+        "width": 392,
+        "height": 52
+      },
+      "attributes": {
+        "text": "Guardar cambios",
+        "title": "",
+        "label": "Guardar cambios",
+        "placeholder": "",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "Guardar cambios",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "Button",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 221.46874999999997,
+      "y": 595.65625
+    },
+    "appId": "",
+    "position": {
+      "x": 0.5044846241457858,
+      "y": 0.6237238219895288
+    },
+    "localPosition": {
+      "x": 0.5037468112244897,
+      "y": 0.4933894230769231
+    }
+  },
+  {
+    "type": "tap",
+    "time": 86.1789114169951,
+    "element": {
+      "path": "/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0",
+      "source": "uikit",
+      "type": "node",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "width": 440,
+        "height": 956
+      },
+      "attributes": {
+        "text": "",
+        "title": "",
+        "label": "",
+        "placeholder": "",
+        "userInteractionEnabled": true,
+        "accessibilityLabel": "",
+        "accessibilityIdentifier": "",
+        "accessibilityValue": "",
+        "elementType": "Other",
+        "value": ""
+      }
+    },
+    "coordinates": {
+      "x": 37.692708333333336,
+      "y": 89.984375
+    },
+    "appId": "",
+    "position": {
+      "x": 0.08586038344722856,
+      "y": 0.09422447643979058
+    },
+    "localPosition": {
+      "x": 0.08566524621212122,
+      "y": 0.09412591527196652
+    }
+  }
+]

@@ -1,7 +1,7 @@
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: W, height: H } = Dimensions.get('window');
@@ -13,52 +13,50 @@ const IMAGES = [
   'https://picsum.photos/seed/baz-d/400/350',
 ];
 
+// La landing siempre usa el tema oscuro — la imagen y el gradiente lo hacen natural.
 export default function LandingScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <View style={s.container}>
       {/* Image grid */}
-      <View style={styles.grid}>
-        {/* Left — tall */}
-        <Image source={{ uri: IMAGES[0] }} style={styles.imgLeft} contentFit="cover" />
-
-        {/* Right — stacked */}
-        <View style={styles.right}>
-          <Image source={{ uri: IMAGES[1] }} style={styles.imgRightTop} contentFit="cover" />
-          <View style={styles.rightBottom}>
-            <Image source={{ uri: IMAGES[2] }} style={styles.imgRightBL} contentFit="cover" />
-            <Image source={{ uri: IMAGES[3] }} style={styles.imgRightBR} contentFit="cover" />
+      <View style={s.grid}>
+        <Image source={{ uri: IMAGES[0] }} style={s.imgLeft} contentFit="cover" />
+        <View style={s.right}>
+          <Image source={{ uri: IMAGES[1] }} style={s.imgRightTop} contentFit="cover" />
+          <View style={s.rightBottom}>
+            <Image source={{ uri: IMAGES[2] }} style={s.imgRightBL} contentFit="cover" />
+            <Image source={{ uri: IMAGES[3] }} style={s.imgRightBR} contentFit="cover" />
           </View>
         </View>
       </View>
 
       {/* Gradient overlay */}
       <LinearGradient
-        colors={['transparent', 'rgba(11,11,15,0.6)', '#0B0B0F']}
+        colors={['transparent', 'rgba(11,11,15,0.6)', '#0b0b0f']}
         locations={[0, 0.45, 0.78]}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
 
       {/* Bottom content */}
-      <View style={[styles.bottom, { paddingBottom: insets.bottom + 32 }]}>
-        <Text style={styles.brand}>Bazaar</Text>
-        <Text style={styles.tagline}>Discover Your Style, Elevated.</Text>
+      <View style={[s.bottom, { paddingBottom: insets.bottom + 32 }]}>
+        <Text style={s.brand}>Bazaar</Text>
+        <Text style={s.tagline}>Discover Your Style, Elevated.</Text>
 
         <TouchableOpacity
-          style={styles.btn}
+          style={s.btn}
           onPress={() => router.push('/(auth)/login')}
           accessibilityRole="button"
           accessibilityLabel="Continuar">
-          <Text style={styles.btnText}>Continuar</Text>
+          <Text style={s.btnText}>Continuar</Text>
         </TouchableOpacity>
 
-        <View style={styles.row}>
-          <Text style={styles.sub}>¿No tenés cuenta? </Text>
+        <View style={s.row}>
+          <Text style={s.sub}>¿No tenés cuenta? </Text>
           <TouchableOpacity onPress={() => router.push('/(auth)/register')}>
-            <Text style={[styles.sub, styles.link]}>Registrate</Text>
+            <Text style={s.link}>Registrate</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -66,19 +64,17 @@ export default function LandingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0B0B0F' },
+const s = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#0b0b0f' },
 
-  // Grid
-  grid: { flex: 1, flexDirection: 'row', gap: 3 },
-  imgLeft: { width: W * 0.5 - 1.5, height: H },
-  right: { flex: 1, gap: 3 },
+  grid:        { flex: 1, flexDirection: 'row', gap: 3 },
+  imgLeft:     { width: W * 0.5 - 1.5, height: H },
+  right:       { flex: 1, gap: 3 },
   imgRightTop: { flex: 1 },
   rightBottom: { flex: 1, flexDirection: 'row', gap: 3 },
-  imgRightBL: { flex: 1 },
-  imgRightBR: { flex: 1 },
+  imgRightBL:  { flex: 1 },
+  imgRightBR:  { flex: 1 },
 
-  // Bottom
   bottom: {
     position: 'absolute',
     left: 0,
@@ -87,29 +83,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     alignItems: 'center',
   },
-  brand: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  tagline: {
-    fontSize: 15,
-    color: '#8B8FA8',
-    marginBottom: 36,
-    letterSpacing: 0.3,
-  },
-  btn: {
-    width: '100%',
-    backgroundColor: '#C5F135',
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#0B0B0F' },
-  row: { flexDirection: 'row', alignItems: 'center' },
-  sub: { fontSize: 14, color: '#8B8FA8' },
-  link: { color: '#C5F135', fontWeight: '600' },
+  brand:   { fontSize: 40, fontWeight: '800', color: '#f3f4f6', letterSpacing: 1, marginBottom: 6 },
+  tagline: { fontSize: 15, color: '#9ca3af', marginBottom: 36, letterSpacing: 0.3 },
+
+  btn:     { width: '100%', backgroundColor: '#18acb4', paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 18 },
+  btnText: { fontSize: 16, fontWeight: '700', color: '#0b0b0f' },
+
+  row:  { flexDirection: 'row', alignItems: 'center' },
+  sub:  { fontSize: 14, color: '#9ca3af' },
+  link: { fontSize: 14, color: '#18acb4', fontWeight: '600' },
 });
