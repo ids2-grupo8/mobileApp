@@ -1,6 +1,6 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-export type ThemeMode = 'system' | 'dark' | 'light';
+export type ThemeMode = "system" | "dark" | "light";
 
 type ThemeStore = {
   mode: ThemeMode;
@@ -9,13 +9,13 @@ type ThemeStore = {
 };
 
 const CYCLE: Record<ThemeMode, ThemeMode> = {
-  system: 'dark',
-  dark: 'light',
-  light: 'system',
+  system: "dark",
+  dark: "light",
+  light: "system",
 };
 
 export const useThemeStore = create<ThemeStore>((set, get) => ({
-  mode: 'system',
+  mode: "system",
   setMode: (mode) => set({ mode }),
   toggle: () => set({ mode: CYCLE[get().mode] }),
 }));

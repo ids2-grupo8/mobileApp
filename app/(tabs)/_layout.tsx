@@ -1,6 +1,6 @@
-import { Tabs } from 'expo-router';
+import { Tabs } from "expo-router";
 
-import { FloatingTabBar } from '@/components/floating-tab-bar';
+import { FloatingTabBar } from "@/components/floating-tab-bar";
 
 export default function TabLayout() {
   return (
@@ -9,8 +9,9 @@ export default function TabLayout() {
       screenOptions={{
         headerShown: false,
         // Espacio inferior para que el contenido no quede bajo la barra flotante
-        tabBarStyle: { display: 'none' },
-      }}>
+        tabBarStyle: { display: "none" },
+      }}
+    >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="explore" />
       <Tabs.Screen name="profile" />

@@ -1,13 +1,15 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-import { clearTokens } from '@/services/http';
+import { clearTokens } from "@/services/http";
 import {
   type AuthUser,
+  type ResetPasswordPayload,
   forgotPasswordRequest,
   loginRequest,
   registerRequest,
+  resetPasswordRequest,
   toUserMessage,
-} from '@/services/auth';
+} from "@/services/auth";
 
 type AuthStore = {
   isLoggedIn: boolean;
@@ -18,7 +20,8 @@ type AuthStore = {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
-  forgotPassword: (email: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<boolean>;
+  resetPassword: (payload: ResetPasswordPayload) => Promise<boolean>;
 };
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -57,8 +60,22 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       await forgotPasswordRequest(email);
       set({ isLoading: false });
+      return true;
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
+      return false;
+    }
+  },
+
+  resetPassword: async (payload) => {
+    set({ isLoading: true, error: null });
+    try {
+      await resetPasswordRequest(payload);
+      set({ isLoading: false });
+      return true;
+    } catch (err) {
+      set({ isLoading: false, error: toUserMessage(err) });
+      return false;
     }
   },
 

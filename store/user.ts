@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { useAuthStore } from './auth';
+import { create } from "zustand";
+import { useAuthStore } from "./auth";
 
 export type Publication = {
   id: string;
@@ -24,15 +24,15 @@ type UserStore = {
   saving: boolean;
   fetchProfile: () => Promise<void>;
   updateProfile: (
-    data: Partial<Pick<UserProfile, 'name' | 'bio' | 'avatarUrl'>>
+    data: Partial<Pick<UserProfile, "name" | "bio" | "avatarUrl">>,
   ) => Promise<void>;
 };
 
 // Publicaciones mock hasta que el catalog-service tenga el endpoint
 const MOCK_PUBLICATIONS: Publication[] = [
-  { id: '1', title: 'Auriculares Bluetooth', price: 5000, stock: 3 },
-  { id: '2', title: 'Cable USB-C 2m', price: 800, stock: 10 },
-  { id: '3', title: 'Funda para iPhone 14', price: 1200, stock: 5 },
+  { id: "1", title: "Auriculares Bluetooth", price: 5000, stock: 3 },
+  { id: "2", title: "Cable USB-C 2m", price: 800, stock: 10 },
+  { id: "3", title: "Funda para iPhone 14", price: 1200, stock: 5 },
 ];
 
 export const useUserStore = create<UserStore>((set, get) => ({
@@ -52,10 +52,10 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
     set({
       profile: {
-        id: authUser?.id ?? '',
-        name: authUser?.name ?? '',
-        email: authUser?.email ?? '',
-        bio: '',
+        id: authUser?.id ?? "",
+        name: authUser?.name ?? "",
+        email: authUser?.email ?? "",
+        bio: "",
         publications: MOCK_PUBLICATIONS,
       },
       loading: false,

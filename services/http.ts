@@ -1,7 +1,7 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from "expo-secure-store";
 
-const TOKEN_KEY = 'access_token';
-const REFRESH_KEY = 'refresh_token';
+const TOKEN_KEY = "access_token";
+const REFRESH_KEY = "refresh_token";
 
 // ---------------------------------------------------------------------------
 // Token helpers
@@ -29,10 +29,10 @@ export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
-    public readonly body?: unknown
+    public readonly body?: unknown,
   ) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
   }
 }
 
@@ -41,23 +41,23 @@ export class ApiError extends Error {
 // ---------------------------------------------------------------------------
 
 type RequestOptions = {
-  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
-  auth?: boolean; // incluir Bearer token (default true)
+  auth?: boolean; // include Bearer token (default true)
 };
 
 export async function request<T = unknown>(
   url: string,
-  { method = 'GET', body, auth = true }: RequestOptions = {}
+  { method = "GET", body, auth = true }: RequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
+    "Content-Type": "application/json",
+    Accept: "application/json",
   };
 
   if (auth) {
     const token = await getAccessToken();
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
   const res = await fetch(url, {
@@ -75,9 +75,18 @@ export async function request<T = unknown>(
   }
 
   if (!res.ok) {
-    console.error(`[API] ${method} ${url} → ${res.status}`, JSON.stringify(json));
-    const j = json as { message?: string; error?: string; detail?: string; title?: string };
-    const message = j.detail ?? j.message ?? j.error ?? j.title ?? `Error ${res.status}`;
+    console.error(
+      `[API] ${method} ${url} → ${res.status}`,
+      JSON.stringify(json),
+    );
+    const j = json as {
+      message?: string;
+      error?: string;
+      detail?: string;
+      title?: string;
+    };
+    const message =
+      j.detail ?? j.message ?? j.error ?? j.title ?? `Error ${res.status}`;
     throw new ApiError(res.status, message, json);
   }
 
