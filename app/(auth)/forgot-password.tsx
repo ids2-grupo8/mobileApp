@@ -139,6 +139,12 @@ export default function ForgotPasswordScreen() {
                   <Text style={s.btnText}>Enviar enlace</Text>
                 )}
               </TouchableOpacity>
+
+              {error ? (
+                <Text style={[s.errorText, s.errorGeneral, { color: C.red }]}>
+                  {error}
+                </Text>
+              ) : null}
             </>
           )}
         </View>
@@ -169,6 +175,7 @@ const s = StyleSheet.create({
     fontSize: 16,
   },
   errorText: { fontSize: 12, marginTop: 6 },
+  errorGeneral: { textAlign: "center", marginTop: 14, fontSize: 13 },
 
   btn: { paddingVertical: 16, borderRadius: 14, alignItems: "center" },
   btnDisabled: { opacity: 0.6 },
