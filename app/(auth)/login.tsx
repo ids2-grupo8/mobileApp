@@ -1,4 +1,5 @@
 import { useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { GOOGLE_OAUTH_URL } from "@/services/auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuthStore } from "@/store/auth";
 
@@ -30,7 +32,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const C = useTheme();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const { login, googleLogin, isLoading, error, clearError } = useAuthStore();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,6 +40,7 @@ export default function LoginScreen() {
     {},
   );
   const [touched, setTouched] = useState({ email: false, password: false });
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     return () => clearError();
@@ -54,6 +57,34 @@ export default function LoginScreen() {
     setTouched({ email: true, password: true });
     if (Object.keys(errs).length > 0) return;
     await login(email.trim(), password);
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      // openAuthSessionAsync returns the full redirect URL as its result.
+      // In Expo Go, Linking.addEventListener does NOT fire for custom schemes
+      // (mobileapp:// is not registered), so we parse the tokens here directly.
+      const result = await WebBrowser.openAuthSessionAsync(
+        GOOGLE_OAUTH_URL,
+        "mobileapp://",
+      );
+
+      if (result.type !== "success" || !result.url) return;
+
+      const hashIndex = result.url.indexOf("#");
+      if (hashIndex === -1) return;
+
+      const params = new URLSearchParams(result.url.slice(hashIndex + 1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        await googleLogin(accessToken, refreshToken);
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   return (
@@ -174,13 +205,43 @@ export default function LoginScreen() {
               isLoading && s.btnDisabled,
             ]}
             onPress={handleSubmit}
-            disabled={isLoading}
+            disabled={isLoading || googleLoading}
             accessibilityRole="button"
           >
             {isLoading ? (
               <ActivityIndicator color="#403c30" size="small" />
             ) : (
               <Text style={s.btnText}>Iniciar sesión</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={s.divider}>
+            <View style={[s.dividerLine, { backgroundColor: C.inputBorder }]} />
+            <Text style={[s.dividerText, { color: C.textMuted }]}>o</Text>
+            <View style={[s.dividerLine, { backgroundColor: C.inputBorder }]} />
+          </View>
+
+          {/* Google */}
+          <TouchableOpacity
+            style={[
+              s.googleBtn,
+              { backgroundColor: C.inputBg, borderColor: C.inputBorder },
+              googleLoading && s.btnDisabled,
+            ]}
+            onPress={handleGoogleLogin}
+            disabled={isLoading || googleLoading}
+            accessibilityRole="button"
+          >
+            {googleLoading ? (
+              <ActivityIndicator color={C.textPrimary} size="small" />
+            ) : (
+              <>
+                <Text style={s.googleIcon}>G</Text>
+                <Text style={[s.googleText, { color: C.textPrimary }]}>
+                  Continuar con Google
+                </Text>
+              </>
             )}
           </TouchableOpacity>
 
@@ -243,4 +304,29 @@ const s = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
   sub: { fontSize: 14 },
   link: { fontSize: 14, fontWeight: "600" },
+
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { marginHorizontal: 12, fontSize: 13 },
+
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginBottom: 24,
+    gap: 10,
+  },
+  googleIcon: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#4285F4",
+  },
+  googleText: { fontSize: 15, fontWeight: "600" },
 });

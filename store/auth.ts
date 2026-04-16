@@ -4,6 +4,7 @@ import { clearTokens } from "@/services/http";
 import {
   type AuthUser,
   type ResetPasswordPayload,
+  federatedLoginRequest,
   forgotPasswordRequest,
   loginRequest,
   registerRequest,
@@ -18,6 +19,7 @@ type AuthStore = {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  googleLogin: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   forgotPassword: (email: string) => Promise<boolean>;
@@ -44,6 +46,16 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const user = await registerRequest(name, email, password);
+      set({ isLoggedIn: true, isLoading: false, user });
+    } catch (err) {
+      set({ isLoading: false, error: toUserMessage(err) });
+    }
+  },
+
+  googleLogin: async (accessToken, refreshToken) => {
+    set({ isLoading: true, error: null });
+    try {
+      const user = await federatedLoginRequest(accessToken, refreshToken);
       set({ isLoggedIn: true, isLoading: false, user });
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });

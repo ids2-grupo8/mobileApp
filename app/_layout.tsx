@@ -71,7 +71,7 @@ export default function RootLayout() {
         const accessToken = hashParams.get("access_token");
         const refreshToken = hashParams.get("refresh_token");
 
-        // Case 1: valid link - has tokens and type=recovery
+        // Case 1: valid password-recovery link
         if (type === "recovery" && accessToken && refreshToken) {
           router.replace({
             pathname: "/(auth)/reset-password",
@@ -84,8 +84,7 @@ export default function RootLayout() {
           return;
         }
 
-        // Case 2: expired or invalid link - Supabase redirects with error=access_denied
-        // We redirect to reset-password with empty tokens to show our error state.
+        // Case 2: expired or invalid recovery link
         if (type === "recovery" || error === "access_denied") {
           router.replace({
             pathname: "/(auth)/reset-password",

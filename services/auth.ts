@@ -1,6 +1,14 @@
 import { USERS } from "@/constants/api";
 import { ApiError, request, saveTokens } from "./http";
 
+// ─── Federated (Google) OAuth ─────────────────────────────────────────────────
+
+// Supabase OAuth entry point. The redirect_to must be whitelisted in
+// Supabase → Authentication → URL Configuration → Redirect URLs.
+const SUPABASE_URL = "https://qlrrvjnczdcnbffrgpdv.supabase.co";
+export const GOOGLE_OAUTH_URL =
+  `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=mobileapp://`;
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type UserData = {
@@ -67,6 +75,23 @@ export async function registerRequest(
     auth: false,
   });
   return loginRequest(email, password);
+}
+
+export async function federatedLoginRequest(
+  accessToken: string,
+  refreshToken: string,
+): Promise<AuthUser> {
+  const res = await request<LoginResponse>(USERS("/auth/federated-login"), {
+    method: "POST",
+    body: { access_token: accessToken, refresh_token: refreshToken },
+    auth: false,
+  });
+  await saveTokens(res.token.access_token, res.token.refresh_token);
+  return {
+    id: res.data.id,
+    email: res.data.email,
+    name: res.data.full_name,
+  };
 }
 
 export async function forgotPasswordRequest(email: string): Promise<void> {
