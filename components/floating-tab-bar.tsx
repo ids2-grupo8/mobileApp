@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,8 +15,8 @@ const ICONS: Record<string, IconName> = {
   profile: 'person',
 };
 
-const GAP        = 3;
-const BAR_RADIUS = 26;
+const GAP        = 4;
+const BAR_RADIUS = 28;
 const SEL_RADIUS = BAR_RADIUS - GAP;
 const SEL_HEIGHT = 48;
 
@@ -31,10 +32,10 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
     Animated.spring(anim, {
       toValue: state.index,
       useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.8,
-      overshootClamping: true,
+      damping: 20,
+      stiffness: 200,
+      mass: 0.7,
+      overshootClamping: false,
     }).start();
   }, [state.index, anim]);
 
@@ -51,23 +52,44 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
       })
     : new Animated.Value(0);
 
+  // Avoid sticking to the bottom edge on devices with no bottom insets (e.g. Android)
+  const safeBottom = Math.max(insets.bottom, 16);
+
   return (
-    <View style={[s.wrapper, { bottom: insets.bottom + 4 }]} pointerEvents="box-none">
+    <View style={[s.wrapper, { bottom: safeBottom + 8 }]} pointerEvents="box-none">
+      {/* Outer glow layer */}
+      <View style={[s.glowLayer, { shadowColor: C.accent }]} />
+
       <View
-        style={[
-          s.bar,
-          { backgroundColor: C.tabBg, borderColor: C.tabBorder },
-        ]}
+        style={[s.bar, { backgroundColor: C.tabBg, shadowColor: C.shadowDark }]}
         onLayout={onBarLayout}>
 
-        {/* Selector verde deslizante */}
+        {/* Glass highlight border — top edge light reflection */}
+        <LinearGradient
+          colors={[C.glassHighlight, 'transparent', 'transparent', C.glassBorder]}
+          locations={[0, 0.25, 0.85, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0, y: 1 }}
+          style={s.glassEdge}
+          pointerEvents="none"
+        />
+
+        {/* Accent pill selector — slides behind active tab */}
         {tabW > 0 && (
           <Animated.View
-            style={[s.selector, { width: tabW, backgroundColor: C.accent, transform: [{ translateX }] }]}
+            style={[
+              s.selector,
+              {
+                width: tabW,
+                backgroundColor: C.accent,
+                transform: [{ translateX }],
+                shadowColor: C.accent,
+              },
+            ]}
           />
         )}
 
-        {/* Tabs encima del selector */}
+        {/* Tab icons */}
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const icon    = ICONS[route.name] ?? 'circle';
@@ -93,7 +115,7 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               <MaterialIcons
                 name={icon}
                 size={22}
-                color={focused ? '#0B0B0F' : C.textMuted}
+                color={focused ? '#050508' : C.textMuted}
               />
             </TouchableOpacity>
           );
@@ -109,16 +131,34 @@ const s = StyleSheet.create({
     left: 20,
     right: 20,
   },
+  glowLayer: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: BAR_RADIUS,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 0,
+  },
   bar: {
     flexDirection: 'row',
     borderRadius: BAR_RADIUS,
-    borderWidth: 1,
     padding: GAP,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 14,
+    overflow: 'hidden',
+    // Spatial shadow — dark base + accent tint
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.5,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  glassEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: BAR_RADIUS,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   selector: {
     position: 'absolute',
@@ -126,6 +166,11 @@ const s = StyleSheet.create({
     left: GAP,
     height: SEL_HEIGHT,
     borderRadius: SEL_RADIUS,
+    // Accent glow on the selector pill
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
   },
   tab: {
     flex: 1,

@@ -23,17 +23,8 @@ type UserStore = {
   loading: boolean;
   saving: boolean;
   fetchProfile: () => Promise<void>;
-  updateProfile: (
-    data: Partial<Pick<UserProfile, 'name' | 'bio' | 'avatarUrl'>>
-  ) => Promise<void>;
+  updateProfile: (data: Partial<Pick<UserProfile, 'name' | 'bio' | 'avatarUrl'>>) => Promise<void>;
 };
-
-// Publicaciones mock hasta que el catalog-service tenga el endpoint
-const MOCK_PUBLICATIONS: Publication[] = [
-  { id: '1', title: 'Auriculares Bluetooth', price: 5000, stock: 3 },
-  { id: '2', title: 'Cable USB-C 2m', price: 800, stock: 10 },
-  { id: '3', title: 'Funda para iPhone 14', price: 1200, stock: 5 },
-];
 
 export const useUserStore = create<UserStore>((set, get) => ({
   profile: null,
@@ -42,21 +33,16 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
   fetchProfile: async () => {
     set({ loading: true });
-
-    // Toma los datos reales del usuario desde el auth store
     const authUser = useAuthStore.getState().user;
-
-    // TODO: GET /api/v1/users/me cuando el endpoint exista
-    // Por ahora construimos el perfil con los datos del login + publicaciones mock
-    await new Promise<void>((r) => setTimeout(r, 400)); // simula latencia mínima
+    if (!authUser) { set({ loading: false }); return; }
 
     set({
       profile: {
-        id: authUser?.id ?? '',
-        name: authUser?.name ?? '',
-        email: authUser?.email ?? '',
+        id: authUser.id,
+        name: authUser.name,
+        email: authUser.email,
         bio: '',
-        publications: MOCK_PUBLICATIONS,
+        publications: [],
       },
       loading: false,
     });
@@ -64,12 +50,15 @@ export const useUserStore = create<UserStore>((set, get) => ({
 
   updateProfile: async (data) => {
     set({ saving: true });
-    // TODO: PATCH /api/v1/users/me
-    await new Promise<void>((r) => setTimeout(r, 900));
-    const current = get().profile;
-    if (current) {
-      set({ profile: { ...current, ...data }, saving: false });
-    } else {
+    const authUser = useAuthStore.getState().user;
+    if (!authUser) { set({ saving: false }); return; }
+
+    try {
+      // TODO: PATCH /users/me
+      const current = get().profile;
+      if (current) set({ profile: { ...current, ...data }, saving: false });
+      else set({ saving: false });
+    } catch {
       set({ saving: false });
     }
   },

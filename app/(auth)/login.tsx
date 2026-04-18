@@ -12,6 +12,7 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth';
@@ -35,6 +36,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [errors, setErrors]     = useState<{ email?: string; password?: string }>({});
   const [touched, setTouched]   = useState({ email: false, password: false });
+  const [showPass, setShowPass] = useState(false);
 
   useEffect(() => { return () => clearError(); }, [clearError]);
 
@@ -61,12 +63,13 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
 
-          <Text style={[s.brand, { color: C.accentText }]}>Bazaar</Text>
+          <Text style={[s.brand, { color: C.accent }]}>Bazaar</Text>
           <Text style={[s.title, { color: C.textPrimary }]}>Iniciá sesión</Text>
           <Text style={[s.subtitle, { color: C.textSecondary }]}>Bienvenido de nuevo</Text>
 
           {error ? (
-            <View style={[s.serverError, { backgroundColor: C.redBg, borderColor: C.inputBorderError }]}>
+            <View style={[s.serverError, { backgroundColor: C.redBg, borderColor: C.red }]}>
+              <MaterialIcons name="error-outline" size={18} color={C.red} />
               <Text style={[s.serverErrorText, { color: C.red }]}>{error}</Text>
             </View>
           ) : null}
@@ -74,22 +77,25 @@ export default function LoginScreen() {
           {/* Email */}
           <View style={s.field}>
             <Text style={[s.label, { color: C.textSecondary }]}>Email</Text>
-            <TextInput
-              style={[
-                s.input,
-                { backgroundColor: C.inputBg, borderColor: C.inputBorder, color: C.textPrimary },
-                touched.email && errors.email ? { borderColor: C.inputBorderError } : null,
-              ]}
-              value={email}
-              onChangeText={(v) => { setEmail(v); if (touched.email) setErrors(validate(v, password)); }}
-              onBlur={() => handleBlur('email')}
-              placeholder="tu@email.com"
-              placeholderTextColor={C.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-            />
+            <View style={[
+              s.inputWrap,
+              { backgroundColor: C.glass, borderColor: touched.email && errors.email ? C.inputBorderError : C.glassBorder },
+            ]}>
+              <MaterialIcons name="mail-outline" size={18} color={C.textMuted} />
+              <TextInput
+                style={[s.input, { color: C.textPrimary }]}
+                value={email}
+                onChangeText={(v) => { setEmail(v); if (touched.email) setErrors(validate(v, password)); }}
+                onBlur={() => handleBlur('email')}
+                placeholder="tu@email.com"
+                placeholderTextColor={C.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                selectionColor={C.accent}
+              />
+            </View>
             {touched.email && errors.email ? (
               <Text style={[s.errorText, { color: C.red }]}>{errors.email}</Text>
             ) : null}
@@ -98,21 +104,27 @@ export default function LoginScreen() {
           {/* Password */}
           <View style={s.field}>
             <Text style={[s.label, { color: C.textSecondary }]}>Contraseña</Text>
-            <TextInput
-              style={[
-                s.input,
-                { backgroundColor: C.inputBg, borderColor: C.inputBorder, color: C.textPrimary },
-                touched.password && errors.password ? { borderColor: C.inputBorderError } : null,
-              ]}
-              value={password}
-              onChangeText={(v) => { setPassword(v); if (touched.password) setErrors(validate(email, v)); }}
-              onBlur={() => handleBlur('password')}
-              placeholder="Mínimo 8 caracteres"
-              placeholderTextColor={C.textMuted}
-              secureTextEntry
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-            />
+            <View style={[
+              s.inputWrap,
+              { backgroundColor: C.glass, borderColor: touched.password && errors.password ? C.inputBorderError : C.glassBorder },
+            ]}>
+              <MaterialIcons name="lock-outline" size={18} color={C.textMuted} />
+              <TextInput
+                style={[s.input, { color: C.textPrimary }]}
+                value={password}
+                onChangeText={(v) => { setPassword(v); if (touched.password) setErrors(validate(email, v)); }}
+                onBlur={() => handleBlur('password')}
+                placeholder="Mínimo 8 caracteres"
+                placeholderTextColor={C.textMuted}
+                secureTextEntry={!showPass}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                selectionColor={C.accent}
+              />
+              <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                <MaterialIcons name={showPass ? 'visibility-off' : 'visibility'} size={20} color={C.textMuted} />
+              </TouchableOpacity>
+            </View>
             {touched.password && errors.password ? (
               <Text style={[s.errorText, { color: C.red }]}>{errors.password}</Text>
             ) : null}
@@ -121,23 +133,23 @@ export default function LoginScreen() {
           <TouchableOpacity
             style={s.forgotWrap}
             onPress={() => router.push('/(auth)/forgot-password')}>
-            <Text style={[s.forgotText, { color: C.accentText }]}>¿Olvidaste tu contraseña?</Text>
+            <Text style={[s.forgotText, { color: C.accent }]}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.btn, { backgroundColor: C.accent }, isLoading && s.btnDisabled]}
+            style={[s.btn, { backgroundColor: C.accent, shadowColor: C.accent }, isLoading && s.btnDisabled]}
             onPress={handleSubmit}
             disabled={isLoading}
             accessibilityRole="button">
             {isLoading
-              ? <ActivityIndicator color="#403c30" size="small" />
+              ? <ActivityIndicator color="#050508" size="small" />
               : <Text style={s.btnText}>Iniciar sesión</Text>}
           </TouchableOpacity>
 
           <View style={s.row}>
             <Text style={[s.sub, { color: C.textSecondary }]}>¿No tenés cuenta? </Text>
             <TouchableOpacity onPress={() => router.replace('/(auth)/register')}>
-              <Text style={[s.link, { color: C.accentText }]}>Registrate</Text>
+              <Text style={[s.link, { color: C.accent }]}>Registrate</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -149,37 +161,57 @@ export default function LoginScreen() {
 const s = StyleSheet.create({
   root:    { flex: 1 },
   flex:    { flex: 1 },
-  content: { paddingHorizontal: 28, paddingTop: 32 },
+  content: { paddingHorizontal: 28, paddingTop: 40 },
 
-  brand:    { fontSize: 28, fontWeight: '800', marginBottom: 28 },
-  title:    { fontSize: 28, fontWeight: '700', marginBottom: 4 },
-  subtitle: { fontSize: 15, marginBottom: 32 },
+  brand:    { fontSize: 28, fontWeight: '800', marginBottom: 32, letterSpacing: -0.3 },
+  title:    { fontSize: 30, fontWeight: '800', marginBottom: 6, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, marginBottom: 36, letterSpacing: 0.1 },
 
   serverError: {
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  serverErrorText: { fontSize: 14, lineHeight: 20 },
+  serverErrorText: { fontSize: 14, lineHeight: 20, flex: 1 },
 
   field:     { marginBottom: 20 },
-  label:     { fontSize: 13, fontWeight: '600', marginBottom: 8 },
-  input: {
+  label:     { fontSize: 13, fontWeight: '600', marginBottom: 8, letterSpacing: 0.1 },
+  inputWrap: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 10,
+    height: 52,
   },
-  errorText: { fontSize: 12, marginTop: 6 },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+  },
+  errorText: { fontSize: 12, marginTop: 6, marginLeft: 2 },
 
-  forgotWrap: { alignSelf: 'flex-end', marginBottom: 28 },
+  forgotWrap: { alignSelf: 'flex-end', marginBottom: 32 },
   forgotText: { fontSize: 13, fontWeight: '600' },
 
-  btn:         { paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 24 },
+  btn: {
+    paddingVertical: 17,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 28,
+    // Glow
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
   btnDisabled: { opacity: 0.6 },
-  btnText:     { fontSize: 16, fontWeight: '700', color: '#403c30' },
+  btnText:     { fontSize: 16, fontWeight: '800', color: '#050508', letterSpacing: -0.2 },
 
   row:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   sub:  { fontSize: 14 },

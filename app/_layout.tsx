@@ -1,7 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useColorScheme } from 'react-native';
 import 'react-native-reanimated';
 
@@ -23,7 +23,20 @@ export default function RootLayout() {
 
   // Resolve effective scheme from our store
   const effective = mode === 'system' ? (system ?? 'dark') : mode;
-  const navTheme  = effective === 'dark' ? DarkTheme : DefaultTheme;
+
+  // Custom navigation themes with Liquid Glass backgrounds
+  const navTheme = useMemo(() => {
+    if (effective === 'dark') {
+      return {
+        ...DarkTheme,
+        colors: { ...DarkTheme.colors, background: '#050508', card: '#0C0C12', primary: '#00E5A0', text: '#F0F2F5', border: 'rgba(255,255,255,0.10)' },
+      };
+    }
+    return {
+      ...DefaultTheme,
+      colors: { ...DefaultTheme.colors, background: '#F2F3F7', card: '#E8E9EF', primary: '#00C78A', text: '#0A0A14', border: 'rgba(0,0,0,0.08)' },
+    };
+  }, [effective]);
 
   const [isReady, setIsReady] = useState(false);
   useEffect(() => { setIsReady(true); }, []);

@@ -6,6 +6,7 @@ import {
   forgotPasswordRequest,
   loginRequest,
   registerRequest,
+  resetPasswordRequest,
   toUserMessage,
 } from '@/services/auth';
 
@@ -19,6 +20,7 @@ type AuthStore = {
   logout: () => Promise<void>;
   clearError: () => void;
   forgotPassword: (email: string) => Promise<void>;
+  resetPassword: (accessToken: string, refreshToken: string, newPassword: string) => Promise<void>;
 };
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -56,6 +58,16 @@ export const useAuthStore = create<AuthStore>((set) => ({
     set({ isLoading: true, error: null });
     try {
       await forgotPasswordRequest(email);
+      set({ isLoading: false });
+    } catch (err) {
+      set({ isLoading: false, error: toUserMessage(err) });
+    }
+  },
+
+  resetPassword: async (accessToken, refreshToken, newPassword) => {
+    set({ isLoading: true, error: null });
+    try {
+      await resetPasswordRequest(accessToken, refreshToken, newPassword);
       set({ isLoading: false });
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });

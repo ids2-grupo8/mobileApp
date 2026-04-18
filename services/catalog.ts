@@ -1,5 +1,14 @@
 import { CATALOG } from '@/constants/api';
-import { request } from './http';
+import { ImageFile, request, requestFormData } from './http';
+
+export type CreateProductData = {
+  name: string;
+  description: string;
+  price: number;
+  actual_stock: number;
+  category: string;
+  images: ImageFile[];
+};
 
 export type CatalogProduct = {
   id: string;
@@ -15,63 +24,7 @@ export type CatalogProduct = {
 
 type RawProduct = Record<string, unknown>;
 
-const DEFAULT_IMAGE = 'https://picsum.photos/seed/bazaar-default/900/900';
-
-const FALLBACK_PRODUCTS: CatalogProduct[] = [
-  {
-    id: 'p1',
-    title: 'Auriculares Noise Cancelling X2',
-    price: 128000,
-    stock: 4,
-    imageUrl: 'https://picsum.photos/seed/bazaar-audio/900/900',
-    seller: 'TecnoHub',
-    category: 'Audio',
-    description: 'Auriculares over-ear con cancelacion activa de ruido y hasta 30h de bateria.',
-    isRecent: true,
-  },
-  {
-    id: 'p2',
-    title: 'Silla Ergonomica Pro Mesh',
-    price: 219000,
-    stock: 2,
-    imageUrl: 'https://picsum.photos/seed/bazaar-home/900/900',
-    seller: 'CasaLab',
-    category: 'Hogar',
-    description: 'Soporte lumbar regulable, apoyabrazos 3D y respaldo transpirable.',
-    isRecent: true,
-  },
-  {
-    id: 'p3',
-    title: 'Teclado Mecanico 75% RGB',
-    price: 89000,
-    stock: 9,
-    imageUrl: 'https://picsum.photos/seed/bazaar-gaming/900/900',
-    seller: 'GG Store',
-    category: 'Gaming',
-    description: 'Switches lineales hot-swap, keycaps PBT y conexion USB-C.',
-    isRecent: true,
-  },
-  {
-    id: 'p4',
-    title: 'Campera Urbana Unisex',
-    price: 67000,
-    stock: 6,
-    imageUrl: 'https://picsum.photos/seed/bazaar-fashion/900/900',
-    seller: 'ModoSur',
-    category: 'Moda',
-    description: 'Tela repelente al agua y corte relajado para uso diario.',
-  },
-  {
-    id: 'p6',
-    title: 'Lampara LED de Escritorio',
-    price: 25000,
-    stock: 13,
-    imageUrl: 'https://picsum.photos/seed/bazaar-lamp/900/900',
-    seller: 'CasaLab',
-    category: 'Hogar',
-    description: 'Luz regulable en tres temperaturas y base antideslizante.',
-  },
-];
+const DEFAULT_IMAGE = '';
 
 function asNumber(value: unknown): number {
   const n = typeof value === 'number' ? value : Number(value);
@@ -90,6 +43,12 @@ function pickImage(raw: RawProduct): string {
     asString(raw.photo_url);
 
   if (direct) return direct;
+
+  // product-service returns image_urls: string[]
+  const imageUrls = raw.image_urls;
+  if (Array.isArray(imageUrls) && imageUrls.length > 0 && typeof imageUrls[0] === 'string') {
+    return imageUrls[0];
+  }
 
   const images = raw.images;
   if (Array.isArray(images) && images.length > 0) {
@@ -116,28 +75,38 @@ function isRecentFromDate(raw: RawProduct): boolean {
 }
 
 function normalizeProduct(raw: RawProduct): CatalogProduct | null {
-  const id = asString(raw.id) || asString(raw.product_id) || asString(raw.uuid);
-  const title = asString(raw.title) || asString(raw.name);
+  // unwrap { data: {...} } wrapper returned by product-service list endpoint
+  const product = raw.data && typeof raw.data === 'object' ? (raw.data as RawProduct) : raw;
+
+  const id = asString(product.id) || asString(product._id) || asString(product.product_id) || asString(product.uuid);
+  const title = asString(product.title) || asString(product.name);
 
   if (!id || !title) return null;
 
-  const stock = asNumber(raw.stock ?? raw.quantity ?? raw.available_stock);
-  const enabledRaw = raw.enabled ?? raw.is_enabled ?? raw.active;
-  const enabled = typeof enabledRaw === 'boolean' ? enabledRaw : true;
+  // product-service uses actual_stock
+  const stock = asNumber(product.actual_stock ?? product.stock ?? product.quantity ?? product.available_stock);
+  const statusRaw = asString(product.status);
+  const enabledRaw = product.enabled ?? product.is_enabled ?? product.active;
+  const enabled =
+    statusRaw === 'disabled' || statusRaw === 'out_of_stock'
+      ? false
+      : typeof enabledRaw === 'boolean'
+        ? enabledRaw
+        : true;
 
-  const sellerObj = raw.seller && typeof raw.seller === 'object' ? (raw.seller as RawProduct) : null;
-  const categoryObj = raw.category && typeof raw.category === 'object' ? (raw.category as RawProduct) : null;
+  const sellerObj = product.seller && typeof product.seller === 'object' ? (product.seller as RawProduct) : null;
+  const categoryObj = product.category && typeof product.category === 'object' ? (product.category as RawProduct) : null;
 
   return {
     id,
     title,
-    price: asNumber(raw.price ?? raw.amount),
+    price: asNumber(product.price ?? product.amount),
     stock,
-    imageUrl: pickImage(raw),
-    seller: asString(sellerObj?.name ?? raw.seller_name ?? raw.seller) || 'Vendedor',
-    category: asString(categoryObj?.name ?? raw.category_name ?? raw.category) || 'General',
-    description: asString(raw.description) || undefined,
-    isRecent: isRecentFromDate(raw),
+    imageUrl: pickImage(product),
+    seller: asString(sellerObj?.name ?? product.seller_name ?? product.seller) || 'Vendedor',
+    category: asString(categoryObj?.name ?? product.category_name ?? product.category) || 'General',
+    description: asString(product.description) || undefined,
+    isRecent: isRecentFromDate(product),
     ...(enabled ? {} : { stock: 0 }),
   };
 }
@@ -164,13 +133,6 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
   return products.filter((p) => p.stock > 0);
 }
 
-export function getFallbackCatalogProducts(): CatalogProduct[] {
-  return filterVisible(FALLBACK_PRODUCTS);
-}
-
-export function findFallbackCatalogProductById(id: string): CatalogProduct | null {
-  return getFallbackCatalogProducts().find((p) => p.id === id) ?? null;
-}
 
 export async function fetchCatalogProducts(): Promise<CatalogProduct[]> {
   const payload = await request<unknown>(CATALOG('/products'), { method: 'GET', auth: false });
@@ -188,6 +150,38 @@ export async function fetchCatalogProducts(): Promise<CatalogProduct[]> {
 }
 
 export async function fetchCatalogProductById(id: string): Promise<CatalogProduct | null> {
-  const products = await fetchCatalogProducts();
-  return products.find((p) => p.id === id) ?? null;
+  // GET /products/{product_id}  — si falla, busca en el listado
+  try {
+    const raw = await request<RawProduct>(CATALOG(`/products/${encodeURIComponent(id)}`), {
+      method: 'GET',
+      auth: false,
+    });
+    return normalizeProduct(raw);
+  } catch {
+    try {
+      const all = await fetchCatalogProducts();
+      return all.find((p) => p.id === id) ?? null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+export async function createProductRequest(data: CreateProductData): Promise<void> {
+  // POST /products  — multipart/form-data: product_data (JSON string) + images (files)
+  const productData = JSON.stringify({
+    name: data.name,
+    description: data.description,
+    price: data.price,
+    actual_stock: data.actual_stock,
+    category: data.category,
+    status: 'available',
+  });
+
+  await requestFormData(CATALOG('/products'), {
+    method: 'POST',
+    fields: { product_data: productData },
+    images: data.images,
+    auth: true,
+  });
 }

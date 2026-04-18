@@ -1,10 +1,12 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Alert,
     Animated,
+    Dimensions,
     ScrollView,
     StyleSheet,
     Text,
@@ -17,10 +19,11 @@ import { useTheme } from '@/hooks/use-theme';
 import {
     type CatalogProduct,
     fetchCatalogProductById,
-    findFallbackCatalogProductById,
-    getFallbackCatalogProducts,
 } from '@/services/catalog';
 import { useCartStore } from '@/store/cart';
+
+const { width: SCREEN_W } = Dimensions.get('window');
+const HERO_H = SCREEN_W * 1.1;
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -29,6 +32,8 @@ function formatPrice(value: number) {
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonBox({
   width,
@@ -63,20 +68,77 @@ function SkeletonBox({
 
 function ProductDetailSkeleton({ topInset, base, bg }: { topInset: number; base: string; bg: string }) {
   return (
-    <View style={[s.root, { backgroundColor: bg, paddingTop: topInset }]}> 
-      <View style={s.skeletonContent}>
-        <SkeletonBox width={72} height={16} color={base} />
-        <SkeletonBox width="100%" height={290} borderRadius={20} color={base} />
-        <SkeletonBox width={90} height={28} borderRadius={14} color={base} />
-        <SkeletonBox width="92%" height={34} borderRadius={8} color={base} />
-        <SkeletonBox width={120} height={18} color={base} />
-        <SkeletonBox width={160} height={40} borderRadius={8} color={base} />
+    <View style={[s.root, { backgroundColor: bg }]}>
+      <SkeletonBox width="100%" height={HERO_H} borderRadius={0} color={base} />
+      <View style={[s.skeletonBody, { paddingTop: 20 }]}>
+        <SkeletonBox width={100} height={28} borderRadius={14} color={base} />
+        <SkeletonBox width="90%" height={30} borderRadius={8} color={base} />
+        <SkeletonBox width={140} height={16} color={base} />
+        <SkeletonBox width={180} height={38} borderRadius={8} color={base} />
         <SkeletonBox width="100%" height={120} borderRadius={16} color={base} />
-        <SkeletonBox width="100%" height={52} borderRadius={14} color={base} />
       </View>
     </View>
   );
 }
+
+// ─── Floating Glass Button ────────────────────────────────────────────────────
+
+function GlassButton({
+  icon,
+  onPress,
+  size = 44,
+}: {
+  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  onPress: () => void;
+  size?: number;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      style={[s.glassBtn, { width: size, height: size, borderRadius: size / 2 }]}
+      accessibilityRole="button">
+      <MaterialIcons name={icon} size={20} color="#F0F2F5" />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Related Product Row ──────────────────────────────────────────────────────
+
+function RelatedRow({
+  item,
+  onPress,
+  glass,
+  glassBorder,
+  textPrimary,
+  textSecondary,
+  accent,
+}: {
+  item: CatalogProduct;
+  onPress: () => void;
+  glass: string;
+  glassBorder: string;
+  textPrimary: string;
+  textSecondary: string;
+  accent: string;
+}) {
+  return (
+    <TouchableOpacity
+      style={[s.relatedRow, { backgroundColor: glass, borderColor: glassBorder }]}
+      onPress={onPress}
+      accessibilityRole="button">
+      <Image source={{ uri: item.imageUrl }} style={s.relatedImage} contentFit="cover" />
+      <View style={s.relatedBody}>
+        <Text style={[s.relatedTitle, { color: textPrimary }]} numberOfLines={2}>
+          {item.title}
+        </Text>
+        <Text style={[s.relatedPrice, { color: textSecondary }]}>{formatPrice(item.price)}</Text>
+      </View>
+      <MaterialIcons name="chevron-right" size={20} color={accent} />
+    </TouchableOpacity>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -103,25 +165,11 @@ export default function ProductDetailScreen() {
         const fromApi = await fetchCatalogProductById(productId);
         if (fromApi) {
           if (mounted) setProduct(fromApi);
-          return;
-        }
-
-        const fallback = findFallbackCatalogProductById(productId);
-        if (fallback && mounted) {
-          setProduct(fallback);
-          return;
-        }
-
-        if (mounted) {
+        } else if (mounted) {
           setError('No encontramos ese producto o ya no esta disponible.');
         }
       } catch {
-        const fallback = findFallbackCatalogProductById(productId);
-        if (fallback && mounted) {
-          setProduct(fallback);
-        } else if (mounted) {
-          setError('No pudimos cargar el detalle del producto.');
-        }
+        if (mounted) setError('No pudimos cargar el detalle del producto.');
       } finally {
         if (mounted) setLoading(false);
       }
@@ -140,12 +188,6 @@ export default function ProductDetailScreen() {
     };
   }, [productId]);
 
-  const related = useMemo(() => {
-    if (!product) return [];
-    return getFallbackCatalogProducts()
-      .filter((p) => p.category === product.category && p.id !== product.id)
-      .slice(0, 4);
-  }, [product]);
 
   if (loading) {
     return <ProductDetailSkeleton topInset={insets.top} bg={C.bg} base={C.skeletonBase} />;
@@ -153,236 +195,393 @@ export default function ProductDetailScreen() {
 
   if (error || !product) {
     return (
-      <View style={[s.loadingRoot, { backgroundColor: C.bg, paddingTop: insets.top }]}> 
+      <View style={[s.errorRoot, { backgroundColor: C.bg, paddingTop: insets.top }]}>
+        <MaterialIcons name="error-outline" size={48} color={C.textMuted} />
         <Text style={[s.errorText, { color: C.red }]}>{error ?? 'Producto no disponible.'}</Text>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={[s.backBtn, { borderColor: C.accent }]}
+          style={[s.errorBtn, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
           accessibilityRole="button">
-          <Text style={[s.backBtnText, { color: C.accent }]}>Volver</Text>
+          <Text style={[s.errorBtnText, { color: C.accent }]}>Volver</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}> 
+    <View style={[s.root, { backgroundColor: C.bg }]}>
       <ScrollView
-        contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 42 }]}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={s.backRow}
-          accessibilityRole="button">
-          <MaterialIcons name="arrow-back" size={18} color={C.textSecondary} />
-          <Text style={[s.backRowText, { color: C.textSecondary }]}>Volver</Text>
-        </TouchableOpacity>
 
-        <Image source={{ uri: product.imageUrl }} style={s.heroImage} contentFit="cover" />
+        {/* ── Hero Image — Full Bleed ── */}
+        <View style={s.heroWrap}>
+          <Image source={{ uri: product.imageUrl }} style={s.heroImage} contentFit="cover" />
 
-        <View style={s.metaRow}>
-          <View style={[s.categoryPill, { backgroundColor: C.accentBg, borderColor: C.accent }]}> 
-            <Text style={[s.categoryPillText, { color: C.accentText }]}>{product.category}</Text>
+          {/* Gradient mask — fuses image into background */}
+          <LinearGradient
+            colors={['transparent', 'transparent', C.bg]}
+            locations={[0, 0.55, 1]}
+            style={s.heroGradient}
+            pointerEvents="none"
+          />
+
+          {/* Floating glass buttons over image */}
+          <View style={[s.heroOverlay, { top: insets.top + 8 }]}>
+            <GlassButton icon="arrow-back" onPress={() => router.back()} />
+            <View style={s.heroOverlayRight}>
+              <GlassButton icon="share" onPress={() => {}} />
+              <GlassButton icon="favorite-border" onPress={() => {}} />
+            </View>
           </View>
-          <Text style={[s.stockText, { color: C.textSecondary }]}>Stock: {product.stock}</Text>
         </View>
 
-        <Text style={[s.title, { color: C.textPrimary }]}>{product.title}</Text>
-        <Text style={[s.seller, { color: C.textSecondary }]}>Vendido por {product.seller}</Text>
-        <Text style={[s.price, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
+        {/* ── Product Info ── */}
+        <View style={s.infoSection}>
+          {/* Category pill */}
+          <View style={[s.categoryPill, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
+            <Text style={[s.categoryPillText, { color: C.accent }]}>{product.category}</Text>
+          </View>
 
-        <View style={[s.descCard, { backgroundColor: C.card, borderColor: C.border }]}>
-          <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Descripcion</Text>
-          <Text style={[s.descText, { color: C.textSecondary }]}>
-            {product.description ?? 'Este producto no tiene descripcion cargada por el vendedor.'}
-          </Text>
+          <Text style={[s.productTitle, { color: C.textPrimary }]}>{product.title}</Text>
+
+          <View style={s.sellerRow}>
+            <View style={[s.sellerAvatar, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+              <MaterialIcons name="storefront" size={14} color={C.accent} />
+            </View>
+            <Text style={[s.sellerName, { color: C.textSecondary }]}>{product.seller}</Text>
+            <View style={s.sellerDot} />
+            <Text style={[s.stockLabel, { color: C.textMuted }]}>Stock: {product.stock}</Text>
+          </View>
+
+          <Text style={[s.price, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
         </View>
 
-        <TouchableOpacity
-          style={[s.buyBtn, { backgroundColor: C.accent }]}
-          onPress={async () => {
-            if (!product || adding) return;
-            setAdding(true);
-            try {
-              await addItem(product, 1);
-              Alert.alert('Carrito', 'Producto agregado al carrito.');
-            } finally {
-              setAdding(false);
-            }
-          }}
-          accessibilityRole="button">
-          <MaterialIcons name="add-shopping-cart" size={18} color="#0b0b0f" />
-          <Text style={s.buyBtnText}>{adding ? 'Agregando...' : 'Agregar al carrito'}</Text>
-        </TouchableOpacity>
-
-        {related.length > 0 ? (
-          <View style={s.relatedWrap}>
-            <Text style={[s.sectionTitle, { color: C.textPrimary }]}>Relacionados</Text>
-            {related.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={[s.relatedRow, { backgroundColor: C.card, borderColor: C.border }]}
-                onPress={() => router.replace(`/product/${item.id}`)}
-                accessibilityRole="button">
-                <Image source={{ uri: item.imageUrl }} style={s.relatedImage} contentFit="cover" />
-                <View style={s.relatedBody}>
-                  <Text style={[s.relatedTitle, { color: C.textPrimary }]} numberOfLines={2}>
-                    {item.title}
-                  </Text>
-                  <Text style={[s.relatedPrice, { color: C.textSecondary }]}>{formatPrice(item.price)}</Text>
-                </View>
-                <MaterialIcons name="chevron-right" size={20} color={C.accent} />
-              </TouchableOpacity>
-            ))}
+        {/* ── Description card — glass ── */}
+        <View style={s.descSection}>
+          <View style={[s.descCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+            <Text style={[s.descTitle, { color: C.textPrimary }]}>Descripción</Text>
+            <Text style={[s.descText, { color: C.textSecondary }]}>
+              {product.description ?? 'Este producto no tiene descripcion cargada por el vendedor.'}
+            </Text>
+            {/* Glass edge highlight */}
+            <LinearGradient
+              colors={['rgba(255,255,255,0.10)', 'transparent', 'transparent']}
+              locations={[0, 0.2, 1]}
+              style={s.descGlassEdge}
+              pointerEvents="none"
+            />
           </View>
-        ) : null}
+        </View>
+
       </ScrollView>
+
+      {/* ── Sticky Action Bar — Liquid Glass ── */}
+      <View style={[s.actionBar, { paddingBottom: insets.bottom + 8 }]}>
+        <LinearGradient
+          colors={['transparent', C.bg]}
+          locations={[0, 0.35]}
+          style={s.actionBarGradient}
+          pointerEvents="none"
+        />
+        <View style={[s.actionBarInner, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+          <View style={s.actionBarLeft}>
+            <Text style={[s.actionBarLabel, { color: C.textSecondary }]}>Precio</Text>
+            <Text style={[s.actionBarPrice, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
+          </View>
+          <TouchableOpacity
+            style={[s.actionBtn, { backgroundColor: C.accent, shadowColor: C.accent }]}
+            onPress={async () => {
+              if (!product || adding) return;
+              setAdding(true);
+              try {
+                await addItem(product, 1);
+                Alert.alert('Carrito', 'Producto agregado al carrito.');
+              } finally {
+                setAdding(false);
+              }
+            }}
+            accessibilityRole="button">
+            <MaterialIcons name="add-shopping-cart" size={18} color="#050508" />
+            <Text style={s.actionBtnText}>{adding ? 'Agregando...' : 'Agregar'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const s = StyleSheet.create({
   root: { flex: 1 },
-  content: {
+
+  // ── Skeleton ──
+  skeletonBody: {
     paddingHorizontal: 20,
-    paddingTop: 12,
+    gap: 14,
   },
-  skeletonContent: {
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    gap: 12,
-  },
-  loadingRoot: {
+
+  // ── Error ──
+  errorRoot: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    paddingHorizontal: 24,
-  },
-  loadingText: {
-    fontSize: 14,
+    gap: 16,
+    paddingHorizontal: 32,
   },
   errorText: {
     fontSize: 15,
     lineHeight: 22,
     textAlign: 'center',
-    marginBottom: 16,
   },
-  backBtn: {
+  errorBtn: {
     borderWidth: 1,
     borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
   },
-  backBtnText: {
+  errorBtnText: {
     fontSize: 14,
     fontWeight: '700',
   },
-  backRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 12,
-  },
-  backRowText: {
-    fontSize: 14,
-    fontWeight: '500',
+
+  // ── Hero ──
+  heroWrap: {
+    position: 'relative',
+    height: HERO_H,
   },
   heroImage: {
     width: '100%',
-    height: 290,
-    borderRadius: 20,
-    marginBottom: 14,
+    height: '100%',
   },
-  metaRow: {
+  heroGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: HERO_H * 0.55,
+  },
+  heroOverlay: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center',
+  },
+  heroOverlayRight: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+
+  // ── Glass floating button ──
+  glassBtn: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // Glass shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+
+  // ── Info ──
+  infoSection: {
+    paddingHorizontal: 20,
+    marginTop: -40,
+    gap: 6,
   },
   categoryPill: {
+    alignSelf: 'flex-start',
     borderWidth: 1,
     borderRadius: 999,
-    paddingHorizontal: 10,
+    paddingHorizontal: 14,
     paddingVertical: 6,
+    marginBottom: 4,
   },
   categoryPillText: {
     fontSize: 12,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  stockText: {
-    fontSize: 12,
-  },
-  title: {
-    fontSize: 26,
-    lineHeight: 32,
+  productTitle: {
+    fontSize: 28,
+    lineHeight: 34,
     fontWeight: '800',
-    marginBottom: 6,
+    letterSpacing: -0.5,
   },
-  seller: {
+  sellerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  sellerAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellerName: {
     fontSize: 13,
-    marginBottom: 10,
+    fontWeight: '500',
+  },
+  sellerDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  stockLabel: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   price: {
-    fontSize: 30,
+    fontSize: 32,
     fontWeight: '800',
-    marginBottom: 14,
+    letterSpacing: -0.5,
+    marginTop: 8,
+  },
+
+  // ── Description ──
+  descSection: {
+    paddingHorizontal: 20,
+    marginTop: 20,
   },
   descCard: {
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
+    borderRadius: 20,
+    padding: 18,
+    overflow: 'hidden',
   },
-  sectionTitle: {
+  descTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 8,
+    marginBottom: 10,
+    letterSpacing: -0.2,
   },
   descText: {
     fontSize: 14,
-    lineHeight: 20,
+    lineHeight: 22,
   },
-  buyBtn: {
-    height: 52,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 24,
+  descGlassEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 40,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
   },
-  buyBtnText: {
-    color: '#0b0b0f',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  relatedWrap: {
+
+  // ── Related ──
+  relatedSection: {
+    paddingHorizontal: 20,
+    marginTop: 24,
     gap: 10,
+  },
+  relatedSectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+    marginBottom: 4,
   },
   relatedRow: {
     borderWidth: 1,
-    borderRadius: 14,
+    borderRadius: 16,
     padding: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
   relatedImage: {
-    width: 58,
-    height: 58,
-    borderRadius: 10,
+    width: 60,
+    height: 60,
+    borderRadius: 12,
   },
   relatedBody: {
     flex: 1,
   },
   relatedTitle: {
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: 3,
+    letterSpacing: -0.1,
   },
   relatedPrice: {
-    fontSize: 12,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // ── Sticky Action Bar ──
+  actionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  actionBarGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -40,
+    height: 40,
+  },
+  actionBarInner: {
+    marginHorizontal: 16,
+    borderWidth: 1,
+    borderRadius: 22,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingLeft: 20,
+    paddingRight: 6,
+    paddingVertical: 6,
+    // Glass shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  actionBarLeft: {
+    gap: 2,
+  },
+  actionBarLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
+  },
+  actionBarPrice: {
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    // Accent glow shadow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  actionBtnText: {
+    color: '#050508',
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.2,
   },
 });

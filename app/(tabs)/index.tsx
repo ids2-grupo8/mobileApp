@@ -1,9 +1,11 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
+    Animated,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -18,7 +20,6 @@ import { useTheme } from '@/hooks/use-theme';
 import {
     type CatalogProduct,
     fetchCatalogProducts,
-    getFallbackCatalogProducts,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -33,60 +34,111 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
+// ─── Liquid Glass Product Card ────────────────────────────────────────────────
+
 function ProductCard({
   product,
   onPress,
   compact = false,
   accent,
+  accentGlow,
   textPrimary,
   textSecondary,
-  card,
-  border,
-  muted,
+  glass,
+  glassBorder,
+  shadowAccent,
 }: {
   product: CatalogProduct;
   onPress: () => void;
   compact?: boolean;
   accent: string;
+  accentGlow: string;
   textPrimary: string;
   textSecondary: string;
-  card: string;
-  border: string;
-  muted: string;
+  glass: string;
+  glassBorder: string;
+  shadowAccent: string;
 }) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.spring(scale, {
+      toValue: 0.97,
+      useNativeDriver: true,
+      damping: 15,
+      stiffness: 300,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.spring(scale, {
+      toValue: 1,
+      useNativeDriver: true,
+      damping: 12,
+      stiffness: 200,
+    }).start();
+  };
+
   return (
-    <TouchableOpacity
-      onPress={onPress}
-      accessibilityRole="button"
-      style={[
-        s.productCard,
-        {
-          width: compact ? 240 : '100%',
-          backgroundColor: card,
-          borderColor: border,
-        },
-      ]}>
-      <Image source={{ uri: product.imageUrl }} style={s.productImage} contentFit="cover" />
-
-      <View style={s.productBody}>
-        <View style={s.productTopRow}>
-          <Text style={[s.productCategory, { color: accent }]}>{product.category}</Text>
-          <Text style={[s.stock, { color: muted }]}>Stock: {product.stock}</Text>
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+        accessibilityRole="button"
+        style={[
+          s.productCard,
+          {
+            width: compact ? 220 : '100%',
+            backgroundColor: glass,
+            borderColor: glassBorder,
+            shadowColor: shadowAccent,
+          },
+        ]}>
+        {/* Image — edge-to-edge */}
+        <View style={s.productImageWrap}>
+          <Image source={{ uri: product.imageUrl }} style={s.productImage} contentFit="cover" />
+          {/* Category badge floating on image */}
+          <View style={[s.categoryBadge, { backgroundColor: 'rgba(0,0,0,0.55)', borderColor: 'rgba(255,255,255,0.12)' }]}>
+            <Text style={[s.categoryBadgeText, { color: accent }]}>{product.category}</Text>
+          </View>
         </View>
 
-        <Text numberOfLines={2} style={[s.productTitle, { color: textPrimary }]}>
-          {product.title}
-        </Text>
-        <Text style={[s.productSeller, { color: textSecondary }]}>Vendido por {product.seller}</Text>
+        {/* Glass body */}
+        <View style={s.productBody}>
+          <Text numberOfLines={2} style={[s.productTitle, { color: textPrimary }]}>
+            {product.title}
+          </Text>
+          <Text style={[s.productSeller, { color: textSecondary }]}>
+            {product.seller}
+          </Text>
 
-        <View style={s.productBottomRow}>
-          <Text style={[s.productPrice, { color: textPrimary }]}>{formatPrice(product.price)}</Text>
-          <MaterialIcons name="chevron-right" size={20} color={accent} />
+          <View style={s.productBottomRow}>
+            <Text style={[s.productPrice, { color: textPrimary }]}>
+              {formatPrice(product.price)}
+            </Text>
+            <View style={[s.stockPill, { backgroundColor: accentGlow }]}>
+              <Text style={[s.stockText, { color: accent }]}>
+                {product.stock} disp.
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
-    </TouchableOpacity>
+
+        {/* Glass edge highlight — top light refraction */}
+        <LinearGradient
+          colors={['rgba(255,255,255,0.12)', 'transparent', 'transparent']}
+          locations={[0, 0.3, 1]}
+          style={s.cardGlassEdge}
+          pointerEvents="none"
+        />
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
+
+// ─── Home Screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -99,7 +151,6 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryFilter>('Todos');
 
@@ -113,19 +164,12 @@ export default function HomeScreen() {
 
   const loadProducts = async () => {
     setError(null);
-    setNotice(null);
     try {
       const fromApi = await fetchCatalogProducts();
       setProducts(fromApi);
     } catch {
-      const fallback = getFallbackCatalogProducts();
-      if (fallback.length > 0) {
-        setProducts(fallback);
-        setNotice('Mostrando catálogo temporal mientras se conecta el backend de productos.');
-      } else {
-        setProducts([]);
-        setError('No pudimos cargar productos. Intentá de nuevo.');
-      }
+      setProducts([]);
+      setError('No pudimos cargar productos. Intentá de nuevo.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -161,7 +205,7 @@ export default function HomeScreen() {
   return (
     <View style={[s.root, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
       <ScrollView
-        contentContainerStyle={[s.scrollContent, { paddingBottom: insets.bottom + 108 }]}
+        contentContainerStyle={[s.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 140 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -173,40 +217,50 @@ export default function HomeScreen() {
             tintColor={theme.accent}
           />
         }>
+
+        {/* ── Header ── */}
         <View style={s.header}>
-          <View>
-            <Text style={[s.greeting, { color: theme.textSecondary }]}>Hola{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</Text>
-            <Text style={[s.title, { color: theme.textPrimary }]}>Descubrí productos recientes</Text>
+          <View style={s.headerLeft}>
+            <Text style={[s.greeting, { color: theme.textSecondary }]}>
+              Hola{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
+            </Text>
+            <Text style={[s.title, { color: theme.textPrimary }]}>
+              Explorar
+            </Text>
           </View>
-          <TouchableOpacity
-            accessibilityRole="button"
-            style={[s.sellBtn, { borderColor: theme.accent }]}
-            onPress={createPublication}>
-            <MaterialIcons name="add" size={16} color={theme.accent} />
-            <Text style={[s.sellBtnText, { color: theme.accent }]}>Publicar</Text>
-            {cartCount > 0 ? (
-              <View style={[s.cartBadge, { backgroundColor: theme.accent }]}> 
-                <Text style={s.cartBadgeText}>{cartCount}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
+          <View style={s.headerRight}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+              onPress={createPublication}>
+              <MaterialIcons name="add" size={20} color={theme.accent} />
+            </TouchableOpacity>
+          </View>
         </View>
 
+        {/* ── Search bar — glass material ── */}
         <View
           style={[
             s.searchWrap,
-            { backgroundColor: theme.inputBg, borderColor: theme.inputBorder },
+            { backgroundColor: theme.glass, borderColor: theme.glassBorder },
           ]}>
           <MaterialIcons name="search" size={20} color={theme.textMuted} />
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Buscar por producto o vendedor"
+            placeholder="Buscar productos, vendedores..."
             placeholderTextColor={theme.textMuted}
             style={[s.searchInput, { color: theme.textPrimary }]}
+            selectionColor={theme.accent}
           />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => setQuery('')}>
+              <MaterialIcons name="close" size={18} color={theme.textMuted} />
+            </TouchableOpacity>
+          )}
         </View>
 
+        {/* ── Category chips — glass floating ── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -221,14 +275,14 @@ export default function HomeScreen() {
                 style={[
                   s.categoryChip,
                   {
-                    backgroundColor: active ? theme.accentBg : theme.card,
-                    borderColor: active ? theme.accent : theme.border,
+                    backgroundColor: active ? theme.accentGlow : theme.glass,
+                    borderColor: active ? theme.accent : theme.glassBorder,
                   },
                 ]}>
                 <Text
                   style={[
                     s.categoryText,
-                    { color: active ? theme.accentText : theme.textSecondary },
+                    { color: active ? theme.accent : theme.textSecondary },
                   ]}>
                   {item}
                 </Text>
@@ -237,62 +291,75 @@ export default function HomeScreen() {
           })}
         </ScrollView>
 
-        {notice ? (
-          <View style={[s.noticeBox, { backgroundColor: theme.accentBg, borderColor: theme.accent }]}> 
-            <Text style={[s.noticeText, { color: theme.accentText }]}>{notice}</Text>
-          </View>
-        ) : null}
-
+        {/* ── Content ── */}
         {loading ? (
           <View style={s.loadingWrap}>
             <ActivityIndicator color={theme.accent} size="large" />
             <Text style={[s.loadingText, { color: theme.textSecondary }]}>Cargando catálogo...</Text>
           </View>
         ) : error ? (
-          <View style={[s.errorBox, { backgroundColor: theme.redBg, borderColor: theme.inputBorderError }]}>
+          <View style={[s.errorBox, { backgroundColor: theme.redBg, borderColor: theme.red }]}>
+            <MaterialIcons name="error-outline" size={20} color={theme.red} />
             <Text style={[s.errorText, { color: theme.red }]}>{error}</Text>
-            <TouchableOpacity onPress={loadProducts} style={s.retryBtn}>
-              <Text style={[s.retryText, { color: theme.accentText }]}>Reintentar</Text>
+            <TouchableOpacity
+              onPress={loadProducts}
+              style={[s.retryBtn, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
+              <Text style={[s.retryText, { color: theme.accent }]}>Reintentar</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            <View style={s.sectionHeader}>
-              <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Recientes</Text>
-            </View>
+            {/* ── Recent Products — horizontal scroll ── */}
+            {recentProducts.length > 0 && (
+              <>
+                <View style={s.sectionHeader}>
+                  <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
+                    Recientes
+                  </Text>
+                  <View style={[s.sectionLine, { backgroundColor: theme.glassBorder }]} />
+                </View>
 
-            {recentProducts.length === 0 ? (
-              <Text style={[s.emptyText, { color: theme.textSecondary }]}>No hay productos recientes para estos filtros.</Text>
-            ) : (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.recentRow}>
-                {recentProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    compact
-                    onPress={() => openProduct(product)}
-                    accent={theme.accent}
-                    textPrimary={theme.textPrimary}
-                    textSecondary={theme.textSecondary}
-                    card={theme.card}
-                    border={theme.border}
-                    muted={theme.textMuted}
-                  />
-                ))}
-              </ScrollView>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.recentRow}>
+                  {recentProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      compact
+                      onPress={() => openProduct(product)}
+                      accent={theme.accent}
+                      accentGlow={theme.accentGlow}
+                      textPrimary={theme.textPrimary}
+                      textSecondary={theme.textSecondary}
+                      glass={theme.glass}
+                      glassBorder={theme.glassBorder}
+                      shadowAccent={theme.shadowAccent}
+                    />
+                  ))}
+                </ScrollView>
+              </>
             )}
 
+            {/* ── All products — vertical list ── */}
             <View style={s.sectionHeader}>
-              <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Todos los productos</Text>
-              <Text style={[s.sectionMeta, { color: theme.textSecondary }]}>{filteredProducts.length} resultados</Text>
+              <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
+                Todos los productos
+              </Text>
+              <Text style={[s.sectionMeta, { color: theme.textMuted }]}>
+                {filteredProducts.length}
+              </Text>
             </View>
 
             <View style={s.listWrap}>
               {filteredProducts.length === 0 ? (
-                <Text style={[s.emptyText, { color: theme.textSecondary }]}>No encontramos productos para tu búsqueda.</Text>
+                <View style={s.emptyWrap}>
+                  <MaterialIcons name="search-off" size={40} color={theme.textMuted} />
+                  <Text style={[s.emptyText, { color: theme.textSecondary }]}>
+                    No encontramos productos para tu búsqueda.
+                  </Text>
+                </View>
               ) : (
                 filteredProducts.map((product) => (
                   <ProductCard
@@ -300,11 +367,12 @@ export default function HomeScreen() {
                     product={product}
                     onPress={() => openProduct(product)}
                     accent={theme.accent}
+                    accentGlow={theme.accentGlow}
                     textPrimary={theme.textPrimary}
                     textSecondary={theme.textSecondary}
-                    card={theme.card}
-                    border={theme.border}
-                    muted={theme.textMuted}
+                    glass={theme.glass}
+                    glassBorder={theme.glassBorder}
+                    shadowAccent={theme.shadowAccent}
                   />
                 ))
               )}
@@ -316,190 +384,247 @@ export default function HomeScreen() {
   );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const s = StyleSheet.create({
   root: { flex: 1 },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 20,
   },
+
+  // ── Header ──
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 18,
+    marginBottom: 22,
   },
+  headerLeft: { flex: 1 },
+  headerRight: { flexDirection: 'row', gap: 10 },
   greeting: {
-    fontSize: 13,
+    fontSize: 14,
+    fontWeight: '500',
     marginBottom: 4,
+    letterSpacing: 0.2,
   },
   title: {
-    fontSize: 26,
-    fontWeight: '700',
-    lineHeight: 32,
-    maxWidth: 240,
+    fontSize: 34,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
-  sellBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  headerBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
-    borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  sellBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  cartBadge: {
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 5,
+    // Subtle glass shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
-  cartBadgeText: {
-    color: '#0b0b0f',
-    fontSize: 10,
-    fontWeight: '800',
-  },
+
+  // ── Search ──
   searchWrap: {
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 12,
+    borderRadius: 16,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 14,
+    gap: 10,
+    marginBottom: 16,
+    height: 50,
+    // Glass shadow
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
-    height: 46,
     fontSize: 15,
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
+
+  // ── Categories ──
   categoryRow: {
-    paddingBottom: 10,
+    paddingBottom: 16,
     gap: 8,
   },
   categoryChip: {
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 9,
   },
   categoryText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  noticeBox: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginBottom: 6,
-  },
-  noticeText: {
     fontSize: 13,
-    lineHeight: 18,
-    fontWeight: '500',
+    fontWeight: '600',
+    letterSpacing: 0.2,
   },
+
+  // ── Loading ──
   loadingWrap: {
-    paddingVertical: 40,
+    paddingVertical: 60,
     alignItems: 'center',
-    gap: 10,
+    gap: 14,
   },
   loadingText: {
     fontSize: 14,
+    fontWeight: '500',
   },
+
+  // ── Error ──
   errorBox: {
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: 16,
+    padding: 20,
     marginTop: 12,
+    alignItems: 'center',
+    gap: 10,
   },
   errorText: {
     fontSize: 14,
     lineHeight: 20,
+    textAlign: 'center',
   },
   retryBtn: {
-    alignSelf: 'flex-start',
-    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    marginTop: 4,
   },
   retryText: {
     fontSize: 13,
     fontWeight: '700',
   },
+
+  // ── Sections ──
   sectionHeader: {
-    marginTop: 12,
-    marginBottom: 10,
+    marginTop: 8,
+    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 12,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
+    letterSpacing: -0.3,
+  },
+  sectionLine: {
+    flex: 1,
+    height: 1,
   },
   sectionMeta: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
+
+  // ── Product lists ──
   recentRow: {
-    gap: 10,
-    paddingBottom: 4,
+    gap: 12,
+    paddingBottom: 8,
+    paddingRight: 4,
   },
   listWrap: {
-    gap: 10,
+    gap: 14,
   },
+
+  // ── Product Card ──
   productCard: {
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 20,
     overflow: 'hidden',
+    // Spatial shadow
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 1,
+    shadowRadius: 24,
+    elevation: 8,
+  },
+  productImageWrap: {
+    position: 'relative',
   },
   productImage: {
     width: '100%',
-    height: 140,
+    height: 160,
   },
-  productBody: {
-    padding: 12,
+  categoryBadge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  productTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  productCategory: {
+  categoryBadgeText: {
     fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.3,
   },
-  stock: {
-    fontSize: 11,
+  productBody: {
+    padding: 14,
+    gap: 4,
   },
   productTitle: {
     fontSize: 15,
     fontWeight: '700',
     lineHeight: 20,
-    marginBottom: 6,
+    letterSpacing: -0.2,
   },
   productSeller: {
     fontSize: 12,
-    marginBottom: 10,
+    fontWeight: '500',
+    marginBottom: 6,
   },
   productBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginTop: 2,
   },
   productPrice: {
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.3,
+  },
+  stockPill: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  stockText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  cardGlassEdge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+
+  // ── Empty state ──
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    gap: 12,
   },
   emptyText: {
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 4,
+    textAlign: 'center',
   },
 });

@@ -83,3 +83,58 @@ export async function request<T = unknown>(
 
   return json as T;
 }
+
+export type ImageFile = {
+  uri: string;
+  name: string;
+  type: string;
+};
+
+export async function requestFormData<T = unknown>(
+  url: string,
+  {
+    method = 'POST',
+    fields,
+    images,
+    auth = true,
+  }: {
+    method?: 'POST' | 'PUT' | 'PATCH';
+    fields: Record<string, string>;
+    images: ImageFile[];
+    auth?: boolean;
+  }
+): Promise<T> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+
+  if (auth) {
+    const token = await getAccessToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const formData = new FormData();
+  for (const [key, value] of Object.entries(fields)) {
+    formData.append(key, value);
+  }
+  for (const img of images) {
+    formData.append('images', { uri: img.uri, name: img.name, type: img.type } as unknown as Blob);
+  }
+
+  const res = await fetch(url, { method, headers, body: formData });
+
+  const text = await res.text();
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = { message: text };
+  }
+
+  if (!res.ok) {
+    console.error(`[API] ${method} ${url} → ${res.status}`, JSON.stringify(json));
+    const j = json as { message?: string; error?: string; detail?: string; title?: string };
+    const message = j.detail ?? j.message ?? j.error ?? j.title ?? `Error ${res.status}`;
+    throw new ApiError(res.status, message, json);
+  }
+
+  return json as T;
+}

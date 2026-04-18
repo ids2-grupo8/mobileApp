@@ -32,10 +32,10 @@ export default function LandingScreen() {
         </View>
       </View>
 
-      {/* Gradient overlay */}
+      {/* Gradient overlay — deeper, more cinematic */}
       <LinearGradient
-        colors={['transparent', 'rgba(11,11,15,0.6)', '#0b0b0f']}
-        locations={[0, 0.45, 0.78]}
+        colors={['transparent', 'rgba(5,5,8,0.5)', 'rgba(5,5,8,0.85)', '#050508']}
+        locations={[0, 0.35, 0.6, 0.82]}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
@@ -65,7 +65,7 @@ export default function LandingScreen() {
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0b0b0f' },
+  container: { flex: 1, backgroundColor: '#050508' },
 
   grid:        { flex: 1, flexDirection: 'row', gap: 3 },
   imgLeft:     { width: W * 0.5 - 1.5, height: H },
@@ -83,13 +83,42 @@ const s = StyleSheet.create({
     paddingHorizontal: 28,
     alignItems: 'center',
   },
-  brand:   { fontSize: 40, fontWeight: '800', color: '#f3f4f6', letterSpacing: 1, marginBottom: 6 },
-  tagline: { fontSize: 15, color: '#9ca3af', marginBottom: 36, letterSpacing: 0.3 },
+  brand: {
+    fontSize: 44,
+    fontWeight: '800',
+    color: '#F0F2F5',
+    letterSpacing: -0.5,
+    marginBottom: 6,
+  },
+  tagline: {
+    fontSize: 15,
+    color: '#7A7F94',
+    marginBottom: 40,
+    letterSpacing: 0.3,
+  },
 
-  btn:     { width: '100%', backgroundColor: '#18acb4', paddingVertical: 16, borderRadius: 14, alignItems: 'center', marginBottom: 18 },
-  btnText: { fontSize: 16, fontWeight: '700', color: '#0b0b0f' },
+  btn: {
+    width: '100%',
+    backgroundColor: '#00E5A0',
+    paddingVertical: 17,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+    // Accent glow
+    shadowColor: '#00E5A0',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  btnText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#050508',
+    letterSpacing: -0.2,
+  },
 
   row:  { flexDirection: 'row', alignItems: 'center' },
-  sub:  { fontSize: 14, color: '#9ca3af' },
-  link: { fontSize: 14, color: '#18acb4', fontWeight: '600' },
+  sub:  { fontSize: 14, color: '#7A7F94' },
+  link: { fontSize: 14, color: '#00E5A0', fontWeight: '600' },
 });
