@@ -372,60 +372,24 @@ export default function ResetPasswordScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const s = StyleSheet.create({
-  root: { flex: 1 },
-  flex: { flex: 1 },
-  content: { paddingHorizontal: 28, paddingTop: 16 },
-  center: { flex: 1, paddingHorizontal: 28, paddingTop: 32 },
-
-  back: { marginBottom: 32 },
-  backText: { fontSize: 15 },
-
-  brand: { fontSize: 28, fontWeight: "800", marginBottom: 28 },
-  title: { fontSize: 28, fontWeight: "700", lineHeight: 36, marginBottom: 12 },
-  subtitle: { fontSize: 15, lineHeight: 22, marginBottom: 32 },
-
-  serverError: {
-    borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 20,
-  },
-  serverErrorText: { fontSize: 14, lineHeight: 20 },
-
-  field: { marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: "600", marginBottom: 8 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-  },
+  root: { flex: 1 }, flex: { flex: 1 },
+  content: { flex: 1, paddingHorizontal: 28, paddingTop: 16 },
+  backBtn: { marginBottom: 32 },
+  backCircle: { width: 44, height: 44, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  brand: { fontSize: 28, fontWeight: '800', marginBottom: 32, letterSpacing: -0.3 },
+  title: { fontSize: 30, fontWeight: '800', lineHeight: 38, marginBottom: 12, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, lineHeight: 22, marginBottom: 36 },
+  field: { marginBottom: 24 },
+  label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
+  inputWrap: { borderWidth: 1, borderRadius: 14, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, gap: 10, height: 52 },
+  input: { flex: 1, fontSize: 16, height: '100%' },
   errorText: { fontSize: 12, marginTop: 6 },
-
-  btn: {
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginTop: 8,
-  },
+  errorBox: { borderWidth: 1, borderRadius: 14, padding: 14, marginBottom: 24, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  errorBoxText: { fontSize: 14, lineHeight: 20, flex: 1 },
+  btn: { paddingVertical: 17, borderRadius: 16, alignItems: 'center', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8 },
   btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 16, fontWeight: "700", color: "#403c30" },
-
-  // Success / error full-screen states
-  successBox: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 20,
-    marginBottom: 32,
-  },
-  successTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
-  successText: { fontSize: 15, lineHeight: 22 },
-
-  errorBox: { borderWidth: 1, borderRadius: 14, padding: 20, marginBottom: 32 },
-  errorBoxTitle: { fontSize: 18, fontWeight: "700", marginBottom: 8 },
-  errorBoxText: { fontSize: 15, lineHeight: 22 },
+  btnText: { fontSize: 16, fontWeight: '800', color: '#050508' },
+  successBox: { borderWidth: 1, borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  successText: { fontSize: 15, lineHeight: 22, flex: 1, fontWeight: '500' },
 });

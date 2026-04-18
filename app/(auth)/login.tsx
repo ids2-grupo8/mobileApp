@@ -34,12 +34,11 @@ export default function LoginScreen() {
   const C = useTheme();
   const { login, googleLogin, isLoading, error, clearError } = useAuthStore();
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>(
-    {},
-  );
-  const [touched, setTouched] = useState({ email: false, password: false });
+  const [email, setEmail]       = useState('');
+  const [password, setPassword] = useState('');
+  const [errors, setErrors]     = useState<{ email?: string; password?: string }>({});
+  const [touched, setTouched]   = useState({ email: false, password: false });
+  const [showPass, setShowPass] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
@@ -99,21 +98,17 @@ export default function LoginScreen() {
             { paddingBottom: insets.bottom + 32 },
           ]}
           keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <Text style={[s.brand, { color: C.accentText }]}>Bazaar</Text>
+          showsVerticalScrollIndicator={false}>
+
+          <Text style={[s.brand, { color: C.accent }]}>Bazaar</Text>
           <Text style={[s.title, { color: C.textPrimary }]}>Iniciá sesión</Text>
           <Text style={[s.subtitle, { color: C.textSecondary }]}>
             Bienvenido de nuevo
           </Text>
 
           {error ? (
-            <View
-              style={[
-                s.serverError,
-                { backgroundColor: C.redBg, borderColor: C.inputBorderError },
-              ]}
-            >
+            <View style={[s.serverError, { backgroundColor: C.redBg, borderColor: C.red }]}>
+              <MaterialIcons name="error-outline" size={18} color={C.red} />
               <Text style={[s.serverErrorText, { color: C.red }]}>{error}</Text>
             </View>
           ) : null}
@@ -121,31 +116,25 @@ export default function LoginScreen() {
           {/* Email */}
           <View style={s.field}>
             <Text style={[s.label, { color: C.textSecondary }]}>Email</Text>
-            <TextInput
-              style={[
-                s.input,
-                {
-                  backgroundColor: C.inputBg,
-                  borderColor: C.inputBorder,
-                  color: C.textPrimary,
-                },
-                touched.email && errors.email
-                  ? { borderColor: C.inputBorderError }
-                  : null,
-              ]}
-              value={email}
-              onChangeText={(v) => {
-                setEmail(v);
-                if (touched.email) setErrors(validate(v, password));
-              }}
-              onBlur={() => handleBlur("email")}
-              placeholder="tu@email.com"
-              placeholderTextColor={C.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-            />
+            <View style={[
+              s.inputWrap,
+              { backgroundColor: C.glass, borderColor: touched.email && errors.email ? C.inputBorderError : C.glassBorder },
+            ]}>
+              <MaterialIcons name="mail-outline" size={18} color={C.textMuted} />
+              <TextInput
+                style={[s.input, { color: C.textPrimary }]}
+                value={email}
+                onChangeText={(v) => { setEmail(v); if (touched.email) setErrors(validate(v, password)); }}
+                onBlur={() => handleBlur('email')}
+                placeholder="tu@email.com"
+                placeholderTextColor={C.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                selectionColor={C.accent}
+              />
+            </View>
             {touched.email && errors.email ? (
               <Text style={[s.errorText, { color: C.red }]}>
                 {errors.email}
@@ -155,33 +144,28 @@ export default function LoginScreen() {
 
           {/* Password */}
           <View style={s.field}>
-            <Text style={[s.label, { color: C.textSecondary }]}>
-              Contraseña
-            </Text>
-            <TextInput
-              style={[
-                s.input,
-                {
-                  backgroundColor: C.inputBg,
-                  borderColor: C.inputBorder,
-                  color: C.textPrimary,
-                },
-                touched.password && errors.password
-                  ? { borderColor: C.inputBorderError }
-                  : null,
-              ]}
-              value={password}
-              onChangeText={(v) => {
-                setPassword(v);
-                if (touched.password) setErrors(validate(email, v));
-              }}
-              onBlur={() => handleBlur("password")}
-              placeholder="Mínimo 8 caracteres"
-              placeholderTextColor={C.textMuted}
-              secureTextEntry
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-            />
+            <Text style={[s.label, { color: C.textSecondary }]}>Contraseña</Text>
+            <View style={[
+              s.inputWrap,
+              { backgroundColor: C.glass, borderColor: touched.password && errors.password ? C.inputBorderError : C.glassBorder },
+            ]}>
+              <MaterialIcons name="lock-outline" size={18} color={C.textMuted} />
+              <TextInput
+                style={[s.input, { color: C.textPrimary }]}
+                value={password}
+                onChangeText={(v) => { setPassword(v); if (touched.password) setErrors(validate(email, v)); }}
+                onBlur={() => handleBlur('password')}
+                placeholder="Mínimo 8 caracteres"
+                placeholderTextColor={C.textMuted}
+                secureTextEntry={!showPass}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                selectionColor={C.accent}
+              />
+              <TouchableOpacity onPress={() => setShowPass(!showPass)}>
+                <MaterialIcons name={showPass ? 'visibility-off' : 'visibility'} size={20} color={C.textMuted} />
+              </TouchableOpacity>
+            </View>
             {touched.password && errors.password ? (
               <Text style={[s.errorText, { color: C.red }]}>
                 {errors.password}
@@ -262,56 +246,59 @@ export default function LoginScreen() {
 }
 
 const s = StyleSheet.create({
-  root: { flex: 1 },
-  flex: { flex: 1 },
-  content: { paddingHorizontal: 28, paddingTop: 32 },
+  root:    { flex: 1 },
+  flex:    { flex: 1 },
+  content: { paddingHorizontal: 28, paddingTop: 40 },
 
-  brand: { fontSize: 28, fontWeight: "800", marginBottom: 28 },
-  title: { fontSize: 28, fontWeight: "700", marginBottom: 4 },
-  subtitle: { fontSize: 15, marginBottom: 32 },
+  brand:    { fontSize: 28, fontWeight: '800', marginBottom: 32, letterSpacing: -0.3 },
+  title:    { fontSize: 30, fontWeight: '800', marginBottom: 6, letterSpacing: -0.5 },
+  subtitle: { fontSize: 15, marginBottom: 36, letterSpacing: 0.1 },
 
   serverError: {
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
-  serverErrorText: { fontSize: 14, lineHeight: 20 },
+  serverErrorText: { fontSize: 14, lineHeight: 20, flex: 1 },
 
-  field: { marginBottom: 20 },
-  label: { fontSize: 13, fontWeight: "600", marginBottom: 8 },
-  input: {
+  field:     { marginBottom: 20 },
+  label:     { fontSize: 13, fontWeight: '600', marginBottom: 8, letterSpacing: 0.1 },
+  inputWrap: {
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 10,
+    height: 52,
   },
-  errorText: { fontSize: 12, marginTop: 6 },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    height: '100%',
+  },
+  errorText: { fontSize: 12, marginTop: 6, marginLeft: 2 },
 
-  forgotWrap: { alignSelf: "flex-end", marginBottom: 28 },
-  forgotText: { fontSize: 13, fontWeight: "600" },
+  forgotWrap: { alignSelf: 'flex-end', marginBottom: 32 },
+  forgotText: { fontSize: 13, fontWeight: '600' },
 
   btn: {
-    paddingVertical: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 24,
+    paddingVertical: 17,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginBottom: 28,
+    // Glow
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
   btnDisabled: { opacity: 0.6 },
-  btnText: { fontSize: 16, fontWeight: "700", color: "#403c30" },
-
-  row: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
-  sub: { fontSize: 14 },
-  link: { fontSize: 14, fontWeight: "600" },
-
-  divider: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  dividerLine: { flex: 1, height: 1 },
-  dividerText: { marginHorizontal: 12, fontSize: 13 },
+  btnText:     { fontSize: 16, fontWeight: '800', color: '#050508', letterSpacing: -0.2 },
 
   googleBtn: {
     flexDirection: "row",

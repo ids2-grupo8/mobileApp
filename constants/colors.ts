@@ -6,7 +6,7 @@ export type ThemeColors = {
   accent: string;
   accentDim: string;
   accentBg: string;
-  accentText: string;       // verde legible sobre el fondo del tema
+  accentText: string;
   textPrimary: string;
   textSecondary: string;
   textMuted: string;
@@ -18,48 +18,97 @@ export type ThemeColors = {
   skeletonBase: string;
   tabBg: string;
   tabBorder: string;
+  // ── Liquid Glass tokens ──
+  glass: string;
+  glassBorder: string;
+  glassHighlight: string;
+  accentGlow: string;
+  shadowAccent: string;
+  shadowDark: string;
 };
 
 export const dark: ThemeColors = {
-  bg:               '#0b0b0f',
-  elevated:         '#141418',
-  card:             'rgba(255,255,255,0.04)',
-  border:           'rgba(255,255,255,0.12)',
-  accent:           '#18acb4',
-  accentDim:        '#317b8b',
-  accentBg:         'rgba(24,172,180,0.18)',
-  accentText:       '#18acb4',
-  textPrimary:      '#f3f4f6',
-  textSecondary:    '#9ca3af',
-  textMuted:        '#6b7280',
-  red:              '#F87171',
-  redBg:            'rgba(239,68,68,0.12)',
-  inputBg:          'rgba(255,255,255,0.05)',
-  inputBorder:      'rgba(255,255,255,0.14)',
-  inputBorderError: 'rgba(248,113,113,0.5)',
-  skeletonBase:     'rgba(255,255,255,0.1)',
-  tabBg:            'rgba(11,11,15,0.96)',
-  tabBorder:        'rgba(255,255,255,0.14)',
+  // ── Deep backgrounds ──
+  bg:               '#050508',
+  elevated:         '#0C0C12',
+  card:             'rgba(255,255,255,0.05)',
+  border:           'rgba(255,255,255,0.10)',
+
+  // ── Emerald bioluminescent accent ──
+  accent:           '#00E5A0',
+  accentDim:        '#00B87D',
+  accentBg:         'rgba(0,229,160,0.12)',
+  accentText:       '#00E5A0',
+
+  // ── Text hierarchy ──
+  textPrimary:      '#F0F2F5',
+  textSecondary:    '#7A7F94',
+  textMuted:        '#404560',
+
+  // ── Feedback ──
+  red:              '#FF6B6B',
+  redBg:            'rgba(255,107,107,0.10)',
+
+  // ── Inputs ──
+  inputBg:          'rgba(255,255,255,0.04)',
+  inputBorder:      'rgba(255,255,255,0.10)',
+  inputBorderError: 'rgba(255,107,107,0.45)',
+
+  // ── Skeleton ──
+  skeletonBase:     'rgba(255,255,255,0.08)',
+
+  // ── Tab bar ──
+  tabBg:            'rgba(8,8,14,0.88)',
+  tabBorder:        'rgba(255,255,255,0.12)',
+
+  // ── Liquid Glass ──
+  glass:            'rgba(255,255,255,0.06)',
+  glassBorder:      'rgba(255,255,255,0.12)',
+  glassHighlight:   'rgba(255,255,255,0.18)',
+  accentGlow:       'rgba(0,229,160,0.15)',
+  shadowAccent:     'rgba(0,229,160,0.08)',
+  shadowDark:       'rgba(0,0,0,0.50)',
 };
 
 export const light: ThemeColors = {
-  bg:               '#f3f4f6',
-  elevated:         '#e5e7eb',
-  card:             'rgba(17,24,39,0.04)',
-  border:           'rgba(17,24,39,0.12)',
-  accent:           '#18acb4',
-  accentDim:        '#317b8b',
-  accentBg:         'rgba(24,172,180,0.14)',
-  accentText:       '#317b8b',
-  textPrimary:      '#111827',
-  textSecondary:    '#4b5563',
-  textMuted:        '#6b7280',
-  red:              '#DC2626',
-  redBg:            'rgba(220,38,38,0.08)',
-  inputBg:          'rgba(17,24,39,0.04)',
-  inputBorder:      'rgba(17,24,39,0.16)',
-  inputBorderError: 'rgba(220,38,38,0.4)',
-  skeletonBase:     'rgba(17,24,39,0.08)',
-  tabBg:            'rgba(243,244,246,0.96)',
-  tabBorder:        'rgba(17,24,39,0.12)',
+  // ── Light backgrounds ──
+  bg:               '#F2F3F7',
+  elevated:         '#E8E9EF',
+  card:             'rgba(255,255,255,0.70)',
+  border:           'rgba(0,0,0,0.08)',
+
+  // ── Emerald accent (darker for light mode legibility) ──
+  accent:           '#00C78A',
+  accentDim:        '#00A874',
+  accentBg:         'rgba(0,199,138,0.10)',
+  accentText:       '#00845C',
+
+  // ── Text hierarchy ──
+  textPrimary:      '#0A0A14',
+  textSecondary:    '#5A5E72',
+  textMuted:        '#9A9EB2',
+
+  // ── Feedback ──
+  red:              '#E03E3E',
+  redBg:            'rgba(224,62,62,0.08)',
+
+  // ── Inputs ──
+  inputBg:          'rgba(255,255,255,0.60)',
+  inputBorder:      'rgba(0,0,0,0.10)',
+  inputBorderError: 'rgba(224,62,62,0.35)',
+
+  // ── Skeleton ──
+  skeletonBase:     'rgba(0,0,0,0.06)',
+
+  // ── Tab bar ──
+  tabBg:            'rgba(242,243,247,0.88)',
+  tabBorder:        'rgba(0,0,0,0.08)',
+
+  // ── Liquid Glass ──
+  glass:            'rgba(255,255,255,0.55)',
+  glassBorder:      'rgba(255,255,255,0.80)',
+  glassHighlight:   'rgba(255,255,255,0.95)',
+  accentGlow:       'rgba(0,199,138,0.12)',
+  shadowAccent:     'rgba(0,199,138,0.06)',
+  shadowDark:       'rgba(0,0,0,0.12)',
 };
