@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -17,10 +17,10 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth';
 
 export default function ForgotPasswordScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const C       = useTheme();
-  const { forgotPassword, isLoading, error } = useAuthStore();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const C = useTheme();
+  const { forgotPassword, isLoading, error, clearError } = useAuthStore();
 
   const [email, setEmail]           = useState('');
   const [emailError, setEmailError] = useState('');
@@ -28,9 +28,9 @@ export default function ForgotPasswordScreen() {
   const [sent, setSent]             = useState(false);
 
   const validate = (v: string) => {
-    if (!v.trim()) return 'El email es requerido.';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Email inválido.';
-    return '';
+    if (!v.trim()) return "El email es requerido.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Email inválido.";
+    return "";
   };
 
   const handleSubmit = async () => {
@@ -38,8 +38,10 @@ export default function ForgotPasswordScreen() {
     setEmailError(err);
     setTouched(true);
     if (err) return;
-    await forgotPassword(email.trim());
-    if (!error) setSent(true);
+    // forgotPassword returns true on success, false on error.
+    // Reading store.error after await is unreliable due to React batching.
+    const ok = await forgotPassword(email.trim());
+    if (ok) setSent(true);
   };
 
   return (
@@ -95,6 +97,12 @@ export default function ForgotPasswordScreen() {
                 accessibilityRole="button">
                 {isLoading ? <ActivityIndicator color="#050508" size="small" /> : <Text style={s.btnText}>Enviar enlace</Text>}
               </TouchableOpacity>
+
+              {error ? (
+                <Text style={[s.errorText, s.errorGeneral, { color: C.red }]}>
+                  {error}
+                </Text>
+              ) : null}
             </>
           )}
         </View>

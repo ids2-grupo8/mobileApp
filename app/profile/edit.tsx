@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator, Alert, Animated, Image, KeyboardAvoidingView,
   Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
@@ -8,18 +8,26 @@ import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-import { useUserStore } from '@/store/user';
-import { useTheme } from '@/hooks/use-theme';
-import type { ThemeColors } from '@/constants/colors';
+import { useUserStore } from "@/store/user";
+import { useTheme } from "@/hooks/use-theme";
+import type { ThemeColors } from "@/constants/colors";
 
 function Toast({ message, visible, C }: { message: string; visible: boolean; C: ThemeColors }) {
   const opacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (visible) {
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
         Animated.delay(1800),
-        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: true,
+        }),
       ]).start();
     }
   }, [visible, opacity]);
@@ -38,7 +46,10 @@ function AvatarPicker({ name, uri, onPick, C }: { name: string; uri?: string; on
   return (
     <TouchableOpacity style={s.avWrap} onPress={onPick} accessibilityLabel="Cambiar foto de perfil" accessibilityRole="button">
       {uri ? (
-        <Image source={{ uri }} style={[s.avImage, { borderColor: C.accent }]} />
+        <Image
+          source={{ uri }}
+          style={[s.avImage, { borderColor: C.accent }]}
+        />
       ) : (
         <View style={[s.avPlaceholder, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
           <Text style={[s.avInitials, { color: C.accent }]}>{initials}</Text>
@@ -105,7 +116,11 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!validateName(name)) return;
-    await updateProfile({ name: name.trim(), bio: bio.trim(), avatarUrl: avatarUri });
+    await updateProfile({
+      name: name.trim(),
+      bio: bio.trim(),
+      avatarUrl: avatarUri,
+    });
     setShowToast(true);
     setTimeout(() => { setShowToast(false); router.back(); }, 2400);
   };

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef } from "react";
 import {
   Animated,
   ScrollView,
@@ -12,16 +12,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-import { useUserStore } from '@/store/user';
-import { useAuthStore } from '@/store/auth';
-import { useTheme } from '@/hooks/use-theme';
-import { useThemeStore, type ThemeMode } from '@/store/theme';
-import type { ThemeColors } from '@/constants/colors';
+import { useUserStore } from "@/store/user";
+import { useAuthStore } from "@/store/auth";
+import { useTheme } from "@/hooks/use-theme";
+import { useThemeStore, type ThemeMode } from "@/store/theme";
+import type { ThemeColors } from "@/constants/colors";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function SkeletonBox({
-  width, height, borderRadius = 8, style, skeletonColor,
+  width,
+  height,
+  borderRadius = 8,
+  style,
+  skeletonColor,
 }: {
   width: number | `${number}%`;
   height: number;
@@ -31,16 +35,35 @@ function SkeletonBox({
 }) {
   const opacity = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
-    const a = Animated.loop(Animated.sequence([
-      Animated.timing(opacity, { toValue: 0.85, duration: 700, useNativeDriver: true }),
-      Animated.timing(opacity, { toValue: 0.4,  duration: 700, useNativeDriver: true }),
-    ]));
+    const a = Animated.loop(
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.85,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 0.4,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
     a.start();
     return () => a.stop();
   }, [opacity]);
   return (
     <Animated.View
-      style={[{ width, height, borderRadius, backgroundColor: skeletonColor, opacity }, style]}
+      style={[
+        {
+          width,
+          height,
+          borderRadius,
+          backgroundColor: skeletonColor,
+          opacity,
+        },
+        style,
+      ]}
     />
   );
 }
@@ -86,7 +109,15 @@ function Avatar({ name, size = 80, C }: { name: string; size?: number; C: ThemeC
 
 // ─── Stat ─────────────────────────────────────────────────────────────────────
 
-function StatItem({ value, label, C }: { value: string | number; label: string; C: ThemeColors }) {
+function StatItem({
+  value,
+  label,
+  C,
+}: {
+  value: string | number;
+  label: string;
+  C: ThemeColors;
+}) {
   return (
     <View style={s.statItem}>
       <Text style={[s.statValue, { color: C.textPrimary }]}>{value}</Text>
@@ -98,7 +129,7 @@ function StatItem({ value, label, C }: { value: string | number; label: string; 
 // ─── Menu row ─────────────────────────────────────────────────────────────────
 
 type MenuRowProps = {
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
+  icon: React.ComponentProps<typeof MaterialIcons>["name"];
   label: string;
   onPress: () => void;
   danger?: boolean;
@@ -116,7 +147,8 @@ function MenuRow({ icon, label, onPress, danger = false, badge, rightLabel, C }:
     <TouchableOpacity
       style={[s.mrRow, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
       onPress={onPress}
-      accessibilityRole="button">
+      accessibilityRole="button"
+    >
       <View style={[s.mrIconWrap, { backgroundColor: iconBg }]}>
         <MaterialIcons name={icon} size={18} color={iconClr} />
       </View>
@@ -143,20 +175,22 @@ function MenuRow({ icon, label, onPress, danger = false, badge, rightLabel, C }:
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 const THEME_LABELS: Record<ThemeMode, string> = {
-  system: 'Sistema',
-  dark:   'Oscuro',
-  light:  'Claro',
+  system: "Sistema",
+  dark: "Oscuro",
+  light: "Claro",
 };
 
 export default function ProfileScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const C      = useTheme();
+  const C = useTheme();
   const { profile, loading, fetchProfile } = useUserStore();
   const { logout } = useAuthStore();
   const { mode, toggle } = useThemeStore();
 
-  useEffect(() => { fetchProfile(); }, [fetchProfile]);
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   if (loading || !profile) {
     return <ProfileSkeleton topPad={insets.top} C={C} />;
@@ -207,9 +241,18 @@ export default function ProfileScreen() {
             <Text style={[s.name, { color: C.textPrimary }]}>{profile.name}</Text>
             <Text style={[s.email, { color: C.textSecondary }]}>{profile.email}</Text>
             {profile.bio ? (
-              <Text style={[s.bio, { color: C.textSecondary }]} numberOfLines={2}>{profile.bio}</Text>
+              <Text
+                style={[s.bio, { color: C.textSecondary }]}
+                numberOfLines={2}
+              >
+                {profile.bio}
+              </Text>
             ) : (
-              <Text style={[s.bio, { color: C.textMuted, fontStyle: 'italic' }]}>Sin descripción.</Text>
+              <Text
+                style={[s.bio, { color: C.textMuted, fontStyle: "italic" }]}
+              >
+                Sin descripción.
+              </Text>
             )}
           </View>
         </View>
@@ -256,7 +299,6 @@ export default function ProfileScreen() {
             <MenuRow icon="logout" label="Cerrar sesión" onPress={() => logout()} danger C={C} />
           </View>
         </View>
-
       </ScrollView>
     </View>
   );
@@ -291,15 +333,15 @@ const s = StyleSheet.create({
     letterSpacing: -0.5,
   },
   editBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderWidth: 1,
     borderRadius: 20,
   },
-  editBtnText: { fontSize: 13, fontWeight: '600' },
+  editBtnText: { fontSize: 13, fontWeight: "600" },
 
   // ── Profile center ──
   profileCenter: {
@@ -351,7 +393,7 @@ const s = StyleSheet.create({
 
   // ── Stats ──
   statsCard: {
-    flexDirection: 'row',
+    flexDirection: "row",
     borderWidth: 1,
     borderRadius: 20,
     paddingVertical: 20,
@@ -390,8 +432,8 @@ const s = StyleSheet.create({
 
   // ── Menu rows ──
   mrRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 14,

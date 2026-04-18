@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { useAuthStore } from './auth';
+import { create } from "zustand";
+import { useAuthStore } from "./auth";
 
 export type Publication = {
   id: string;

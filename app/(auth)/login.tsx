@@ -1,46 +1,51 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
+import { useEffect, useState } from "react";
 import {
-    ActivityIndicator,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { useTheme } from '@/hooks/use-theme';
-import { useAuthStore } from '@/store/auth';
+import { GOOGLE_OAUTH_URL } from "@/services/auth";
+import { useTheme } from "@/hooks/use-theme";
+import { useAuthStore } from "@/store/auth";
 
 function validate(email: string, password: string) {
   const errors: { email?: string; password?: string } = {};
-  if (!email.trim()) errors.email = 'El email es requerido.';
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Ingresá un email válido.';
-  if (!password) errors.password = 'La contraseña es requerida.';
-  else if (password.length < 8) errors.password = 'Mínimo 8 caracteres.';
+  if (!email.trim()) errors.email = "El email es requerido.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    errors.email = "Ingresá un email válido.";
+  if (!password) errors.password = "La contraseña es requerida.";
+  else if (password.length < 8) errors.password = "Mínimo 8 caracteres.";
   return errors;
 }
 
 export default function LoginScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const C       = useTheme();
-  const { login, isLoading, error, clearError } = useAuthStore();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const C = useTheme();
+  const { login, googleLogin, isLoading, error, clearError } = useAuthStore();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors]     = useState<{ email?: string; password?: string }>({});
   const [touched, setTouched]   = useState({ email: false, password: false });
   const [showPass, setShowPass] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  useEffect(() => { return () => clearError(); }, [clearError]);
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
-  const handleBlur = (field: 'email' | 'password') => {
+  const handleBlur = (field: "email" | "password") => {
     setTouched((t) => ({ ...t, [field]: true }));
     setErrors(validate(email, password));
   };
@@ -53,19 +58,53 @@ export default function LoginScreen() {
     await login(email.trim(), password);
   };
 
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    try {
+      // openAuthSessionAsync returns the full redirect URL as its result.
+      // In Expo Go, Linking.addEventListener does NOT fire for custom schemes
+      // (mobileapp:// is not registered), so we parse the tokens here directly.
+      const result = await WebBrowser.openAuthSessionAsync(
+        GOOGLE_OAUTH_URL,
+        "mobileapp://",
+      );
+
+      if (result.type !== "success" || !result.url) return;
+
+      const hashIndex = result.url.indexOf("#");
+      if (hashIndex === -1) return;
+
+      const params = new URLSearchParams(result.url.slice(hashIndex + 1));
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        await googleLogin(accessToken, refreshToken);
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   return (
     <View style={[s.root, { paddingTop: insets.top, backgroundColor: C.bg }]}>
       <KeyboardAvoidingView
         style={s.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView
-          contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 32 }]}
+          contentContainerStyle={[
+            s.content,
+            { paddingBottom: insets.bottom + 32 },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
 
           <Text style={[s.brand, { color: C.accent }]}>Bazaar</Text>
           <Text style={[s.title, { color: C.textPrimary }]}>Iniciá sesión</Text>
-          <Text style={[s.subtitle, { color: C.textSecondary }]}>Bienvenido de nuevo</Text>
+          <Text style={[s.subtitle, { color: C.textSecondary }]}>
+            Bienvenido de nuevo
+          </Text>
 
           {error ? (
             <View style={[s.serverError, { backgroundColor: C.redBg, borderColor: C.red }]}>
@@ -97,7 +136,9 @@ export default function LoginScreen() {
               />
             </View>
             {touched.email && errors.email ? (
-              <Text style={[s.errorText, { color: C.red }]}>{errors.email}</Text>
+              <Text style={[s.errorText, { color: C.red }]}>
+                {errors.email}
+              </Text>
             ) : null}
           </View>
 
@@ -126,30 +167,76 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </View>
             {touched.password && errors.password ? (
-              <Text style={[s.errorText, { color: C.red }]}>{errors.password}</Text>
+              <Text style={[s.errorText, { color: C.red }]}>
+                {errors.password}
+              </Text>
             ) : null}
           </View>
 
           <TouchableOpacity
             style={s.forgotWrap}
-            onPress={() => router.push('/(auth)/forgot-password')}>
-            <Text style={[s.forgotText, { color: C.accent }]}>¿Olvidaste tu contraseña?</Text>
+            onPress={() => router.push("/(auth)/forgot-password")}
+          >
+            <Text style={[s.forgotText, { color: C.accentText }]}>
+              ¿Olvidaste tu contraseña?
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.btn, { backgroundColor: C.accent, shadowColor: C.accent }, isLoading && s.btnDisabled]}
+            style={[
+              s.btn,
+              { backgroundColor: C.accent },
+              isLoading && s.btnDisabled,
+            ]}
             onPress={handleSubmit}
-            disabled={isLoading}
-            accessibilityRole="button">
-            {isLoading
-              ? <ActivityIndicator color="#050508" size="small" />
-              : <Text style={s.btnText}>Iniciar sesión</Text>}
+            disabled={isLoading || googleLoading}
+            accessibilityRole="button"
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#403c30" size="small" />
+            ) : (
+              <Text style={s.btnText}>Iniciar sesión</Text>
+            )}
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={s.divider}>
+            <View style={[s.dividerLine, { backgroundColor: C.inputBorder }]} />
+            <Text style={[s.dividerText, { color: C.textMuted }]}>o</Text>
+            <View style={[s.dividerLine, { backgroundColor: C.inputBorder }]} />
+          </View>
+
+          {/* Google */}
+          <TouchableOpacity
+            style={[
+              s.googleBtn,
+              { backgroundColor: C.inputBg, borderColor: C.inputBorder },
+              googleLoading && s.btnDisabled,
+            ]}
+            onPress={handleGoogleLogin}
+            disabled={isLoading || googleLoading}
+            accessibilityRole="button"
+          >
+            {googleLoading ? (
+              <ActivityIndicator color={C.textPrimary} size="small" />
+            ) : (
+              <>
+                <Text style={s.googleIcon}>G</Text>
+                <Text style={[s.googleText, { color: C.textPrimary }]}>
+                  Continuar con Google
+                </Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={s.row}>
-            <Text style={[s.sub, { color: C.textSecondary }]}>¿No tenés cuenta? </Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/register')}>
-              <Text style={[s.link, { color: C.accent }]}>Registrate</Text>
+            <Text style={[s.sub, { color: C.textSecondary }]}>
+              ¿No tenés cuenta?{" "}
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.replace("/(auth)/register")}
+            >
+              <Text style={[s.link, { color: C.accentText }]}>Registrate</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -213,7 +300,20 @@ const s = StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
   btnText:     { fontSize: 16, fontWeight: '800', color: '#050508', letterSpacing: -0.2 },
 
-  row:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  sub:  { fontSize: 14 },
-  link: { fontSize: 14, fontWeight: '600' },
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 14,
+    marginBottom: 24,
+    gap: 10,
+  },
+  googleIcon: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#4285F4",
+  },
+  googleText: { fontSize: 15, fontWeight: "600" },
 });

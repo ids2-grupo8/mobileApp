@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -19,21 +19,26 @@ import { useAuthStore } from '@/store/auth';
 
 function validate(name: string, email: string, password: string) {
   const errors: { name?: string; email?: string; password?: string } = {};
-  if (!name.trim() || name.trim().length < 2) errors.name = 'Ingresá tu nombre completo.';
-  if (!email.trim()) errors.email = 'El email es requerido.';
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.email = 'Email inválido.';
-  if (!password) errors.password = 'La contraseña es requerida.';
-  else if (password.length < 8) errors.password = 'Mínimo 8 caracteres.';
-  else if (!/[A-Z]/.test(password)) errors.password = 'Debe incluir al menos una mayúscula.';
-  else if (!/[a-z]/.test(password)) errors.password = 'Debe incluir al menos una minúscula.';
-  else if (!/[0-9]/.test(password)) errors.password = 'Debe incluir al menos un número.';
+  if (!name.trim() || name.trim().length < 2)
+    errors.name = "Ingresá tu nombre completo.";
+  if (!email.trim()) errors.email = "El email es requerido.";
+  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    errors.email = "Email inválido.";
+  if (!password) errors.password = "La contraseña es requerida.";
+  else if (password.length < 8) errors.password = "Mínimo 8 caracteres.";
+  else if (!/[A-Z]/.test(password))
+    errors.password = "Debe incluir al menos una mayúscula.";
+  else if (!/[a-z]/.test(password))
+    errors.password = "Debe incluir al menos una minúscula.";
+  else if (!/[0-9]/.test(password))
+    errors.password = "Debe incluir al menos un número.";
   return errors;
 }
 
 export default function RegisterScreen() {
-  const router  = useRouter();
-  const insets  = useSafeAreaInsets();
-  const C       = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const C = useTheme();
   const { register, isLoading, error, clearError } = useAuthStore();
 
   const [name, setName]         = useState('');
@@ -43,9 +48,11 @@ export default function RegisterScreen() {
   const [touched, setTouched]   = useState({ name: false, email: false, password: false });
   const [showPass, setShowPass] = useState(false);
 
-  useEffect(() => { return () => clearError(); }, [clearError]);
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
 
-  const handleBlur = (field: 'name' | 'email' | 'password') => {
+  const handleBlur = (field: "name" | "email" | "password") => {
     setTouched((t) => ({ ...t, [field]: true }));
     setErrors(validate(name, email, password));
   };
@@ -62,15 +69,21 @@ export default function RegisterScreen() {
     <View style={[s.root, { paddingTop: insets.top, backgroundColor: C.bg }]}>
       <KeyboardAvoidingView
         style={s.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <ScrollView
-          contentContainerStyle={[s.content, { paddingBottom: insets.bottom + 32 }]}
+          contentContainerStyle={[
+            s.content,
+            { paddingBottom: insets.bottom + 32 },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}>
 
           <Text style={[s.brand, { color: C.accent }]}>Bazaar</Text>
           <Text style={[s.title, { color: C.textPrimary }]}>Crear cuenta</Text>
-          <Text style={[s.subtitle, { color: C.textSecondary }]}>Empezá a comprar y vender hoy</Text>
+          <Text style={[s.subtitle, { color: C.textSecondary }]}>
+            Empezá a comprar y vender hoy
+          </Text>
 
           {error ? (
             <View style={[s.serverError, { backgroundColor: C.redBg, borderColor: C.red }]}>
@@ -129,47 +142,65 @@ export default function RegisterScreen() {
 
           {/* Password */}
           <View style={s.field}>
-            <Text style={[s.label, { color: C.textSecondary }]}>Contraseña</Text>
-            <View style={[
-              s.inputWrap,
-              { backgroundColor: C.glass, borderColor: touched.password && errors.password ? C.inputBorderError : C.glassBorder },
-            ]}>
-              <MaterialIcons name="lock-outline" size={18} color={C.textMuted} />
-              <TextInput
-                style={[s.input, { color: C.textPrimary }]}
-                value={password}
-                onChangeText={(v) => { setPassword(v); if (touched.password) setErrors(validate(name, email, v)); }}
-                onBlur={() => handleBlur('password')}
-                placeholder="Mín. 8 car., mayúscula, minúscula y número"
-                placeholderTextColor={C.textMuted}
-                secureTextEntry={!showPass}
-                returnKeyType="done"
-                onSubmitEditing={handleSubmit}
-                selectionColor={C.accent}
-              />
-              <TouchableOpacity onPress={() => setShowPass(!showPass)}>
-                <MaterialIcons name={showPass ? 'visibility-off' : 'visibility'} size={20} color={C.textMuted} />
-              </TouchableOpacity>
-            </View>
-            {touched.password && errors.password
-              ? <Text style={[s.errorText, { color: C.red }]}>{errors.password}</Text>
-              : null}
+            <Text style={[s.label, { color: C.textSecondary }]}>
+              Contraseña
+            </Text>
+            <TextInput
+              style={[
+                s.input,
+                {
+                  backgroundColor: C.inputBg,
+                  borderColor: C.inputBorder,
+                  color: C.textPrimary,
+                },
+                touched.password && errors.password
+                  ? { borderColor: C.inputBorderError }
+                  : null,
+              ]}
+              value={password}
+              onChangeText={(v) => {
+                setPassword(v);
+                if (touched.password) setErrors(validate(name, email, v));
+              }}
+              onBlur={() => handleBlur("password")}
+              placeholder="Mín. 8 car., mayúscula, minúscula y número"
+              placeholderTextColor={C.textMuted}
+              secureTextEntry
+              returnKeyType="done"
+              onSubmitEditing={handleSubmit}
+            />
+            {touched.password && errors.password ? (
+              <Text style={[s.errorText, { color: C.red }]}>
+                {errors.password}
+              </Text>
+            ) : null}
           </View>
 
           <TouchableOpacity
-            style={[s.btn, { backgroundColor: C.accent, shadowColor: C.accent }, isLoading && s.btnDisabled]}
+            style={[
+              s.btn,
+              { backgroundColor: C.accent },
+              isLoading && s.btnDisabled,
+            ]}
             onPress={handleSubmit}
             disabled={isLoading}
-            accessibilityRole="button">
-            {isLoading
-              ? <ActivityIndicator color="#050508" size="small" />
-              : <Text style={s.btnText}>Crear cuenta</Text>}
+            accessibilityRole="button"
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#403c30" size="small" />
+            ) : (
+              <Text style={s.btnText}>Crear cuenta</Text>
+            )}
           </TouchableOpacity>
 
           <View style={s.row}>
-            <Text style={[s.sub, { color: C.textSecondary }]}>¿Ya tenés cuenta? </Text>
-            <TouchableOpacity onPress={() => router.replace('/(auth)/login')}>
-              <Text style={[s.link, { color: C.accent }]}>Iniciá sesión</Text>
+            <Text style={[s.sub, { color: C.textSecondary }]}>
+              ¿Ya tenés cuenta?{" "}
+            </Text>
+            <TouchableOpacity onPress={() => router.replace("/(auth)/login")}>
+              <Text style={[s.link, { color: C.accentText }]}>
+                Iniciá sesión
+              </Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -230,7 +261,7 @@ const s = StyleSheet.create({
   btnDisabled: { opacity: 0.6 },
   btnText:     { fontSize: 16, fontWeight: '800', color: '#050508', letterSpacing: -0.2 },
 
-  row:  { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  sub:  { fontSize: 14 },
-  link: { fontSize: 14, fontWeight: '600' },
+  row: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
+  sub: { fontSize: 14 },
+  link: { fontSize: 14, fontWeight: "600" },
 });

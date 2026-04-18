@@ -1,14 +1,16 @@
-import { create } from 'zustand';
+import { create } from "zustand";
 
-import { clearTokens } from '@/services/http';
+import { clearTokens } from "@/services/http";
 import {
   type AuthUser,
+  type ResetPasswordPayload,
+  federatedLoginRequest,
   forgotPasswordRequest,
   loginRequest,
   registerRequest,
   resetPasswordRequest,
   toUserMessage,
-} from '@/services/auth';
+} from "@/services/auth";
 
 type AuthStore = {
   isLoggedIn: boolean;
@@ -17,10 +19,11 @@ type AuthStore = {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  googleLogin: (accessToken: string, refreshToken: string) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
-  forgotPassword: (email: string) => Promise<void>;
-  resetPassword: (accessToken: string, refreshToken: string, newPassword: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<boolean>;
+  resetPassword: (payload: ResetPasswordPayload) => Promise<boolean>;
 };
 
 export const useAuthStore = create<AuthStore>((set) => ({
@@ -49,6 +52,16 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
+  googleLogin: async (accessToken, refreshToken) => {
+    set({ isLoading: true, error: null });
+    try {
+      const user = await federatedLoginRequest(accessToken, refreshToken);
+      set({ isLoggedIn: true, isLoading: false, user });
+    } catch (err) {
+      set({ isLoading: false, error: toUserMessage(err) });
+    }
+  },
+
   logout: async () => {
     await clearTokens();
     set({ isLoggedIn: false, user: null, error: null });
@@ -59,8 +72,22 @@ export const useAuthStore = create<AuthStore>((set) => ({
     try {
       await forgotPasswordRequest(email);
       set({ isLoading: false });
+      return true;
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
+      return false;
+    }
+  },
+
+  resetPassword: async (payload) => {
+    set({ isLoading: true, error: null });
+    try {
+      await resetPasswordRequest(payload);
+      set({ isLoading: false });
+      return true;
+    } catch (err) {
+      set({ isLoading: false, error: toUserMessage(err) });
+      return false;
     }
   },
 
