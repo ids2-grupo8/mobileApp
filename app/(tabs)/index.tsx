@@ -34,12 +34,38 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
-// ─── Liquid Glass Product Card ────────────────────────────────────────────────
+const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
+  'Todos':         'apps',
+  'Electrónica':   'laptop',
+  'Tecnología':    'devices',
+  'Ropa':          'style',
+  'Indumentaria':  'style',
+  'Hogar':         'home',
+  'Muebles':       'weekend',
+  'Deportes':      'fitness-center',
+  'Gaming':        'sports-esports',
+  'Juegos':        'sports-esports',
+  'Libros':        'book',
+  'Música':        'music-note',
+  'Alimentos':     'restaurant',
+  'Salud':         'local-hospital',
+  'Belleza':       'face',
+  'Mascotas':      'pets',
+  'Autos':         'directions-car',
+  'Arte':          'palette',
+  'Jardín':        'nature',
+  'Juguetes':      'toys',
+};
+
+// ─── Product Card ─────────────────────────────────────────────────────────────
 
 function ProductCard({
   product,
   onPress,
+  onAddToCart,
   compact = false,
+  tall = false,
+  isRecent = false,
   accent,
   accentGlow,
   textPrimary,
@@ -50,7 +76,10 @@ function ProductCard({
 }: {
   product: CatalogProduct;
   onPress: () => void;
+  onAddToCart?: () => void;
   compact?: boolean;
+  tall?: boolean;
+  isRecent?: boolean;
   accent: string;
   accentGlow: string;
   textPrimary: string;
@@ -61,26 +90,20 @@ function ProductCard({
 }) {
   const scale = useRef(new Animated.Value(1)).current;
 
-  const handlePressIn = () => {
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      damping: 15,
-      stiffness: 300,
-    }).start();
-  };
+  const handlePressIn = () =>
+    Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, damping: 15, stiffness: 300 }).start();
 
-  const handlePressOut = () => {
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      damping: 12,
-      stiffness: 200,
-    }).start();
-  };
+  const handlePressOut = () =>
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 12, stiffness: 200 }).start();
+
+  const imageStyle = compact
+    ? s.productImageCompact
+    : tall
+    ? s.productImageTall
+    : s.productImageSquare;
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={[{ transform: [{ scale }] }, compact && { width: 180 }]}>
       <TouchableOpacity
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -90,49 +113,45 @@ function ProductCard({
         style={[
           s.productCard,
           {
-            width: compact ? 220 : '100%',
             backgroundColor: glass,
             borderColor: glassBorder,
             shadowColor: shadowAccent,
           },
         ]}>
-        {/* Image — edge-to-edge */}
+
+        {/* Image */}
         <View style={s.productImageWrap}>
-          <Image source={{ uri: product.imageUrl }} style={s.productImage} contentFit="cover" />
-          {/* Category badge floating on image */}
-          <View style={[s.categoryBadge, { backgroundColor: 'rgba(0,0,0,0.55)', borderColor: 'rgba(255,255,255,0.12)' }]}>
-            <Text style={[s.categoryBadgeText, { color: accent }]}>{product.category}</Text>
-          </View>
+          <Image source={{ uri: product.imageUrl }} style={imageStyle} contentFit="cover" />
+          {isRecent && (
+            <View style={[s.hotBadge, { backgroundColor: accentGlow, borderColor: 'transparent' }]}>
+              <Text style={[s.hotBadgeText, { color: accent }]}>Oferta</Text>
+            </View>
+          )}
         </View>
 
-        {/* Glass body */}
+        {/* Body */}
         <View style={s.productBody}>
           <Text numberOfLines={2} style={[s.productTitle, { color: textPrimary }]}>
             {product.title}
           </Text>
-          <Text style={[s.productSeller, { color: textSecondary }]}>
+          <Text style={[s.productSeller, { color: textSecondary }]} numberOfLines={1}>
             {product.seller}
           </Text>
-
-          <View style={s.productBottomRow}>
-            <Text style={[s.productPrice, { color: textPrimary }]}>
-              {formatPrice(product.price)}
-            </Text>
-            <View style={[s.stockPill, { backgroundColor: accentGlow }]}>
-              <Text style={[s.stockText, { color: accent }]}>
-                {product.stock} disp.
-              </Text>
-            </View>
-          </View>
+          <Text style={[s.productPrice, { color: accent }]}>
+            {formatPrice(product.price)}
+          </Text>
         </View>
 
-        {/* Glass edge highlight — top light refraction */}
-        <LinearGradient
-          colors={['rgba(255,255,255,0.12)', 'transparent', 'transparent']}
-          locations={[0, 0.3, 1]}
-          style={s.cardGlassEdge}
-          pointerEvents="none"
-        />
+        {/* Add-to-cart button */}
+        {onAddToCart && (
+          <TouchableOpacity
+            onPress={onAddToCart}
+            style={[s.addBtn, { backgroundColor: accent }]}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Agregar al carrito">
+            <MaterialIcons name="add" size={18} color="#0B0B0F" />
+          </TouchableOpacity>
+        )}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -146,6 +165,7 @@ export default function HomeScreen() {
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
   const cartCount = useCartStore((s) => s.totalItems());
+  const addItem = useCartStore((s) => s.addItem);
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -202,6 +222,25 @@ export default function HomeScreen() {
     return ['Todos', ...dynamic];
   }, [products]);
 
+  const leftCol = useMemo(
+    () => filteredProducts.filter((_, i) => i % 2 === 0),
+    [filteredProducts]
+  );
+  const rightCol = useMemo(
+    () => filteredProducts.filter((_, i) => i % 2 === 1),
+    [filteredProducts]
+  );
+
+  const cardThemeProps = {
+    accent: theme.accent,
+    accentGlow: theme.accentGlow,
+    textPrimary: theme.textPrimary,
+    textSecondary: theme.textSecondary,
+    glass: theme.glass,
+    glassBorder: theme.glassBorder,
+    shadowAccent: theme.shadowAccent,
+  };
+
   return (
     <View style={[s.root, { backgroundColor: theme.bg, paddingTop: insets.top }]}>
       <ScrollView
@@ -210,10 +249,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => {
-              setRefreshing(true);
-              loadProducts();
-            }}
+            onRefresh={() => { setRefreshing(true); loadProducts(); }}
             tintColor={theme.accent}
           />
         }>
@@ -238,12 +274,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Search bar — glass material ── */}
-        <View
-          style={[
-            s.searchWrap,
-            { backgroundColor: theme.glass, borderColor: theme.glassBorder },
-          ]}>
+        {/* ── Search bar ── */}
+        <View style={[s.searchWrap, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
           <MaterialIcons name="search" size={20} color={theme.textMuted} />
           <TextInput
             value={query}
@@ -260,31 +292,45 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* ── Category chips — glass floating ── */}
+        {/* ── Category tiles ── */}
+        <View style={s.sectionHeaderRow}>
+          <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
+            Explorar por categoría
+          </Text>
+          <TouchableOpacity onPress={() => setCategory('Todos')}>
+            <Text style={[s.seeAllText, { color: theme.accent }]}>Ver todos</Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.categoryRow}>
-          {categories.map((item) => {
-            const active = item === category;
+          contentContainerStyle={s.categoryTileRow}>
+          {categories.map((cat) => {
+            const active = cat === category;
+            const iconName: keyof typeof MaterialIcons.glyphMap =
+              CATEGORY_ICONS[cat] ?? 'label';
             return (
               <TouchableOpacity
-                key={item}
-                onPress={() => setCategory(item)}
+                key={cat}
+                onPress={() => setCategory(cat)}
                 accessibilityRole="button"
                 style={[
-                  s.categoryChip,
+                  s.categoryTile,
                   {
                     backgroundColor: active ? theme.accentGlow : theme.glass,
                     borderColor: active ? theme.accent : theme.glassBorder,
                   },
                 ]}>
+                <MaterialIcons
+                  name={iconName}
+                  size={22}
+                  color={active ? theme.accent : theme.textSecondary}
+                />
                 <Text
-                  style={[
-                    s.categoryText,
-                    { color: active ? theme.accent : theme.textSecondary },
-                  ]}>
-                  {item}
+                  style={[s.categoryTileText, { color: active ? theme.accent : theme.textSecondary }]}
+                  numberOfLines={1}>
+                  {cat}
                 </Text>
               </TouchableOpacity>
             );
@@ -309,16 +355,13 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {/* ── Recent Products — horizontal scroll ── */}
+            {/* ── Recent products — horizontal scroll ── */}
             {recentProducts.length > 0 && (
               <>
-                <View style={s.sectionHeader}>
-                  <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
-                    Recientes
-                  </Text>
+                <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
+                  <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Recientes</Text>
                   <View style={[s.sectionLine, { backgroundColor: theme.glassBorder }]} />
                 </View>
-
                 <ScrollView
                   horizontal
                   showsHorizontalScrollIndicator={false}
@@ -328,55 +371,65 @@ export default function HomeScreen() {
                       key={product.id}
                       product={product}
                       compact
+                      isRecent
                       onPress={() => openProduct(product)}
-                      accent={theme.accent}
-                      accentGlow={theme.accentGlow}
-                      textPrimary={theme.textPrimary}
-                      textSecondary={theme.textSecondary}
-                      glass={theme.glass}
-                      glassBorder={theme.glassBorder}
-                      shadowAccent={theme.shadowAccent}
+                      onAddToCart={() => addItem(product)}
+                      {...cardThemeProps}
                     />
                   ))}
                 </ScrollView>
               </>
             )}
 
-            {/* ── All products — vertical list ── */}
-            <View style={s.sectionHeader}>
+            {/* ── All products — 2-col staggered grid ── */}
+            <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
               <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
-                Todos los productos
+                Para vos
               </Text>
               <Text style={[s.sectionMeta, { color: theme.textMuted }]}>
-                {filteredProducts.length}
+                {filteredProducts.length} productos
               </Text>
             </View>
 
-            <View style={s.listWrap}>
-              {filteredProducts.length === 0 ? (
-                <View style={s.emptyWrap}>
-                  <MaterialIcons name="search-off" size={40} color={theme.textMuted} />
-                  <Text style={[s.emptyText, { color: theme.textSecondary }]}>
-                    No encontramos productos para tu búsqueda.
-                  </Text>
+            {filteredProducts.length === 0 ? (
+              <View style={s.emptyWrap}>
+                <MaterialIcons name="search-off" size={40} color={theme.textMuted} />
+                <Text style={[s.emptyText, { color: theme.textSecondary }]}>
+                  No encontramos productos para tu búsqueda.
+                </Text>
+              </View>
+            ) : (
+              <View style={s.gridWrap}>
+                {/* Left column */}
+                <View style={s.gridCol}>
+                  {leftCol.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      onPress={() => openProduct(product)}
+                      onAddToCart={() => addItem(product)}
+                      isRecent={product.isRecent}
+                      {...cardThemeProps}
+                    />
+                  ))}
                 </View>
-              ) : (
-                filteredProducts.map((product) => (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    onPress={() => openProduct(product)}
-                    accent={theme.accent}
-                    accentGlow={theme.accentGlow}
-                    textPrimary={theme.textPrimary}
-                    textSecondary={theme.textSecondary}
-                    glass={theme.glass}
-                    glassBorder={theme.glassBorder}
-                    shadowAccent={theme.shadowAccent}
-                  />
-                ))
-              )}
-            </View>
+
+                {/* Right column — offset for staggered look */}
+                <View style={[s.gridCol, { marginTop: 32 }]}>
+                  {rightCol.map((product, i) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      tall={i % 2 === 0}
+                      onPress={() => openProduct(product)}
+                      onAddToCart={() => addItem(product)}
+                      isRecent={product.isRecent}
+                      {...cardThemeProps}
+                    />
+                  ))}
+                </View>
+              </View>
+            )}
           </>
         )}
       </ScrollView>
@@ -420,7 +473,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    // Subtle glass shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
@@ -436,9 +488,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 16,
+    marginBottom: 22,
     height: 50,
-    // Glass shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -452,21 +503,57 @@ const s = StyleSheet.create({
     letterSpacing: 0.1,
   },
 
-  // ── Categories ──
-  categoryRow: {
-    paddingBottom: 16,
-    gap: 8,
+  // ── Category tiles ──
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
   },
-  categoryChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
-  categoryText: {
+  seeAllText: {
     fontSize: 13,
     fontWeight: '600',
-    letterSpacing: 0.2,
+  },
+  categoryTileRow: {
+    gap: 10,
+    paddingBottom: 20,
+    paddingRight: 4,
+  },
+  categoryTile: {
+    width: 60,
+    height: 68,
+    borderRadius: 14,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  categoryTileText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.1,
+    textAlign: 'center',
+  },
+
+  // ── Section headers ──
+  sectionLine: {
+    flex: 1,
+    height: 1,
+    marginLeft: 8,
+  },
+  sectionMeta: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // ── Loading ──
@@ -506,114 +593,97 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // ── Sections ──
-  sectionHeader: {
-    marginTop: 8,
-    marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    letterSpacing: -0.3,
-  },
-  sectionLine: {
-    flex: 1,
-    height: 1,
-  },
-  sectionMeta: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // ── Product lists ──
+  // ── Recent row ──
   recentRow: {
     gap: 12,
     paddingBottom: 8,
     paddingRight: 4,
   },
-  listWrap: {
-    gap: 14,
+
+  // ── 2-col staggered grid ──
+  gridWrap: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  gridCol: {
+    flex: 1,
+    gap: 12,
   },
 
   // ── Product Card ──
   productCard: {
     borderWidth: 1,
-    borderRadius: 20,
+    borderRadius: 16,
     overflow: 'hidden',
-    // Spatial shadow
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 1,
-    shadowRadius: 24,
-    elevation: 8,
+    shadowRadius: 20,
+    elevation: 6,
   },
   productImageWrap: {
     position: 'relative',
   },
-  productImage: {
+  productImageSquare: {
     width: '100%',
-    height: 160,
+    aspectRatio: 1,
   },
-  categoryBadge: {
+  productImageTall: {
+    width: '100%',
+    aspectRatio: 3 / 4,
+  },
+  productImageCompact: {
+    width: '100%',
+    height: 140,
+  },
+  hotBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  categoryBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-  },
-  productBody: {
-    padding: 14,
-    gap: 4,
-  },
-  productTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    lineHeight: 20,
-    letterSpacing: -0.2,
-  },
-  productSeller: {
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 6,
-  },
-  productBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
-  productPrice: {
-    fontSize: 18,
-    fontWeight: '800',
-    letterSpacing: -0.3,
-  },
-  stockPill: {
-    borderRadius: 8,
+    top: 8,
+    left: 8,
+    borderRadius: 20,
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
-  stockText: {
-    fontSize: 11,
+  hotBadgeText: {
+    fontSize: 10,
     fontWeight: '700',
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
-  cardGlassEdge: {
+  productBody: {
+    padding: 12,
+    gap: 3,
+    paddingBottom: 42,
+  },
+  productTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    letterSpacing: -0.1,
+  },
+  productSeller: {
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  productPrice: {
+    fontSize: 15,
+    fontWeight: '800',
+    letterSpacing: -0.3,
+    marginTop: 2,
+  },
+  addBtn: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    bottom: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
 
   // ── Empty state ──
