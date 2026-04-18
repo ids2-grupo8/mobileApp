@@ -7,6 +7,8 @@ import {
     Alert,
     Animated,
     Dimensions,
+    NativeScrollEvent,
+    NativeSyntheticEvent,
     ScrollView,
     StyleSheet,
     Text,
@@ -66,7 +68,7 @@ function SkeletonBox({
   );
 }
 
-function ProductDetailSkeleton({ topInset, base, bg }: { topInset: number; base: string; bg: string }) {
+function ProductDetailSkeleton({ bg, base }: { bg: string; base: string }) {
   return (
     <View style={[s.root, { backgroundColor: bg }]}>
       <SkeletonBox width="100%" height={HERO_H} borderRadius={0} color={base} />
@@ -81,60 +83,92 @@ function ProductDetailSkeleton({ topInset, base, bg }: { topInset: number; base:
   );
 }
 
-// ─── Floating Glass Button ────────────────────────────────────────────────────
+// ─── Image Gallery ────────────────────────────────────────────────────────────
 
-function GlassButton({
-  icon,
-  onPress,
-  size = 44,
+function ImageGallery({
+  images,
+  topInset,
+  bg,
+  onBack,
 }: {
-  icon: React.ComponentProps<typeof MaterialIcons>['name'];
-  onPress: () => void;
-  size?: number;
+  images: string[];
+  topInset: number;
+  bg: string;
+  onBack: () => void;
 }) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={[s.glassBtn, { width: size, height: size, borderRadius: size / 2 }]}
-      accessibilityRole="button">
-      <MaterialIcons name={icon} size={20} color="#F0F2F5" />
-    </TouchableOpacity>
-  );
-}
+  const [activeIndex, setActiveIndex] = useState(0);
 
-// ─── Related Product Row ──────────────────────────────────────────────────────
+  const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_W);
+    setActiveIndex(index);
+  };
 
-function RelatedRow({
-  item,
-  onPress,
-  glass,
-  glassBorder,
-  textPrimary,
-  textSecondary,
-  accent,
-}: {
-  item: CatalogProduct;
-  onPress: () => void;
-  glass: string;
-  glassBorder: string;
-  textPrimary: string;
-  textSecondary: string;
-  accent: string;
-}) {
   return (
-    <TouchableOpacity
-      style={[s.relatedRow, { backgroundColor: glass, borderColor: glassBorder }]}
-      onPress={onPress}
-      accessibilityRole="button">
-      <Image source={{ uri: item.imageUrl }} style={s.relatedImage} contentFit="cover" />
-      <View style={s.relatedBody}>
-        <Text style={[s.relatedTitle, { color: textPrimary }]} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <Text style={[s.relatedPrice, { color: textSecondary }]}>{formatPrice(item.price)}</Text>
+    <View style={s.heroWrap}>
+      <ScrollView
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleScroll}
+        scrollEventThrottle={16}
+        style={{ width: SCREEN_W, height: HERO_H }}>
+        {images.map((uri, i) => (
+          <Image
+            key={i}
+            source={{ uri }}
+            style={{ width: SCREEN_W, height: HERO_H }}
+            contentFit="cover"
+          />
+        ))}
+      </ScrollView>
+
+      {/* Gradient mask */}
+      <LinearGradient
+        colors={['transparent', 'transparent', bg]}
+        locations={[0, 0.55, 1]}
+        style={s.heroGradient}
+        pointerEvents="none"
+      />
+
+      {/* Floating glass buttons */}
+      <View style={[s.heroOverlay, { top: topInset + 8 }]}>
+        <TouchableOpacity
+          onPress={onBack}
+          style={[s.glassBtn, { width: 44, height: 44, borderRadius: 22 }]}
+          accessibilityRole="button">
+          <MaterialIcons name="arrow-back" size={20} color="#F0F2F5" />
+        </TouchableOpacity>
+        <View style={s.heroOverlayRight}>
+          <TouchableOpacity
+            style={[s.glassBtn, { width: 44, height: 44, borderRadius: 22 }]}
+            onPress={() => {}}
+            accessibilityRole="button">
+            <MaterialIcons name="share" size={20} color="#F0F2F5" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.glassBtn, { width: 44, height: 44, borderRadius: 22 }]}
+            onPress={() => {}}
+            accessibilityRole="button">
+            <MaterialIcons name="favorite-border" size={20} color="#F0F2F5" />
+          </TouchableOpacity>
+        </View>
       </View>
-      <MaterialIcons name="chevron-right" size={20} color={accent} />
-    </TouchableOpacity>
+
+      {/* Page dots — only when multiple images */}
+      {images.length > 1 && (
+        <View style={s.dotRow}>
+          {images.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                s.dot,
+                i === activeIndex ? s.dotActive : s.dotInactive,
+              ]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -151,7 +185,7 @@ export default function ProductDetailScreen() {
 
   const [product, setProduct] = useState<CatalogProduct | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [networkError, setNetworkError] = useState(false);
   const [adding, setAdding] = useState(false);
 
   useEffect(() => {
@@ -159,24 +193,19 @@ export default function ProductDetailScreen() {
 
     const load = async () => {
       setLoading(true);
-      setError(null);
+      setNetworkError(false);
 
       try {
         const fromApi = await fetchCatalogProductById(productId);
-        if (fromApi) {
-          if (mounted) setProduct(fromApi);
-        } else if (mounted) {
-          setError('No encontramos ese producto o ya no esta disponible.');
-        }
+        if (mounted) setProduct(fromApi);
       } catch {
-        if (mounted) setError('No pudimos cargar el detalle del producto.');
+        if (mounted) setNetworkError(true);
       } finally {
         if (mounted) setLoading(false);
       }
     };
 
     if (!productId) {
-      setError('Producto invalido.');
       setLoading(false);
       return;
     }
@@ -188,16 +217,19 @@ export default function ProductDetailScreen() {
     };
   }, [productId]);
 
-
   if (loading) {
-    return <ProductDetailSkeleton topInset={insets.top} bg={C.bg} base={C.skeletonBase} />;
+    return <ProductDetailSkeleton bg={C.bg} base={C.skeletonBase} />;
   }
 
-  if (error || !product) {
+  // Network / unknown error
+  if (networkError) {
     return (
       <View style={[s.errorRoot, { backgroundColor: C.bg, paddingTop: insets.top }]}>
-        <MaterialIcons name="error-outline" size={48} color={C.textMuted} />
-        <Text style={[s.errorText, { color: C.red }]}>{error ?? 'Producto no disponible.'}</Text>
+        <MaterialIcons name="wifi-off" size={48} color={C.textMuted} />
+        <Text style={[s.errorTitle, { color: C.textPrimary }]}>Sin conexión</Text>
+        <Text style={[s.errorText, { color: C.textSecondary }]}>
+          No pudimos cargar el producto. Verificá tu conexión e intentá de nuevo.
+        </Text>
         <TouchableOpacity
           onPress={() => router.back()}
           style={[s.errorBtn, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
@@ -208,33 +240,42 @@ export default function ProductDetailScreen() {
     );
   }
 
+  // Product not found / disabled — CA-F4
+  if (!product) {
+    return (
+      <View style={[s.errorRoot, { backgroundColor: C.bg, paddingTop: insets.top }]}>
+        <MaterialIcons name="inventory-2" size={56} color={C.textMuted} />
+        <Text style={[s.errorTitle, { color: C.textPrimary }]}>Producto no disponible</Text>
+        <Text style={[s.errorText, { color: C.textSecondary }]}>
+          Este producto fue deshabilitado o ya no existe en el catálogo.
+        </Text>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={[s.errorBtn, { backgroundColor: C.accentGlow, borderColor: C.accent }]}
+          accessibilityRole="button">
+          <MaterialIcons name="arrow-back" size={16} color={C.accent} />
+          <Text style={[s.errorBtnText, { color: C.accent }]}>Volver al catálogo</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  const outOfStock = product.stock === 0;
+  const images = product.images?.length > 0 ? product.images : [product.imageUrl].filter(Boolean);
+
   return (
     <View style={[s.root, { backgroundColor: C.bg }]}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + 100 }}
         showsVerticalScrollIndicator={false}>
 
-        {/* ── Hero Image — Full Bleed ── */}
-        <View style={s.heroWrap}>
-          <Image source={{ uri: product.imageUrl }} style={s.heroImage} contentFit="cover" />
-
-          {/* Gradient mask — fuses image into background */}
-          <LinearGradient
-            colors={['transparent', 'transparent', C.bg]}
-            locations={[0, 0.55, 1]}
-            style={s.heroGradient}
-            pointerEvents="none"
-          />
-
-          {/* Floating glass buttons over image */}
-          <View style={[s.heroOverlay, { top: insets.top + 8 }]}>
-            <GlassButton icon="arrow-back" onPress={() => router.back()} />
-            <View style={s.heroOverlayRight}>
-              <GlassButton icon="share" onPress={() => {}} />
-              <GlassButton icon="favorite-border" onPress={() => {}} />
-            </View>
-          </View>
-        </View>
+        {/* ── Gallery — CA-F2 ── */}
+        <ImageGallery
+          images={images}
+          topInset={insets.top}
+          bg={C.bg}
+          onBack={() => router.back()}
+        />
 
         {/* ── Product Info ── */}
         <View style={s.infoSection}>
@@ -251,20 +292,27 @@ export default function ProductDetailScreen() {
             </View>
             <Text style={[s.sellerName, { color: C.textSecondary }]}>{product.seller}</Text>
             <View style={s.sellerDot} />
-            <Text style={[s.stockLabel, { color: C.textMuted }]}>Stock: {product.stock}</Text>
+
+            {/* Stock label / badge — CA-F3 */}
+            {outOfStock ? (
+              <View style={[s.outOfStockBadge, { backgroundColor: C.redBg, borderColor: C.red }]}>
+                <Text style={[s.outOfStockText, { color: C.red }]}>Sin stock</Text>
+              </View>
+            ) : (
+              <Text style={[s.stockLabel, { color: C.textMuted }]}>Stock: {product.stock}</Text>
+            )}
           </View>
 
           <Text style={[s.price, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
         </View>
 
-        {/* ── Description card — glass ── */}
+        {/* ── Description card ── */}
         <View style={s.descSection}>
           <View style={[s.descCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
             <Text style={[s.descTitle, { color: C.textPrimary }]}>Descripción</Text>
             <Text style={[s.descText, { color: C.textSecondary }]}>
-              {product.description ?? 'Este producto no tiene descripcion cargada por el vendedor.'}
+              {product.description ?? 'Este producto no tiene descripción cargada por el vendedor.'}
             </Text>
-            {/* Glass edge highlight */}
             <LinearGradient
               colors={['rgba(255,255,255,0.10)', 'transparent', 'transparent']}
               locations={[0, 0.2, 1]}
@@ -276,7 +324,7 @@ export default function ProductDetailScreen() {
 
       </ScrollView>
 
-      {/* ── Sticky Action Bar — Liquid Glass ── */}
+      {/* ── Sticky Action Bar — CA-F3 disabled when out of stock ── */}
       <View style={[s.actionBar, { paddingBottom: insets.bottom + 8 }]}>
         <LinearGradient
           colors={['transparent', C.bg]}
@@ -290,9 +338,13 @@ export default function ProductDetailScreen() {
             <Text style={[s.actionBarPrice, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
           </View>
           <TouchableOpacity
-            style={[s.actionBtn, { backgroundColor: C.accent, shadowColor: C.accent }]}
+            style={[
+              s.actionBtn,
+              { backgroundColor: outOfStock ? C.glass : C.accent, shadowColor: outOfStock ? 'transparent' : C.accent },
+              (outOfStock || adding) && s.actionBtnDisabled,
+            ]}
             onPress={async () => {
-              if (!product || adding) return;
+              if (!product || adding || outOfStock) return;
               setAdding(true);
               try {
                 await addItem(product, 1);
@@ -301,9 +353,19 @@ export default function ProductDetailScreen() {
                 setAdding(false);
               }
             }}
+            disabled={outOfStock || adding}
             accessibilityRole="button">
-            <MaterialIcons name="add-shopping-cart" size={18} color="#050508" />
-            <Text style={s.actionBtnText}>{adding ? 'Agregando...' : 'Agregar'}</Text>
+            {outOfStock ? (
+              <>
+                <MaterialIcons name="remove-shopping-cart" size={18} color={C.textMuted} />
+                <Text style={[s.actionBtnText, { color: C.textMuted }]}>Sin stock</Text>
+              </>
+            ) : (
+              <>
+                <MaterialIcons name="add-shopping-cart" size={18} color="#050508" />
+                <Text style={s.actionBtnText}>{adding ? 'Agregando...' : 'Agregar'}</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -330,30 +392,35 @@ const s = StyleSheet.create({
     gap: 16,
     paddingHorizontal: 32,
   },
+  errorTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+  },
   errorText: {
-    fontSize: 15,
+    fontSize: 14,
     lineHeight: 22,
     textAlign: 'center',
   },
   errorBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
+    marginTop: 4,
   },
   errorBtnText: {
     fontSize: 14,
     fontWeight: '700',
   },
 
-  // ── Hero ──
+  // ── Hero / Gallery ──
   heroWrap: {
     position: 'relative',
     height: HERO_H,
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
   },
   heroGradient: {
     position: 'absolute',
@@ -375,6 +442,29 @@ const s = StyleSheet.create({
     gap: 10,
   },
 
+  // ── Dots ──
+  dotRow: {
+    position: 'absolute',
+    bottom: 16,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  dot: {
+    height: 6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: '#FFFFFF',
+  },
+  dotInactive: {
+    width: 6,
+    backgroundColor: 'rgba(255,255,255,0.40)',
+  },
+
   // ── Glass floating button ──
   glassBtn: {
     backgroundColor: 'rgba(0,0,0,0.45)',
@@ -382,7 +472,6 @@ const s = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    // Glass shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -443,6 +532,17 @@ const s = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  outOfStockBadge: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  outOfStockText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
   price: {
     fontSize: 32,
     fontWeight: '800',
@@ -481,45 +581,6 @@ const s = StyleSheet.create({
     borderTopRightRadius: 20,
   },
 
-  // ── Related ──
-  relatedSection: {
-    paddingHorizontal: 20,
-    marginTop: 24,
-    gap: 10,
-  },
-  relatedSectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: -0.2,
-    marginBottom: 4,
-  },
-  relatedRow: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  relatedImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-  },
-  relatedBody: {
-    flex: 1,
-  },
-  relatedTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 3,
-    letterSpacing: -0.1,
-  },
-  relatedPrice: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-
   // ── Sticky Action Bar ──
   actionBar: {
     position: 'absolute',
@@ -544,7 +605,6 @@ const s = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 6,
     paddingVertical: 6,
-    // Glass shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.3,
@@ -572,11 +632,13 @@ const s = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingVertical: 14,
-    // Accent glow shadow
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 6,
+  },
+  actionBtnDisabled: {
+    opacity: 0.6,
   },
   actionBtnText: {
     color: '#050508',

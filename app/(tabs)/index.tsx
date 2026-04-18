@@ -6,6 +6,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Animated,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
     RefreshControl,
     ScrollView,
     StyleSheet,
@@ -55,6 +58,7 @@ const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   'Arte':          'palette',
   'Jardín':        'nature',
   'Juguetes':      'toys',
+  'Moda':          'style',
 };
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
@@ -124,7 +128,7 @@ function ProductCard({
           <Image source={{ uri: product.imageUrl }} style={imageStyle} contentFit="cover" />
           {isRecent && (
             <View style={[s.hotBadge, { backgroundColor: accentGlow, borderColor: 'transparent' }]}>
-              <Text style={[s.hotBadgeText, { color: accent }]}>Oferta</Text>
+              <Text style={[s.hotBadgeText, { color: accent }]}>Nuevo</Text>
             </View>
           )}
         </View>
@@ -157,6 +161,105 @@ function ProductCard({
   );
 }
 
+// ─── Filter Modal ─────────────────────────────────────────────────────────────
+
+function FilterModal({
+  visible,
+  minPrice,
+  maxPrice,
+  onApply,
+  onClose,
+}: {
+  visible: boolean;
+  minPrice: string;
+  maxPrice: string;
+  onApply: (min: string, max: string) => void;
+  onClose: () => void;
+}) {
+  const C = useTheme();
+  const [localMin, setLocalMin] = useState(minPrice);
+  const [localMax, setLocalMax] = useState(maxPrice);
+
+  useEffect(() => {
+    if (visible) {
+      setLocalMin(minPrice);
+      setLocalMax(maxPrice);
+    }
+  }, [visible, minPrice, maxPrice]);
+
+  const handleApply = () => {
+    onApply(localMin, localMax);
+    onClose();
+  };
+
+  const handleClear = () => {
+    setLocalMin('');
+    setLocalMax('');
+    onApply('', '');
+    onClose();
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={s.modalOverlay}>
+        <TouchableOpacity style={s.modalBackdrop} onPress={onClose} activeOpacity={1} />
+        <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
+          <View style={[s.modalHandle, { backgroundColor: C.glassBorder }]} />
+          <Text style={[s.modalTitle, { color: C.textPrimary }]}>Filtros</Text>
+
+          <Text style={[s.filterLabel, { color: C.textSecondary }]}>Rango de precio</Text>
+          <View style={s.priceRow}>
+            <View style={[s.priceInput, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+              <Text style={[s.priceCurrency, { color: C.textMuted }]}>$</Text>
+              <TextInput
+                value={localMin}
+                onChangeText={setLocalMin}
+                placeholder="Mínimo"
+                placeholderTextColor={C.textMuted}
+                style={[s.priceField, { color: C.textPrimary }]}
+                keyboardType="numeric"
+                selectionColor={C.accent}
+              />
+            </View>
+            <View style={[s.priceSep, { backgroundColor: C.glassBorder }]} />
+            <View style={[s.priceInput, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+              <Text style={[s.priceCurrency, { color: C.textMuted }]}>$</Text>
+              <TextInput
+                value={localMax}
+                onChangeText={setLocalMax}
+                placeholder="Máximo"
+                placeholderTextColor={C.textMuted}
+                style={[s.priceField, { color: C.textPrimary }]}
+                keyboardType="numeric"
+                selectionColor={C.accent}
+              />
+            </View>
+          </View>
+
+          <View style={s.modalActions}>
+            <TouchableOpacity
+              style={[s.modalBtnSecondary, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
+              onPress={handleClear}>
+              <Text style={[s.modalBtnSecondaryText, { color: C.textSecondary }]}>Limpiar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[s.modalBtnPrimary, { backgroundColor: C.accent }]}
+              onPress={handleApply}>
+              <Text style={s.modalBtnPrimaryText}>Aplicar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
@@ -173,6 +276,9 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryFilter>('Todos');
+  const [minPrice, setMinPrice] = useState('');
+  const [maxPrice, setMaxPrice] = useState('');
+  const [filterVisible, setFilterVisible] = useState(false);
 
   const openProduct = (product: CatalogProduct) => {
     router.push(`/product/${product.id}`);
@@ -200,22 +306,45 @@ export default function HomeScreen() {
     loadProducts();
   }, []);
 
+  const hasActiveFilters = category !== 'Todos' || query.trim().length > 0 || minPrice !== '' || maxPrice !== '';
+  const hasPriceFilter = minPrice !== '' || maxPrice !== '';
+
+  const clearAllFilters = () => {
+    setCategory('Todos');
+    setQuery('');
+    setMinPrice('');
+    setMaxPrice('');
+  };
+
   const filteredProducts = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const min = minPrice !== '' ? parseFloat(minPrice) : null;
+    const max = maxPrice !== '' ? parseFloat(maxPrice) : null;
+
     return products.filter((p) => {
       const categoryMatch = category === 'Todos' || p.category === category;
       const queryMatch =
         !normalizedQuery ||
         p.title.toLowerCase().includes(normalizedQuery) ||
         p.seller.toLowerCase().includes(normalizedQuery);
-      return categoryMatch && queryMatch;
+      const priceMin = min === null || p.price >= min;
+      const priceMax = max === null || p.price <= max;
+      return categoryMatch && queryMatch && priceMin && priceMax;
     });
-  }, [products, query, category]);
+  }, [products, query, category, minPrice, maxPrice]);
 
   const recentProducts = useMemo(
     () => filteredProducts.filter((p) => p.isRecent),
     [filteredProducts]
   );
+
+  // Recommended: top 6 by price descending (premium items) — shown only to logged-in users
+  const recommendedProducts = useMemo(() => {
+    if (!user) return [];
+    return [...products]
+      .sort((a, b) => b.price - a.price)
+      .slice(0, 6);
+  }, [products, user]);
 
   const categories = useMemo<CategoryFilter[]>(() => {
     const dynamic = Array.from(new Set(products.map((p) => p.category))).sort();
@@ -246,6 +375,7 @@ export default function HomeScreen() {
       <ScrollView
         contentContainerStyle={[s.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 140 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -258,10 +388,10 @@ export default function HomeScreen() {
         <View style={s.header}>
           <View style={s.headerLeft}>
             <Text style={[s.greeting, { color: theme.textSecondary }]}>
-              Hola{user?.name ? `, ${user.name.split(' ')[0]}` : ''} 👋
+              {user?.name ? `Hola, ${user.name.split(' ')[0]} 👋` : 'Explorar'}
             </Text>
             <Text style={[s.title, { color: theme.textPrimary }]}>
-              Explorar
+              Catálogo
             </Text>
           </View>
           <View style={s.headerRight}>
@@ -274,32 +404,93 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Search bar ── */}
-        <View style={[s.searchWrap, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
-          <MaterialIcons name="search" size={20} color={theme.textMuted} />
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Buscar productos, vendedores..."
-            placeholderTextColor={theme.textMuted}
-            style={[s.searchInput, { color: theme.textPrimary }]}
-            selectionColor={theme.accent}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <MaterialIcons name="close" size={18} color={theme.textMuted} />
-            </TouchableOpacity>
-          )}
+        {/* ── Search bar + filter button ── */}
+        <View style={s.searchRow}>
+          <View style={[s.searchWrap, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+            <MaterialIcons name="search" size={20} color={theme.textMuted} />
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Buscar productos, vendedores..."
+              placeholderTextColor={theme.textMuted}
+              style={[s.searchInput, { color: theme.textPrimary }]}
+              selectionColor={theme.accent}
+            />
+            {query.length > 0 && (
+              <TouchableOpacity onPress={() => setQuery('')}>
+                <MaterialIcons name="close" size={18} color={theme.textMuted} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Filter button */}
+          <TouchableOpacity
+            onPress={() => setFilterVisible(true)}
+            style={[
+              s.filterBtn,
+              {
+                backgroundColor: hasPriceFilter ? theme.accentGlow : theme.glass,
+                borderColor: hasPriceFilter ? theme.accent : theme.glassBorder,
+              },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir filtros">
+            <MaterialIcons
+              name="tune"
+              size={20}
+              color={hasPriceFilter ? theme.accent : theme.textSecondary}
+            />
+            {hasPriceFilter && (
+              <View style={[s.filterDot, { backgroundColor: theme.accent }]} />
+            )}
+          </TouchableOpacity>
         </View>
+
+        {/* ── Active filter chips ── */}
+        {hasActiveFilters && (
+          <View style={s.chipRow}>
+            {category !== 'Todos' && (
+              <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
+                <Text style={[s.chipText, { color: theme.accent }]}>{category}</Text>
+                <TouchableOpacity onPress={() => setCategory('Todos')} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                  <MaterialIcons name="close" size={13} color={theme.accent} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {minPrice !== '' && (
+              <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
+                <Text style={[s.chipText, { color: theme.accent }]}>Desde ${minPrice}</Text>
+                <TouchableOpacity onPress={() => setMinPrice('')} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                  <MaterialIcons name="close" size={13} color={theme.accent} />
+                </TouchableOpacity>
+              </View>
+            )}
+            {maxPrice !== '' && (
+              <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
+                <Text style={[s.chipText, { color: theme.accent }]}>Hasta ${maxPrice}</Text>
+                <TouchableOpacity onPress={() => setMaxPrice('')} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                  <MaterialIcons name="close" size={13} color={theme.accent} />
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity
+              onPress={clearAllFilters}
+              style={[s.chipClear, { backgroundColor: theme.redBg, borderColor: theme.red }]}>
+              <Text style={[s.chipClearText, { color: theme.red }]}>Limpiar todo</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* ── Category tiles ── */}
         <View style={s.sectionHeaderRow}>
           <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
-            Explorar por categoría
+            Categorías
           </Text>
-          <TouchableOpacity onPress={() => setCategory('Todos')}>
-            <Text style={[s.seeAllText, { color: theme.accent }]}>Ver todos</Text>
-          </TouchableOpacity>
+          {category !== 'Todos' && (
+            <TouchableOpacity onPress={() => setCategory('Todos')}>
+              <Text style={[s.seeAllText, { color: theme.accent }]}>Ver todos</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <ScrollView
@@ -355,7 +546,7 @@ export default function HomeScreen() {
           </View>
         ) : (
           <>
-            {/* ── Recent products — horizontal scroll ── */}
+            {/* ── Recent products — CA1 ── */}
             {recentProducts.length > 0 && (
               <>
                 <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
@@ -381,13 +572,38 @@ export default function HomeScreen() {
               </>
             )}
 
+            {/* ── Recommendations — CA4 (solo usuarios autenticados) ── */}
+            {recommendedProducts.length > 0 && !hasActiveFilters && (
+              <>
+                <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
+                  <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Para vos</Text>
+                  <View style={[s.sectionLine, { backgroundColor: theme.glassBorder }]} />
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.recentRow}>
+                  {recommendedProducts.map((product) => (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      compact
+                      onPress={() => openProduct(product)}
+                      onAddToCart={() => addItem(product)}
+                      {...cardThemeProps}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            )}
+
             {/* ── All products — 2-col staggered grid ── */}
             <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
               <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
-                Para vos
+                Todos los productos
               </Text>
               <Text style={[s.sectionMeta, { color: theme.textMuted }]}>
-                {filteredProducts.length} productos
+                {filteredProducts.length} resultados
               </Text>
             </View>
 
@@ -397,6 +613,13 @@ export default function HomeScreen() {
                 <Text style={[s.emptyText, { color: theme.textSecondary }]}>
                   No encontramos productos para tu búsqueda.
                 </Text>
+                {hasActiveFilters && (
+                  <TouchableOpacity
+                    onPress={clearAllFilters}
+                    style={[s.retryBtn, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
+                    <Text style={[s.retryText, { color: theme.accent }]}>Limpiar filtros</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ) : (
               <View style={s.gridWrap}>
@@ -433,6 +656,15 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+
+      {/* ── Filter Modal ── */}
+      <FilterModal
+        visible={filterVisible}
+        minPrice={minPrice}
+        maxPrice={maxPrice}
+        onApply={(min, max) => { setMinPrice(min); setMaxPrice(max); }}
+        onClose={() => setFilterVisible(false)}
+      />
     </View>
   );
 }
@@ -481,14 +713,19 @@ const s = StyleSheet.create({
   },
 
   // ── Search ──
+  searchRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
   searchWrap: {
+    flex: 1,
     borderWidth: 1,
     borderRadius: 16,
     paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 22,
     height: 50,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -501,6 +738,58 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '400',
     letterSpacing: 0.1,
+  },
+  filterBtn: {
+    width: 50,
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  filterDot: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+
+  // ── Filter chips ──
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  chipClear: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  chipClearText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   // ── Category tiles ──
@@ -696,5 +985,100 @@ const s = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     textAlign: 'center',
+  },
+
+  // ── Filter Modal ──
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    padding: 24,
+    paddingBottom: 40,
+    gap: 16,
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    letterSpacing: -0.3,
+    marginBottom: 4,
+  },
+  filterLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 0.2,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  priceInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    height: 50,
+    gap: 6,
+  },
+  priceCurrency: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  priceField: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  priceSep: {
+    width: 16,
+    height: 1,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  modalBtnSecondary: {
+    flex: 1,
+    height: 52,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnSecondaryText: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  modalBtnPrimary: {
+    flex: 2,
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalBtnPrimaryText: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#050508',
   },
 });

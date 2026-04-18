@@ -16,7 +16,9 @@ export type CatalogProduct = {
   price: number;
   stock: number;
   imageUrl: string;
+  images: string[];
   seller: string;
+  sellerId?: string;
   category: string;
   description?: string;
   isRecent?: boolean;
@@ -35,32 +37,42 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function pickImage(raw: RawProduct): string {
+function pickAllImages(raw: RawProduct): string[] {
+  const urls: string[] = [];
+
+  const addIfValid = (url: string) => {
+    if (url && !urls.includes(url)) urls.push(url);
+  };
+
   const direct =
     asString(raw.imageUrl) ||
     asString(raw.image_url) ||
     asString(raw.thumbnail) ||
     asString(raw.photo_url);
+  if (direct) addIfValid(direct);
 
-  if (direct) return direct;
-
-  // product-service returns image_urls: string[]
   const imageUrls = raw.image_urls;
-  if (Array.isArray(imageUrls) && imageUrls.length > 0 && typeof imageUrls[0] === 'string') {
-    return imageUrls[0];
+  if (Array.isArray(imageUrls)) {
+    imageUrls.forEach((u) => { if (typeof u === 'string') addIfValid(u); });
   }
 
   const images = raw.images;
-  if (Array.isArray(images) && images.length > 0) {
-    const first = images[0];
-    if (typeof first === 'string') return first;
-    if (first && typeof first === 'object') {
-      const maybeUrl = asString((first as RawProduct).url) || asString((first as RawProduct).image_url);
-      if (maybeUrl) return maybeUrl;
-    }
+  if (Array.isArray(images)) {
+    images.forEach((item) => {
+      if (typeof item === 'string') { addIfValid(item); return; }
+      if (item && typeof item === 'object') {
+        const maybeUrl = asString((item as RawProduct).url) || asString((item as RawProduct).image_url);
+        if (maybeUrl) addIfValid(maybeUrl);
+      }
+    });
   }
 
-  return DEFAULT_IMAGE;
+  return urls;
+}
+
+function pickImage(raw: RawProduct): string {
+  const all = pickAllImages(raw);
+  return all[0] ?? DEFAULT_IMAGE;
 }
 
 function isRecentFromDate(raw: RawProduct): boolean {
@@ -96,14 +108,18 @@ function normalizeProduct(raw: RawProduct): CatalogProduct | null {
 
   const sellerObj = product.seller && typeof product.seller === 'object' ? (product.seller as RawProduct) : null;
   const categoryObj = product.category && typeof product.category === 'object' ? (product.category as RawProduct) : null;
+  const allImages = pickAllImages(product);
+  const imageUrl = allImages[0] ?? DEFAULT_IMAGE;
 
   return {
     id,
     title,
     price: asNumber(product.price ?? product.amount),
     stock,
-    imageUrl: pickImage(product),
+    imageUrl,
+    images: allImages.length > 0 ? allImages : [imageUrl].filter(Boolean),
     seller: asString(sellerObj?.name ?? product.seller_name ?? product.seller) || 'Vendedor',
+    sellerId: asString(sellerObj?.id ?? sellerObj?._id ?? product.seller_id) || undefined,
     category: asString(categoryObj?.name ?? product.category_name ?? product.category) || 'General',
     description: asString(product.description) || undefined,
     isRecent: isRecentFromDate(product),
