@@ -129,4 +129,5 @@ const s = StyleSheet.create({
   btnText: { fontSize: 16, fontWeight: '800', color: '#050508' },
   successBox: { borderWidth: 1, borderRadius: 16, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 12 },
   successText: { fontSize: 15, lineHeight: 22, flex: 1, fontWeight: '500' },
+  errorGeneral: { marginTop: 16, textAlign: 'center' },
 });

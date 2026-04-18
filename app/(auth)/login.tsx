@@ -1,3 +1,4 @@
+import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { useRouter } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
@@ -316,4 +317,10 @@ const s = StyleSheet.create({
     color: "#4285F4",
   },
   googleText: { fontSize: 15, fontWeight: "600" },
+  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
+  dividerLine: { flex: 1, height: 1 },
+  dividerText: { fontSize: 13, fontWeight: '500' },
+  row: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
+  sub: { fontSize: 14 },
+  link: { fontSize: 14, fontWeight: '700' },
 });
