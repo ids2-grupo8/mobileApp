@@ -27,8 +27,6 @@ function Toast({ message, visible, C }: { message: string; visible: boolean; C: 
     }
   }, [visible, opacity]);
 
-  if (!visible && opacity._value === 0) return null;
-
   return (
     <Animated.View style={[s.toastWrap, { opacity }]} pointerEvents="none">
       <View style={[s.toastCard, { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark }]}>

@@ -119,20 +119,6 @@ const s = StyleSheet.create({
     marginBottom: 36,
     letterSpacing: 0.3,
   },
-  brand: {
-    fontSize: 44,
-    fontWeight: '800',
-    color: '#F0F2F5',
-    letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  tagline: {
-    fontSize: 15,
-    color: '#7A7F94',
-    marginBottom: 40,
-    letterSpacing: 0.3,
-  },
-
   btn: {
     width: '100%',
     backgroundColor: '#00E5A0',

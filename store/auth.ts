@@ -91,15 +91,5 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }
   },
 
-  resetPassword: async (accessToken, refreshToken, newPassword) => {
-    set({ isLoading: true, error: null });
-    try {
-      await resetPasswordRequest(accessToken, refreshToken, newPassword);
-      set({ isLoading: false });
-    } catch (err) {
-      set({ isLoading: false, error: toUserMessage(err) });
-    }
-  },
-
   clearError: () => set({ error: null }),
 }));
