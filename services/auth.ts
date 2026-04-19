@@ -116,6 +116,9 @@ export async function resetPasswordRequest(
 
 export function toUserMessage(err: unknown): string {
   if (err instanceof ApiError) {
+    const body = err.body as { title?: string; detail?: string } | undefined;
+    const detail = body?.detail?.toLowerCase() ?? "";
+
     if (err.status === 401)
       return "Credenciales inválidas. Verificá tu email y contraseña.";
     if (err.status === 409) return "Ya existe una cuenta con ese email.";
@@ -125,13 +128,19 @@ export function toUserMessage(err: unknown): string {
       return "Demasiados intentos. Esperá unos minutos e intentá de nuevo.";
     if (err.status === 400) {
       // Recovery link error
-      const body = err.body as { title?: string; detail?: string } | undefined;
       if (body?.title === "Invalid recovery link") {
         return "El enlace de recupero es inválido o ya expiró. Solicitá uno nuevo desde el login.";
       }
       return (
         body?.detail ?? err.message ?? "Datos inválidos. Revisá los campos."
       );
+    }
+    if (
+      err.status === 503 &&
+      (detail.includes("external identity provider unavailable") ||
+        detail.includes("email and password"))
+    ) {
+      return "No se pudo iniciar sesión con Google. Intentá nuevamente o usá email y contraseña.";
     }
     if (err.status >= 500)
       return "Error del servidor. Intentá de nuevo en unos minutos.";
