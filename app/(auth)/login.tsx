@@ -41,6 +41,11 @@ export default function LoginScreen() {
   const [touched, setTouched]   = useState({ email: false, password: false });
   const [showPass, setShowPass] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
+  const effectiveError = oauthError ?? error;
+  const isSuspendedError = Boolean(
+    effectiveError && effectiveError.toLowerCase().includes("suspendida"),
+  );
 
   useEffect(() => {
     return () => clearError();
@@ -52,6 +57,7 @@ export default function LoginScreen() {
   };
 
   const handleSubmit = async () => {
+    setOauthError(null);
     const errs = validate(email, password);
     setErrors(errs);
     setTouched({ email: true, password: true });
@@ -60,6 +66,8 @@ export default function LoginScreen() {
   };
 
   const handleGoogleLogin = async () => {
+    setOauthError(null);
+    clearError();
     setGoogleLoading(true);
     try {
       // openAuthSessionAsync returns the full redirect URL as its result.
@@ -78,10 +86,36 @@ export default function LoginScreen() {
       const params = new URLSearchParams(result.url.slice(hashIndex + 1));
       const accessToken = params.get("access_token");
       const refreshToken = params.get("refresh_token");
+      const oauthErrorCode = params.get("error");
+      const oauthErrorDescription = params.get("error_description");
+
+      if (oauthErrorCode || oauthErrorDescription) {
+        const normalized = (oauthErrorDescription ?? oauthErrorCode ?? "").toLowerCase();
+        if (
+          normalized.includes("banned") ||
+          normalized.includes("blocked") ||
+          normalized.includes("suspend")
+        ) {
+          setOauthError("Tu cuenta está suspendida. Contactá soporte.");
+        } else {
+          setOauthError(
+            "No se pudo iniciar sesión con Google. Intentá nuevamente o usá email y contraseña.",
+          );
+        }
+        return;
+      }
 
       if (accessToken && refreshToken) {
         await googleLogin(accessToken, refreshToken);
+        return;
       }
+      setOauthError(
+        "No se pudo completar el inicio de sesión con Google. Intentá nuevamente.",
+      );
+    } catch {
+      setOauthError(
+        "No se pudo iniciar sesión con Google. Intentá nuevamente o usá email y contraseña.",
+      );
     } finally {
       setGoogleLoading(false);
     }
@@ -107,10 +141,21 @@ export default function LoginScreen() {
             Bienvenido de nuevo
           </Text>
 
-          {error ? (
+          {effectiveError ? (
             <View style={[s.serverError, { backgroundColor: C.redBg, borderColor: C.red }]}>
-              <MaterialIcons name="error-outline" size={18} color={C.red} />
-              <Text style={[s.serverErrorText, { color: C.red }]}>{error}</Text>
+              <MaterialIcons
+                name={isSuspendedError ? "block" : "error-outline"}
+                size={18}
+                color={C.red}
+              />
+              <View style={s.serverErrorCopy}>
+                {isSuspendedError ? (
+                  <Text style={[s.serverErrorTitle, { color: C.red }]}>
+                    Cuenta suspendida
+                  </Text>
+                ) : null}
+                <Text style={[s.serverErrorText, { color: C.red }]}>{effectiveError}</Text>
+              </View>
             </View>
           ) : null}
 
@@ -265,6 +310,8 @@ const s = StyleSheet.create({
     gap: 10,
   },
   serverErrorText: { fontSize: 14, lineHeight: 20, flex: 1 },
+  serverErrorCopy: { flex: 1 },
+  serverErrorTitle: { fontSize: 14, fontWeight: "700", marginBottom: 2 },
 
   field:     { marginBottom: 20 },
   label:     { fontSize: 13, fontWeight: '600', marginBottom: 8, letterSpacing: 0.1 },
