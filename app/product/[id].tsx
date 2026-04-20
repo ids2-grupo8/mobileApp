@@ -5,7 +5,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-    Alert,
     Animated,
     Dimensions,
     NativeScrollEvent,
@@ -53,6 +52,49 @@ function getInitials(name?: string) {
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
 }
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+function Toast({ message, visible, accentGlow, accent, elevated, glassBorder, shadowDark, textPrimary }: {
+  message: string; visible: boolean;
+  accentGlow: string; accent: string; elevated: string;
+  glassBorder: string; shadowDark: string; textPrimary: string;
+}) {
+  const scale = useRef(new Animated.Value(0.85)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    scale.setValue(0.85);
+    opacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 260 }),
+      Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+  }, [visible, scale, opacity]);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View
+      style={[ts.wrap, { opacity, transform: [{ scale }] }]}
+      pointerEvents="none">
+      <View style={[ts.card, { backgroundColor: elevated, borderColor: glassBorder, shadowColor: shadowDark }]}>
+        <View style={[ts.iconWrap, { backgroundColor: accentGlow }]}>
+          <MaterialIcons name="check" size={32} color={accent} />
+        </View>
+        <Text style={[ts.text, { color: textPrimary }]}>{message}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+const ts = StyleSheet.create({
+  wrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
+  card: { borderWidth: 1, paddingHorizontal: 40, paddingVertical: 32, borderRadius: 32, alignItems: 'center', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 30, elevation: 12 },
+  iconWrap: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  text: { fontWeight: '700', fontSize: 18, letterSpacing: -0.3 },
+});
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -208,6 +250,8 @@ export default function ProductDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [networkError, setNetworkError] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [qty, setQty] = useState(1);
+  const [showToast, setShowToast] = useState(false);
 
   const shareProduct = async () => {
     if (!productId) return;
@@ -404,31 +448,54 @@ export default function ProductDetailScreen() {
 
       </ScrollView>
 
-      {/* ── Sticky Action Bar — CA-F3 disabled when out of stock ── */}
-      <View style={[s.actionBar, { paddingBottom: insets.bottom + 8 }]}>
+      {/* ── Sticky Action Bar ── */}
+      <View style={[s.actionBar, { paddingBottom: insets.bottom + 8, backgroundColor: C.bg }]}>
         <LinearGradient
           colors={['transparent', C.bg]}
-          locations={[0, 0.35]}
+          locations={[0, 1]}
           style={s.actionBarGradient}
           pointerEvents="none"
         />
-        <View style={[s.actionBarInner, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+        <View style={[s.actionBarInner, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
           <View style={s.actionBarLeft}>
             <Text style={[s.actionBarLabel, { color: C.textSecondary }]}>Precio</Text>
-            <Text style={[s.actionBarPrice, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
+            <Text style={[s.actionBarPrice, { color: C.textPrimary }]}>{formatPrice(product.price * qty)}</Text>
           </View>
+
+          {!outOfStock && (
+            <View style={[s.qtySelector, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+              <TouchableOpacity
+                onPress={() => setQty((q) => Math.max(1, q - 1))}
+                style={s.qtyBtn}
+                accessibilityRole="button">
+                <MaterialIcons name="remove" size={16} color={C.textPrimary} />
+              </TouchableOpacity>
+              <Text style={[s.qtyText, { color: C.textPrimary }]}>{qty}</Text>
+              <TouchableOpacity
+                onPress={() => setQty((q) => Math.min(product.stock, q + 1))}
+                style={s.qtyBtn}
+                accessibilityRole="button">
+                <MaterialIcons name="add" size={16} color={C.textPrimary} />
+              </TouchableOpacity>
+            </View>
+          )}
+
           <TouchableOpacity
             style={[
               s.actionBtn,
-              { backgroundColor: outOfStock ? C.glass : C.accent, shadowColor: outOfStock ? 'transparent' : C.accent },
+              { backgroundColor: outOfStock ? C.glass : C.accent },
               (outOfStock || adding) && s.actionBtnDisabled,
             ]}
             onPress={async () => {
               if (!product || adding || outOfStock) return;
               setAdding(true);
               try {
-                await addItem(product, 1);
-                Alert.alert('Carrito', 'Producto agregado al carrito.');
+                await addItem(product, qty);
+                setShowToast(true);
+                setTimeout(() => {
+                  setShowToast(false);
+                  router.replace('/(tabs)');
+                }, 2000);
               } finally {
                 setAdding(false);
               }
@@ -449,6 +516,17 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <Toast
+        message="¡Agregado al carrito!"
+        visible={showToast}
+        accentGlow={C.accentGlow}
+        accent={C.accent}
+        elevated={C.elevated}
+        glassBorder={C.glassBorder}
+        shadowDark={C.shadowDark}
+        textPrimary={C.textPrimary}
+      />
     </View>
   );
 }
@@ -746,11 +824,6 @@ const s = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 6,
     paddingVertical: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 16,
-    elevation: 12,
   },
   actionBarLeft: {
     gap: 2,
@@ -766,6 +839,23 @@ const s = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.3,
   },
+  qtySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 14,
+    overflow: 'hidden',
+  },
+  qtyBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 10,
+  },
+  qtyText: {
+    fontSize: 15,
+    fontWeight: '700',
+    minWidth: 22,
+    textAlign: 'center',
+  },
   actionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -773,10 +863,6 @@ const s = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 20,
     paddingVertical: 14,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
   },
   actionBtnDisabled: {
     opacity: 0.6,
