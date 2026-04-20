@@ -163,7 +163,7 @@ export default function PublicationsScreen() {
                           ...p,
                           status: newStatus as 'available' | 'disabled' | 'out_of_stock',
                           enabled: newStatus !== 'disabled',
-                          stock: newStatus === 'disabled' ? 0 : p.originalStock,
+                          stock: newStatus === 'disabled' ? 0 : (p.originalStock ?? p.stock),
                         }
                       : p
                   )
