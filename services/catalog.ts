@@ -65,6 +65,9 @@ export type CatalogProduct = {
   description?: string;
   isRecent?: boolean;
   attributes?: Record<string, unknown>;
+  originalStock?: number;
+  status?: 'available' | 'disabled' | 'out_of_stock';
+  enabled?: boolean;
 };
 
 type RawProduct = Record<string, unknown>;
@@ -179,6 +182,9 @@ function normalizeProduct(raw: RawProduct): CatalogProduct | null {
     description: asString(product.description) || undefined,
     isRecent: isRecentFromDate(product),
     attributes: product.attributes && typeof product.attributes === 'object' ? (product.attributes as Record<string, unknown>) : undefined,
+    status: statusRaw as 'available' | 'disabled' | 'out_of_stock',
+    enabled,
+    originalStock: stock,
     ...(enabled ? {} : { stock: 0 }),
   };
 }
@@ -331,6 +337,29 @@ export async function updateProductRequest(
       existing_image_urls: JSON.stringify(existingImageUrls),
     },
     images: data.images,
+    auth: true,
+  });
+}
+
+export async function updateProductStock(productId: string, stock: number): Promise<void> {
+  // PATCH /products/{product_id}/stock  — update stock only
+  await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}/stock`), {
+    method: 'PATCH',
+    fields: { stock_update: stock.toString() },
+    images: [],
+    auth: true,
+  });
+}
+
+export async function updateProductStatus(
+  productId: string,
+  status: 'available' | 'disabled' | 'out_of_stock',
+): Promise<void> {
+  // PATCH /products/{product_id}/status  — update status only
+  await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}/status`), {
+    method: 'PATCH',
+    fields: { status_update: status },
+    images: [],
     auth: true,
   });
 }

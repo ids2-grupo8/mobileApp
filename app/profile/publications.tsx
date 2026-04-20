@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
-import { fetchMyProducts, type CatalogProduct } from '@/services/catalog';
+import { fetchMyProducts, updateProductStatus, type CatalogProduct } from '@/services/catalog';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -28,14 +29,29 @@ function PublicationCard({
   product,
   onEdit,
   onOpen,
+  onStatusChange,
   C,
 }: {
   product: CatalogProduct;
   onEdit: () => void;
   onOpen: () => void;
+  onStatusChange: (productId: string, newStatus: boolean) => void;
   C: ReturnType<typeof useTheme>;
 }) {
   const outOfStock = product.stock <= 0;
+  const isDisabled = product.enabled === false;
+
+  const statusText = isDisabled 
+    ? 'Deshabilitado' 
+    : outOfStock 
+      ? 'Sin stock' 
+      : `Stock: ${product.stock}`;
+
+  const statusColor = isDisabled 
+    ? C.red 
+    : outOfStock 
+      ? C.textMuted 
+      : C.textMuted;
 
   return (
     <TouchableOpacity
@@ -49,8 +65,8 @@ function PublicationCard({
           <View style={[s.badge, { backgroundColor: C.accentGlow, borderColor: C.accent }] }>
             <Text style={[s.badgeText, { color: C.accent }]}>{product.category}</Text>
           </View>
-          <Text style={[s.status, { color: outOfStock ? C.red : C.textMuted }]}>
-            {outOfStock ? 'Sin stock' : `Stock: ${product.stock}`}
+          <Text style={[s.status, { color: statusColor }]}>
+            {statusText}
           </Text>
         </View>
 
@@ -66,6 +82,22 @@ function PublicationCard({
             accessibilityRole="button">
             <MaterialIcons name="edit" size={16} color="#050508" />
             <Text style={s.editBtnText}>Editar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              s.toggleBtn,
+              {
+                backgroundColor: isDisabled ? C.accentGlow : C.redBg,
+                borderColor: isDisabled ? C.accent : C.red,
+                shadowColor: isDisabled ? C.accent : C.red,
+              },
+            ]}
+            onPress={() => onStatusChange(product.id, isDisabled)}
+            accessibilityRole="button">
+            <MaterialIcons name={isDisabled ? 'visibility' : 'visibility-off'} size={16} color={isDisabled ? C.accent : C.red} />
+            <Text style={[s.toggleBtnText, { color: isDisabled ? C.accent : C.red }]}>
+              {isDisabled ? 'Habilitar' : 'Deshabilitar'}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -103,6 +135,57 @@ export default function PublicationsScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadProducts();
+  };
+
+  const handleStatusChange = async (productId: string, currentlyDisabled: boolean) => {
+    try {
+      const newStatus = currentlyDisabled ? 'available' : 'disabled';
+      const actionText = currentlyDisabled ? 'habilitar' : 'deshabilitar';
+      
+      Alert.alert(
+        `¿Seguro que querés ${actionText} este producto?`,
+        currentlyDisabled 
+          ? 'El producto volverá a aparecer en el catálogo si tiene stock disponible.'
+          : 'El producto desaparecerá del catálogo y no podrá ser comprado.',
+        [
+          { text: 'Cancelar', onPress: () => {}, style: 'cancel' },
+          {
+            text: currentlyDisabled ? 'Habilitar' : 'Deshabilitar',
+            onPress: async () => {
+              try {
+                await updateProductStatus(productId, newStatus as 'available' | 'disabled' | 'out_of_stock');
+                
+                // Update local state
+                setProducts((prevProducts) =>
+                  prevProducts.map((p) =>
+                    p.id === productId
+                      ? {
+                          ...p,
+                          status: newStatus as 'available' | 'disabled' | 'out_of_stock',
+                          enabled: newStatus !== 'disabled',
+                          stock: newStatus === 'disabled' ? 0 : p.originalStock,
+                        }
+                      : p
+                  )
+                );
+
+                Alert.alert(
+                  'Éxito',
+                  `Producto ${actionText}do correctamente.`,
+                  [{ text: 'OK', onPress: () => {} }]
+                );
+              } catch (err) {
+                console.error('Error updating product status:', err);
+                Alert.alert('Error', `No pudimos ${actionText} el producto. Intentá de nuevo.`);
+              }
+            },
+            style: 'destructive',
+          },
+        ]
+      );
+    } catch (err) {
+      console.error('Error in handleStatusChange:', err);
+    }
   };
 
   return (
@@ -164,6 +247,7 @@ export default function PublicationsScreen() {
                   C={C}
                   onEdit={() => router.push({ pathname: '/seller/publish', params: { id: product.id } })}
                   onOpen={() => router.push({ pathname: '/seller/publish', params: { id: product.id } })}
+                  onStatusChange={handleStatusChange}
                 />
               ))}
             </View>
@@ -269,8 +353,10 @@ const s = StyleSheet.create({
   actions: {
     marginTop: 2,
     gap: 8,
+    flexDirection: 'row',
   },
   editBtn: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -284,6 +370,24 @@ const s = StyleSheet.create({
   },
   editBtnText: {
     color: '#050508',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  toggleBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 14,
+    borderWidth: 2,
+    paddingVertical: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  toggleBtnText: {
     fontSize: 14,
     fontWeight: '800',
   },
