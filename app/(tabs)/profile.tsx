@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import {
   Animated,
   Image,
@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
@@ -196,15 +196,17 @@ export default function ProfileScreen() {
   const { logout } = useAuthStore();
   const { mode, toggle } = useThemeStore();
 
-  useEffect(() => {
-    fetchProfile();
-  }, [fetchProfile]);
+  useFocusEffect(
+    useCallback(() => {
+      void fetchProfile();
+    }, [fetchProfile]),
+  );
 
   if (loading || !profile) {
     return <ProfileSkeleton topPad={insets.top} C={C} />;
   }
 
-  const activeCount = profile.publications.filter((p) => p.stock > 0).length;
+  const publicationsCount = profile.publications.length;
 
   return (
     <View style={[s.root, { backgroundColor: C.bg }]}>
@@ -268,7 +270,7 @@ export default function ProfileScreen() {
         {/* ── Stats — glass card ── */}
         <View style={s.content}>
           <View style={[s.statsCard, { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark }]}>
-            <StatItem value={activeCount} label="Publicaciones" C={C} />
+            <StatItem value={publicationsCount} label="Publicaciones" C={C} />
             <View style={[s.statDivider, { backgroundColor: C.glassBorder }]} />
             <StatItem value={0} label="Wishlist" C={C} />
             <View style={[s.statDivider, { backgroundColor: C.glassBorder }]} />
