@@ -14,8 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
-import { fetchProductsBySellerEmail, type CatalogProduct } from '@/services/catalog';
-import { useAuthStore } from '@/store/auth';
+import { fetchMyProducts, type CatalogProduct } from '@/services/catalog';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -68,7 +67,6 @@ function PublicationCard({
             <MaterialIcons name="edit" size={16} color="#050508" />
             <Text style={s.editBtnText}>Editar</Text>
           </TouchableOpacity>
-          <Text style={[s.hint, { color: C.textMuted }]}>Tocá la tarjeta para editar</Text>
         </View>
       </View>
     </TouchableOpacity>
@@ -79,7 +77,6 @@ export default function PublicationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const C = useTheme();
-  const user = useAuthStore((state) => state.user);
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,16 +84,9 @@ export default function PublicationsScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const loadProducts = async () => {
-    if (!user?.email) {
-      setProducts([]);
-      setError('No encontramos tu cuenta. Volvé a iniciar sesión.');
-      setLoading(false);
-      return;
-    }
-
     try {
       setError(null);
-      const list = await fetchProductsBySellerEmail(user.email);
+      const list = await fetchMyProducts();
       setProducts(list);
     } catch {
       setError('No pudimos cargar tus publicaciones. Intentá de nuevo.');
@@ -108,7 +98,7 @@ export default function PublicationsScreen() {
 
   useEffect(() => {
     loadProducts();
-  }, [user?.email]);
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);

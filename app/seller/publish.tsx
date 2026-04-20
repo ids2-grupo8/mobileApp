@@ -1,5 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
+import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
@@ -23,7 +24,7 @@ import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
 import {
   createProductRequest,
-  fetchProductsBySellerEmail,
+  fetchCatalogProductById,
   updateProductRequest,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
@@ -96,37 +97,112 @@ function CategoryPicker({ value, onSelect, C }: { value: string; onSelect: (v: s
   );
 }
 
-function ImageStrip({ items, onAdd, onRemove, C }: { items: ManagedImage[]; onAdd: () => void; onRemove: (i: number) => void; C: ThemeColors }) {
+function ImageStrip({
+  items,
+  onAdd,
+  onRemove,
+  onReorder,
+  C,
+}: {
+  items: ManagedImage[];
+  onAdd: () => void;
+  onRemove: (i: number) => void;
+  onReorder: (from: number, to: number) => void;
+  C: ThemeColors;
+}) {
+  const [reordering, setReordering] = useState(false);
+
+  const enterReorder = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setReordering(true);
+  };
+
+  const move = (from: number, to: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onReorder(from, to);
+  };
+
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.imgRow}>
-      {items.map((item, i) => (
-        <View key={`${item.uri}-${i}`} style={s.imgThumbWrap}>
-          <Image source={{ uri: item.uri }} style={[s.imgThumb, { borderColor: i === 0 ? C.accent : C.glassBorder }]} contentFit="cover" />
-          {i === 0 && (
-            <View style={[s.mainBadge, { backgroundColor: C.accent }] }>
-              <Text style={s.mainBadgeText}>Principal</Text>
-            </View>
-          )}
-          <TouchableOpacity
-            style={[s.removeBadge, { backgroundColor: C.red }]}
-            onPress={() => onRemove(i)}
-            accessibilityRole="button"
-            accessibilityLabel="Eliminar imagen">
-            <MaterialIcons name="close" size={12} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      ))}
-      {items.length < 4 && (
+    <View>
+      {items.length > 1 && (
         <TouchableOpacity
-          style={[s.imgAdd, { borderColor: C.glassBorder, backgroundColor: C.glass }]}
-          onPress={onAdd}
-          accessibilityRole="button"
-          accessibilityLabel="Agregar imagen">
-          <MaterialIcons name="add-photo-alternate" size={24} color={C.textMuted} />
-          <Text style={[s.imgAddLabel, { color: C.textMuted }]}>Agregar</Text>
+          onPress={() => {
+            if (reordering) setReordering(false);
+            else enterReorder();
+          }}
+          style={[s.reorderToggle, { backgroundColor: reordering ? C.accent : C.glass, borderColor: reordering ? C.accent : C.glassBorder }]}
+          accessibilityRole="button">
+          <MaterialIcons name={reordering ? 'check' : 'swap-horiz'} size={14} color={reordering ? '#050508' : C.textSecondary} />
+          <Text style={[s.reorderToggleText, { color: reordering ? '#050508' : C.textSecondary }]}>
+            {reordering ? 'Listo' : 'Reordenar'}
+          </Text>
         </TouchableOpacity>
       )}
-    </ScrollView>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={s.imgRow}
+        scrollEnabled={!reordering}>
+        {items.map((item, i) => (
+          <View key={`${item.uri}-${i}`} style={s.imgThumbWrap}>
+            <Image
+              source={{ uri: item.uri }}
+              style={[s.imgThumb, { borderColor: i === 0 ? C.accent : C.glassBorder }]}
+              contentFit="cover"
+            />
+
+            {/* Portada badge */}
+            {i === 0 && (
+              <View style={[s.mainBadge, { backgroundColor: C.accent }]}>
+                <Text style={s.mainBadgeText}>Principal</Text>
+              </View>
+            )}
+
+            {/* Reorder arrows overlay */}
+            {reordering ? (
+              <View style={s.reorderOverlay}>
+                <TouchableOpacity
+                  style={[s.arrowBtn, { opacity: i === 0 ? 0.25 : 1 }]}
+                  onPress={() => i > 0 && move(i, i - 1)}
+                  disabled={i === 0}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mover a la izquierda">
+                  <MaterialIcons name="chevron-left" size={22} color="#fff" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.arrowBtn, { opacity: i === items.length - 1 ? 0.25 : 1 }]}
+                  onPress={() => i < items.length - 1 && move(i, i + 1)}
+                  disabled={i === items.length - 1}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mover a la derecha">
+                  <MaterialIcons name="chevron-right" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                style={[s.removeBadge, { backgroundColor: C.red }]}
+                onPress={() => onRemove(i)}
+                accessibilityRole="button"
+                accessibilityLabel="Eliminar imagen">
+                <MaterialIcons name="close" size={12} color="#fff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        ))}
+
+        {!reordering && items.length < 4 && (
+          <TouchableOpacity
+            style={[s.imgAdd, { borderColor: C.glassBorder, backgroundColor: C.glass }]}
+            onPress={onAdd}
+            accessibilityRole="button"
+            accessibilityLabel="Agregar imagen">
+            <MaterialIcons name="add-photo-alternate" size={24} color={C.textMuted} />
+            <Text style={[s.imgAddLabel, { color: C.textMuted }]}>Agregar</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -255,15 +331,14 @@ export default function PublishProductScreen() {
     let active = true;
 
     const loadProduct = async () => {
-      if (!user?.email || !productId) {
+      if (!productId) {
         setHydrating(false);
         return;
       }
 
       setHydrating(true);
       try {
-        const products = await fetchProductsBySellerEmail(user.email);
-        const existing = products.find((item) => item.id === productId);
+        const existing = await fetchCatalogProductById(productId);
 
         if (!existing) {
           Alert.alert('Producto no encontrado', 'No pudimos cargar este producto para editarlo.');
@@ -312,7 +387,7 @@ export default function PublishProductScreen() {
     return () => {
       active = false;
     };
-  }, [isEditing, productId, router, user?.email]);
+  }, [isEditing, productId, router]);
 
   const handleAddImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -339,6 +414,13 @@ export default function PublishProductScreen() {
     const next = images.filter((_, i) => i !== index);
     setImages(next);
     if (touched.images) setErrors((prev) => ({ ...prev, images: next.length === 0 ? 'Agregá al menos una imagen.' : undefined }));
+  };
+
+  const handleReorderImage = (from: number, to: number) => {
+    const next = [...images];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setImages(next);
   };
 
   const handleSubmit = async () => {
@@ -485,7 +567,7 @@ export default function PublishProductScreen() {
 
           <View style={s.section}>
             <Text style={[s.sectionLabel, { color: C.textSecondary }]}>Imágenes<Text style={{ color: C.red }}> *</Text></Text>
-            <ImageStrip items={images} onAdd={handleAddImage} onRemove={handleRemoveImage} C={C} />
+            <ImageStrip items={images} onAdd={handleAddImage} onRemove={handleRemoveImage} onReorder={handleReorderImage} C={C} />
             <Text style={[s.hint, { color: C.textMuted }]}>La primera imagen será la portada.</Text>
             {touched.images && errors.images ? <Text style={[s.errorText, { color: C.red }]}>{errors.images}</Text> : null}
           </View>
@@ -554,6 +636,10 @@ const s = StyleSheet.create({
   removeBadge: { position: 'absolute', top: -5, right: -5, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   imgAdd: { width: 90, height: 90, borderRadius: 14, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 4 },
   imgAddLabel: { fontSize: 10, fontWeight: '600' },
+  reorderToggle: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8 },
+  reorderToggleText: { fontSize: 12, fontWeight: '600' },
+  reorderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.52)', borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
+  arrowBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   field: { marginBottom: 18 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   inputWrap: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 52, justifyContent: 'center' },

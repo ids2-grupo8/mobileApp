@@ -255,6 +255,22 @@ export async function fetchProductsBySellerEmail(email: string): Promise<Catalog
     .filter((item): item is CatalogProduct => item !== null);
 }
 
+export async function fetchMyProducts(): Promise<CatalogProduct[]> {
+  const payload = await request<unknown>(CATALOG('/products/my-products'), {
+    method: 'GET',
+    auth: true,
+  });
+
+  const collection = extractCollection(payload);
+  if (!collection) {
+    throw new Error('Respuesta de publicaciones invalida.');
+  }
+
+  return collection
+    .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+    .filter((item): item is CatalogProduct => item !== null);
+}
+
 export async function createProductRequest(data: CreateProductData): Promise<void> {
   // POST /products  — multipart/form-data: product_data (JSON string) + images (files)
   const productData = JSON.stringify({

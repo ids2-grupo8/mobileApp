@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { fetchMyProducts } from "@/services/catalog";
 import { getUserProfile, uploadProfilePhoto, updateUserProfile } from "@/services/user";
 import { useAuthStore } from "./auth";
 
@@ -38,15 +39,24 @@ export const useUserStore = create<UserStore>((set, get) => ({
     if (!authUser) { set({ loading: false }); return; }
 
     try {
-      const res = await getUserProfile(authUser.email);
+      const [profileRes, products] = await Promise.all([
+        getUserProfile(authUser.email),
+        fetchMyProducts().catch(() => []),
+      ]);
       set({
         profile: {
-          id: res.data.id,
-          name: res.data.full_name,
-          email: res.data.email,
-          bio: res.data.description ?? '',
-          avatarUrl: res.data.photo ?? undefined,
-          publications: [],
+          id: profileRes.data.id,
+          name: profileRes.data.full_name,
+          email: profileRes.data.email,
+          bio: profileRes.data.description ?? '',
+          avatarUrl: profileRes.data.photo ?? undefined,
+          publications: products.map((p) => ({
+            id: p.id,
+            title: p.title,
+            price: p.price,
+            imageUrl: p.imageUrl,
+            stock: p.stock,
+          })),
         },
         loading: false,
       });
