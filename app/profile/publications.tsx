@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -153,6 +153,12 @@ export default function PublicationsScreen() {
     loadProducts();
   }, [user?.email]);
 
+  useFocusEffect(
+    useCallback(() => {
+      loadProducts();
+    }, [user?.email]),
+  );
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadProducts();
@@ -188,14 +194,13 @@ export default function PublicationsScreen() {
 
   return (
     <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }] }>
-      <View style={[s.header, { borderBottomColor: C.glassBorder }] }>
+      <View style={[s.header, { borderBottomColor: C.glassBorder }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button">
-          <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+          <View style={[s.backCircle, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+            <MaterialIcons name="arrow-back" size={20} color={C.textSecondary} />
+          </View>
         </TouchableOpacity>
-        <View style={s.headerText}>
-          <Text style={[s.titleScreen, { color: C.textPrimary }]}>Mis publicaciones</Text>
-          <Text style={[s.subtitle, { color: C.textSecondary }]}>Editá, revisá stock y actualizá tus productos.</Text>
-        </View>
+        <Text style={[s.titleScreen, { color: C.textPrimary }]}>Mis publicaciones</Text>
         <TouchableOpacity
           onPress={() => router.push('/seller/publish')}
           style={[s.newBtn, { backgroundColor: C.accent }]}
@@ -262,35 +267,29 @@ const s = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     borderBottomWidth: 1,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  backBtn: { width: 44 },
+  backCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerText: {
-    flex: 1,
-    gap: 2,
-  },
   titleScreen: {
-    fontSize: 24,
-    fontWeight: '800',
-    letterSpacing: -0.4,
-  },
-  subtitle: {
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: -0.2,
   },
   newBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -167,6 +167,8 @@ function normalizeProduct(raw: RawProduct): CatalogProduct | null {
         photo: asString(sellerObj.photo) || undefined,
         description: asString(sellerObj.description) || undefined,
       }
+    : asString(product.user_email)
+    ? { email: asString(product.user_email) }
     : undefined;
 
   return {

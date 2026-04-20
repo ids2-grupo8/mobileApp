@@ -3,6 +3,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
 import { useAuthStore } from '@/store/auth';
@@ -120,6 +121,7 @@ export default function RootLayout() {
   }, [isReady, router]);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={navTheme}>
       <Stack>
         <Stack.Screen name="(auth)"      options={{ headerShown: false }} />
@@ -133,5 +135,6 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style={effective === "dark" ? "light" : "dark"} />
     </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

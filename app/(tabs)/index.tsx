@@ -37,28 +37,15 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
+const CATEGORY_TRANSLATIONS: Record<string, string> = {
+  'Electronics': 'Electrónica',
+  'Clothing':    'Ropa',
+};
+
 const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-  'Todos':         'apps',
-  'Electrónica':   'laptop',
-  'Tecnología':    'devices',
-  'Ropa':          'style',
-  'Indumentaria':  'style',
-  'Hogar':         'home',
-  'Muebles':       'weekend',
-  'Deportes':      'fitness-center',
-  'Gaming':        'sports-esports',
-  'Juegos':        'sports-esports',
-  'Libros':        'book',
-  'Música':        'music-note',
-  'Alimentos':     'restaurant',
-  'Salud':         'local-hospital',
-  'Belleza':       'face',
-  'Mascotas':      'pets',
-  'Autos':         'directions-car',
-  'Arte':          'palette',
-  'Jardín':        'nature',
-  'Juguetes':      'toys',
-  'Moda':          'style',
+  'Todos':       'apps',
+  'Electrónica': 'devices',
+  'Ropa':        'checkroom',
 };
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
@@ -137,9 +124,6 @@ function ProductCard({
         <View style={s.productBody}>
           <Text numberOfLines={2} style={[s.productTitle, { color: textPrimary }]}>
             {product.title}
-          </Text>
-          <Text style={[s.productSeller, { color: textSecondary }]} numberOfLines={1}>
-            {product.seller}
           </Text>
           <Text style={[s.productPrice, { color: accent }]}>
             {formatPrice(product.price)}
@@ -322,7 +306,8 @@ export default function HomeScreen() {
     const max = maxPrice !== '' ? parseFloat(maxPrice) : null;
 
     return products.filter((p) => {
-      const categoryMatch = category === 'Todos' || p.category === category;
+      const translatedCategory = CATEGORY_TRANSLATIONS[p.category] ?? p.category;
+      const categoryMatch = category === 'Todos' || translatedCategory === category;
       const queryMatch =
         !normalizedQuery ||
         p.title.toLowerCase().includes(normalizedQuery) ||
@@ -347,7 +332,9 @@ export default function HomeScreen() {
   }, [products, user]);
 
   const categories = useMemo<CategoryFilter[]>(() => {
-    const dynamic = Array.from(new Set(products.map((p) => p.category))).sort();
+    const dynamic = Array.from(
+      new Set(products.map((p) => CATEGORY_TRANSLATIONS[p.category] ?? p.category))
+    ).sort();
     return ['Todos', ...dynamic];
   }, [products]);
 
@@ -444,19 +431,21 @@ export default function HomeScreen() {
               <View style={[s.filterDot, { backgroundColor: theme.accent }]} />
             )}
           </TouchableOpacity>
+
+          {hasActiveFilters && (
+            <TouchableOpacity
+              onPress={clearAllFilters}
+              style={[s.filterBtn, { backgroundColor: theme.redBg, borderColor: theme.red }]}
+              accessibilityRole="button"
+              accessibilityLabel="Limpiar filtros">
+              <MaterialIcons name="filter-alt-off" size={20} color={theme.red} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* ── Active filter chips ── */}
-        {hasActiveFilters && (
+        {hasPriceFilter && (
           <View style={s.chipRow}>
-            {category !== 'Todos' && (
-              <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
-                <Text style={[s.chipText, { color: theme.accent }]}>{category}</Text>
-                <TouchableOpacity onPress={() => setCategory('Todos')} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                  <MaterialIcons name="close" size={13} color={theme.accent} />
-                </TouchableOpacity>
-              </View>
-            )}
             {minPrice !== '' && (
               <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
                 <Text style={[s.chipText, { color: theme.accent }]}>Desde ${minPrice}</Text>
@@ -473,11 +462,6 @@ export default function HomeScreen() {
                 </TouchableOpacity>
               </View>
             )}
-            <TouchableOpacity
-              onPress={clearAllFilters}
-              style={[s.chipClear, { backgroundColor: theme.redBg, borderColor: theme.red }]}>
-              <Text style={[s.chipClearText, { color: theme.red }]}>Limpiar todo</Text>
-            </TouchableOpacity>
           </View>
         )}
 
@@ -486,11 +470,6 @@ export default function HomeScreen() {
           <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
             Categorías
           </Text>
-          {category !== 'Todos' && (
-            <TouchableOpacity onPress={() => setCategory('Todos')}>
-              <Text style={[s.seeAllText, { color: theme.accent }]}>Ver todos</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         <ScrollView
@@ -948,6 +927,7 @@ const s = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 18,
     letterSpacing: -0.1,
+    height: 36,
   },
   productSeller: {
     fontSize: 11,

@@ -31,6 +31,11 @@ import { useCartStore } from '@/store/cart';
 const { width: SCREEN_W } = Dimensions.get('window');
 const HERO_H = SCREEN_W * 1.1;
 
+const CATEGORY_LABELS: Record<string, string> = {
+  Electronics: 'Electrónica',
+  Clothing: 'Ropa',
+};
+
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
     style: 'currency',
@@ -317,7 +322,7 @@ export default function ProductDetailScreen() {
         <View style={s.infoSection}>
           {/* Category pill */}
           <View style={[s.categoryPill, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
-            <Text style={[s.categoryPillText, { color: C.accent }]}>{product.category}</Text>
+            <Text style={[s.categoryPillText, { color: C.accent }]}>{CATEGORY_LABELS[product.category] ?? product.category}</Text>
           </View>
 
           <Text style={[s.productTitle, { color: C.textPrimary }]}>{product.title}</Text>

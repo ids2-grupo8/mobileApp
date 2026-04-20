@@ -9,6 +9,7 @@ import {
   Alert,
   Animated,
   KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   ScrollView,
@@ -18,6 +19,14 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import ReAnimated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  runOnJS,
+} from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/constants/colors';
@@ -35,24 +44,38 @@ const CATEGORY_LABELS: Record<(typeof CATEGORIES)[number], string> = {
   Clothing: 'Ropa',
 };
 
+const THUMB_SIZE = 90;
+const THUMB_GAP = 10;
+const SLOT_W = THUMB_SIZE + THUMB_GAP;
+const MAX_IMAGES = 8;
+
 type ManagedImage = { uri: string; isRemote: boolean };
 type Errors = Partial<Record<'images' | 'title' | 'description' | 'price' | 'stock' | 'category' | 'brand' | 'model' | 'warranty_months' | 'size' | 'color' | 'material', string>>;
 
+const triggerHapticMedium = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+const triggerHapticLight = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
 function Toast({ message, visible, C }: { message: string; visible: boolean; C: ThemeColors }) {
+  const scale = useRef(new Animated.Value(0.85)).current;
   const opacity = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (!visible) return;
-
-    Animated.sequence([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(1800),
-      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    scale.setValue(0.85);
+    opacity.setValue(0);
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 260 }),
+      Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }),
     ]).start();
-  }, [visible, opacity]);
+  }, [visible, scale, opacity]);
+
+  if (!visible) return null;
 
   return (
-    <Animated.View style={[s.toastWrap, { opacity }]} pointerEvents="none">
-      <View style={[s.toastCard, { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark }] }>
+    <Animated.View
+      style={[s.toastWrap, { opacity, transform: [{ scale }] }]}
+      pointerEvents="none">
+      <View style={[s.toastCard, { backgroundColor: C.elevated, borderColor: C.glassBorder, shadowColor: C.shadowDark }]}>
         <View style={[s.toastIconWrap, { backgroundColor: C.accentGlow }]}>
           <MaterialIcons name="check" size={32} color={C.accent} />
         </View>
@@ -67,26 +90,43 @@ function CategoryPicker({ value, onSelect, C }: { value: string; onSelect: (v: s
 
   return (
     <>
-      <TouchableOpacity
-        style={[s.catButton, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
-        onPress={() => setOpen(true)}
-        accessibilityRole="button">
-        <Text style={[s.catButtonText, { color: value ? C.textPrimary : C.textMuted }]}>
-          {value ? CATEGORY_LABELS[value as keyof typeof CATEGORY_LABELS] : 'Seleccioná una categoría'}
-        </Text>
-        <MaterialIcons name="expand-more" size={20} color={C.textSecondary} />
-      </TouchableOpacity>
+      <View style={[s.catButton, { backgroundColor: C.glass, borderColor: value ? C.accent : C.glassBorder }]}>
+        <TouchableOpacity
+          style={s.catButtonMain}
+          onPress={() => setOpen(true)}
+          accessibilityRole="button">
+          <Text style={[s.catButtonText, { color: value ? C.textPrimary : C.textMuted }]}>
+            {value ? CATEGORY_LABELS[value as keyof typeof CATEGORY_LABELS] : 'Seleccioná una categoría'}
+          </Text>
+        </TouchableOpacity>
+        {value ? (
+          <TouchableOpacity
+            onPress={() => onSelect('')}
+            hitSlop={8}
+            style={s.catClearBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Quitar categoría">
+            <MaterialIcons name="close" size={18} color={C.textSecondary} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={() => setOpen(true)} style={s.catChevron} accessibilityRole="button">
+            <MaterialIcons name="expand-more" size={20} color={C.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
-          <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }] }>
+          <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
             <Text style={[s.modalTitle, { color: C.textPrimary }]}>Categoría</Text>
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
                 key={cat}
                 style={[s.modalOption, { borderColor: C.glassBorder }, cat === value && { backgroundColor: C.accentGlow }]}
-                onPress={() => { onSelect(cat); setOpen(false); }}
+                onPress={() => { onSelect(cat === value ? '' : cat); setOpen(false); }}
                 accessibilityRole="button">
-                <Text style={[s.modalOptionText, { color: cat === value ? C.accent : C.textPrimary }]}>{CATEGORY_LABELS[cat]}</Text>
+                <Text style={[s.modalOptionText, { color: cat === value ? C.accent : C.textPrimary }]}>
+                  {CATEGORY_LABELS[cat]}
+                </Text>
                 {cat === value && <MaterialIcons name="check" size={16} color={C.accent} />}
               </TouchableOpacity>
             ))}
@@ -94,6 +134,123 @@ function CategoryPicker({ value, onSelect, C }: { value: string; onSelect: (v: s
         </TouchableOpacity>
       </Modal>
     </>
+  );
+}
+
+function DraggableThumb({
+  item,
+  index,
+  total,
+  activeIdx,
+  hoverIdx,
+  dragTX,
+  onRemove,
+  onDrop,
+  onDragStart,
+  onDragEnd,
+  C,
+}: {
+  item: ManagedImage;
+  index: number;
+  total: number;
+  activeIdx: SharedValue<number>;
+  hoverIdx: SharedValue<number>;
+  dragTX: SharedValue<number>;
+  onRemove: (i: number) => void;
+  onDrop: (from: number, to: number) => void;
+  onDragStart: () => void;
+  onDragEnd: () => void;
+  C: ThemeColors;
+}) {
+  const lastHover = useSharedValue(-1);
+
+  const pan = Gesture.Pan()
+    .activateAfterLongPress(300)
+    .onStart(() => {
+      activeIdx.value = index;
+      hoverIdx.value = index;
+      lastHover.value = index;
+      dragTX.value = 0;
+      runOnJS(triggerHapticMedium)();
+      runOnJS(onDragStart)();
+    })
+    .onUpdate((e) => {
+      dragTX.value = e.translationX;
+      const rawPos = index * SLOT_W + e.translationX;
+      const next = Math.max(0, Math.min(total - 1, Math.round(rawPos / SLOT_W)));
+      if (next !== lastHover.value) {
+        lastHover.value = next;
+        runOnJS(triggerHapticLight)();
+      }
+      hoverIdx.value = next;
+    })
+    .onEnd(() => {
+      const from = activeIdx.value;
+      const to = hoverIdx.value;
+      activeIdx.value = -1;
+      hoverIdx.value = -1;
+      dragTX.value = 0;
+      runOnJS(onDragEnd)();
+      if (from !== to) runOnJS(onDrop)(from, to);
+    })
+    .onFinalize(() => {
+      activeIdx.value = -1;
+      hoverIdx.value = -1;
+      dragTX.value = 0;
+      runOnJS(onDragEnd)();
+    });
+
+  const animStyle = useAnimatedStyle(() => {
+    const isActive = activeIdx.value === index;
+    if (isActive) {
+      return {
+        transform: [{ translateX: dragTX.value }, { scale: 1.08 }],
+        zIndex: 100,
+        opacity: 0.92,
+        shadowOpacity: 0.5,
+      };
+    }
+
+    const from = activeIdx.value;
+    const to = hoverIdx.value;
+    let shift = 0;
+    if (from !== -1) {
+      if (from < to && index > from && index <= to) shift = -SLOT_W;
+      else if (from > to && index < from && index >= to) shift = SLOT_W;
+    }
+
+    return {
+      transform: [{ translateX: withSpring(shift, { damping: 100, stiffness: 500, overshootClamping: true }) }, { scale: withSpring(1, { damping: 100, stiffness: 500, overshootClamping: true }) }],
+      zIndex: 1,
+      opacity: 1,
+    };
+  });
+
+  return (
+    <GestureDetector gesture={pan}>
+      <ReAnimated.View style={[s.imgThumbWrap, animStyle]}>
+        <Image
+          source={{ uri: item.uri }}
+          style={[s.imgThumb, { borderColor: index === 0 ? C.accent : C.glassBorder }]}
+          contentFit="cover"
+        />
+        {index === 0 && (
+          <View style={[s.mainBadge, { backgroundColor: C.accent }]}>
+            <Text style={s.mainBadgeText}>Principal</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          style={[s.removeBadge, { backgroundColor: C.red }]}
+          onPress={() => onRemove(index)}
+          accessibilityRole="button"
+          accessibilityLabel="Eliminar imagen">
+          <MaterialIcons name="close" size={12} color="#fff" />
+        </TouchableOpacity>
+        <View style={s.dragHint} pointerEvents="none">
+          <MaterialIcons name="drag-indicator" size={14} color="rgba(255,255,255,0.55)" />
+        </View>
+      </ReAnimated.View>
+    </GestureDetector>
   );
 }
 
@@ -110,88 +267,38 @@ function ImageStrip({
   onReorder: (from: number, to: number) => void;
   C: ThemeColors;
 }) {
-  const [reordering, setReordering] = useState(false);
-
-  const enterReorder = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setReordering(true);
-  };
-
-  const move = (from: number, to: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onReorder(from, to);
-  };
+  const [isDragging, setIsDragging] = useState(false);
+  const activeIdx = useSharedValue(-1);
+  const hoverIdx = useSharedValue(-1);
+  const dragTX = useSharedValue(0);
 
   return (
     <View>
       {items.length > 1 && (
-        <TouchableOpacity
-          onPress={() => {
-            if (reordering) setReordering(false);
-            else enterReorder();
-          }}
-          style={[s.reorderToggle, { backgroundColor: reordering ? C.accent : C.glass, borderColor: reordering ? C.accent : C.glassBorder }]}
-          accessibilityRole="button">
-          <MaterialIcons name={reordering ? 'check' : 'swap-horiz'} size={14} color={reordering ? '#050508' : C.textSecondary} />
-          <Text style={[s.reorderToggleText, { color: reordering ? '#050508' : C.textSecondary }]}>
-            {reordering ? 'Listo' : 'Reordenar'}
-          </Text>
-        </TouchableOpacity>
+        <Text style={[s.dragHintLabel, { color: C.textMuted }]}>Mantenés presionada una imagen para reordenar</Text>
       )}
-
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.imgRow}
-        scrollEnabled={!reordering}>
+        scrollEnabled={!isDragging}>
         {items.map((item, i) => (
-          <View key={`${item.uri}-${i}`} style={s.imgThumbWrap}>
-            <Image
-              source={{ uri: item.uri }}
-              style={[s.imgThumb, { borderColor: i === 0 ? C.accent : C.glassBorder }]}
-              contentFit="cover"
-            />
-
-            {/* Portada badge */}
-            {i === 0 && (
-              <View style={[s.mainBadge, { backgroundColor: C.accent }]}>
-                <Text style={s.mainBadgeText}>Principal</Text>
-              </View>
-            )}
-
-            {/* Reorder arrows overlay */}
-            {reordering ? (
-              <View style={s.reorderOverlay}>
-                <TouchableOpacity
-                  style={[s.arrowBtn, { opacity: i === 0 ? 0.25 : 1 }]}
-                  onPress={() => i > 0 && move(i, i - 1)}
-                  disabled={i === 0}
-                  accessibilityRole="button"
-                  accessibilityLabel="Mover a la izquierda">
-                  <MaterialIcons name="chevron-left" size={22} color="#fff" />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[s.arrowBtn, { opacity: i === items.length - 1 ? 0.25 : 1 }]}
-                  onPress={() => i < items.length - 1 && move(i, i + 1)}
-                  disabled={i === items.length - 1}
-                  accessibilityRole="button"
-                  accessibilityLabel="Mover a la derecha">
-                  <MaterialIcons name="chevron-right" size={22} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={[s.removeBadge, { backgroundColor: C.red }]}
-                onPress={() => onRemove(i)}
-                accessibilityRole="button"
-                accessibilityLabel="Eliminar imagen">
-                <MaterialIcons name="close" size={12} color="#fff" />
-              </TouchableOpacity>
-            )}
-          </View>
+          <DraggableThumb
+            key={`${item.uri}-${i}`}
+            item={item}
+            index={i}
+            total={items.length}
+            activeIdx={activeIdx}
+            hoverIdx={hoverIdx}
+            dragTX={dragTX}
+            onRemove={onRemove}
+            onDrop={onReorder}
+            onDragStart={() => setIsDragging(true)}
+            onDragEnd={() => setIsDragging(false)}
+            C={C}
+          />
         ))}
-
-        {!reordering && items.length < 4 && (
+        {items.length < MAX_IMAGES && (
           <TouchableOpacity
             style={[s.imgAdd, { borderColor: C.glassBorder, backgroundColor: C.glass }]}
             onPress={onAdd}
@@ -424,6 +531,7 @@ export default function PublishProductScreen() {
   };
 
   const handleSubmit = async () => {
+    Keyboard.dismiss();
     setTouched({ images: true, title: true, description: true, price: true, stock: true, category: true });
     const e = revalidate();
     if (Object.values(e).some(Boolean)) return;
@@ -487,8 +595,11 @@ export default function PublishProductScreen() {
         );
       }
 
-      setShowToast(true);
-      setTimeout(() => { setShowToast(false); router.back(); }, 2000);
+      Keyboard.dismiss();
+      setTimeout(() => {
+        setShowToast(true);
+        setTimeout(() => { setShowToast(false); router.back(); }, 2000);
+      }, 350);
     } catch {
       Alert.alert('Error', isEditing ? 'No pudimos actualizar el producto. Intentá de nuevo.' : 'No pudimos publicar el producto. Intentá de nuevo.');
     } finally {
@@ -505,10 +616,10 @@ export default function PublishProductScreen() {
   }
 
   return (
-    <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }] }>
-      <View style={[s.topBar, { borderBottomColor: C.glassBorder }] }>
+    <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
+      <View style={[s.topBar, { borderBottomColor: C.glassBorder }]}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button">
-          <View style={[s.backCircle, { backgroundColor: C.glass, borderColor: C.glassBorder }] }>
+          <View style={[s.backCircle, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
             <MaterialIcons name="arrow-back" size={20} color={C.textSecondary} />
           </View>
         </TouchableOpacity>
@@ -561,7 +672,15 @@ export default function PublishProductScreen() {
 
           <View style={s.field}>
             <Text style={[s.label, { color: C.textSecondary }]}>Categoría<Text style={{ color: C.red }}> *</Text></Text>
-            <CategoryPicker value={category} onSelect={(v) => { setCategory(v); touch('category'); setErrors((prev) => ({ ...prev, category: undefined })); }} C={C} />
+            <CategoryPicker
+              value={category}
+              onSelect={(v) => {
+                setCategory(v);
+                touch('category');
+                setErrors((prev) => ({ ...prev, category: v ? undefined : 'Seleccioná una categoría.' }));
+              }}
+              C={C}
+            />
             {touched.category && errors.category ? <Text style={[s.errorText, { color: C.red }]}>{errors.category}</Text> : null}
           </View>
 
@@ -628,18 +747,16 @@ const s = StyleSheet.create({
   content: { paddingHorizontal: 20, paddingTop: 20 },
   section: { marginBottom: 20 }, sectionLabel: { fontSize: 13, fontWeight: '600', marginBottom: 10 },
   hint: { fontSize: 11, marginTop: 6 },
+  dragHintLabel: { fontSize: 11, marginBottom: 6 },
   imgRow: { flexDirection: 'row', gap: 10, paddingVertical: 4 },
   imgThumbWrap: { position: 'relative' },
   imgThumb: { width: 90, height: 90, borderRadius: 14, borderWidth: 2 },
   mainBadge: { position: 'absolute', top: 6, left: 6, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   mainBadgeText: { fontSize: 9, fontWeight: '800', color: '#050508' },
   removeBadge: { position: 'absolute', top: -5, right: -5, width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  dragHint: { position: 'absolute', bottom: 4, right: 4 },
   imgAdd: { width: 90, height: 90, borderRadius: 14, borderWidth: 2, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', gap: 4 },
   imgAddLabel: { fontSize: 10, fontWeight: '600' },
-  reorderToggle: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 8 },
-  reorderToggleText: { fontSize: 12, fontWeight: '600' },
-  reorderOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.52)', borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2 },
-  arrowBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
   field: { marginBottom: 18 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 8 },
   inputWrap: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, height: 52, justifyContent: 'center' },
@@ -650,8 +767,11 @@ const s = StyleSheet.create({
   priceWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 14, height: 52, overflow: 'hidden' },
   prefixSymbol: { paddingLeft: 14, paddingRight: 6, fontSize: 16, fontWeight: '600' },
   priceInput: { flex: 1, height: '100%', fontSize: 15, paddingRight: 14, borderWidth: 0 },
-  catButton: { height: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  catButton: { height: 52, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center' },
+  catButtonMain: { flex: 1, justifyContent: 'center' },
   catButtonText: { fontSize: 15 },
+  catClearBtn: { paddingLeft: 8 },
+  catChevron: { paddingLeft: 8 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
   modalSheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, borderWidth: 1, padding: 20, gap: 4 },
   modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: 8 },
@@ -660,7 +780,7 @@ const s = StyleSheet.create({
   submitBtn: { height: 54, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 8, shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 16, elevation: 8 },
   submitDisabled: { opacity: 0.6 },
   submitText: { fontSize: 15, fontWeight: '800', color: '#050508' },
-  toastWrap: { position: 'absolute', top: -100, bottom: -100, left: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.65)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  toastWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   toastCard: { borderWidth: 1, paddingHorizontal: 40, paddingVertical: 32, borderRadius: 32, alignItems: 'center', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.3, shadowRadius: 30, elevation: 12 },
   toastIconWrap: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
   toastText: { fontWeight: '700', fontSize: 18, letterSpacing: -0.3 },
