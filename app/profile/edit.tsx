@@ -116,11 +116,18 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!validateName(name)) return;
-    await updateProfile({
+    const ok = await updateProfile({
       name: name.trim(),
       bio: bio.trim(),
       avatarUrl: avatarUri,
     });
+    if (!ok) {
+      Alert.alert(
+        'No se pudo guardar',
+        'No pudimos actualizar tu perfil. Intentá nuevamente.',
+      );
+      return;
+    }
     setShowToast(true);
     setTimeout(() => { setShowToast(false); router.back(); }, 2400);
   };

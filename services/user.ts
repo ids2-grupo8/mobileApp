@@ -6,6 +6,8 @@ export type UserData = {
   email: string;
   full_name: string;
   created_at: string;
+  photo?: string | null;
+  description?: string | null;
 };
 
 type UserProfileResponse = {
@@ -19,17 +21,48 @@ type UserProfileResponse = {
   };
 };
 
+type PublicProduct = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  image_urls: string[];
+  old_price: number;
+  price: number;
+  actual_stock: number;
+  status: string;
+};
+
+export type PublicUserProfileResponse = {
+  data: {
+    id: string;
+    full_name: string;
+    created_at: string;
+    photo: string | null;
+    description: string | null;
+    products: PublicProduct[];
+  };
+};
+
 export async function getUserByEmail(email: string): Promise<UserData> {
-  return request<UserData>(USERS(`/${encodeURIComponent(email)}`), {
+  const response = await request<UserProfileResponse>(USERS(`/profile/${encodeURIComponent(email)}`), {
     method: 'GET',
     auth: true,
   });
+  return response.data;
 }
 
 export async function getUserProfile(email: string): Promise<UserProfileResponse> {
   return request<UserProfileResponse>(USERS(`/profile/${encodeURIComponent(email)}`), {
     method: 'GET',
     auth: true,
+  });
+}
+
+export async function getPublicUserProfile(email: string): Promise<PublicUserProfileResponse> {
+  return request<PublicUserProfileResponse>(USERS(`/profile/public/${encodeURIComponent(email)}`), {
+    method: 'GET',
+    auth: false,
   });
 }
 

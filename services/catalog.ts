@@ -1,5 +1,6 @@
 import { CATALOG, USERS } from '@/constants/api';
 import { ImageFile, request, requestFormData } from './http';
+import type { PublicUserProfileResponse } from './user';
 
 type BaseCreateProductData = {
   name: string;
@@ -245,36 +246,19 @@ export async function fetchCatalogProductById(id: string): Promise<CatalogProduc
   }
 }
 
-export async function fetchProductsBySellerEmail(email: string): Promise<CatalogProduct[]> {
-  const payload = await request<unknown>(CATALOG(`/by-email/${encodeURIComponent(email)}`), {
+export async function fetchMyProducts(email: string): Promise<CatalogProduct[]> {
+  const payload = await request<PublicUserProfileResponse>(USERS(`/profile/public/${encodeURIComponent(email)}`), {
     method: 'GET',
     auth: false,
   });
 
-  const collection = extractCollection(payload);
-  if (!collection) {
-    throw new Error('Respuesta de publicaciones invalida.');
-  }
-
-  return collection
+  return payload.data.products
     .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
     .filter((item): item is CatalogProduct => item !== null);
 }
 
-export async function fetchMyProducts(): Promise<CatalogProduct[]> {
-  const payload = await request<unknown>(CATALOG('/my-products'), {
-    method: 'GET',
-    auth: true,
-  });
-
-  const collection = extractCollection(payload);
-  if (!collection) {
-    throw new Error('Respuesta de publicaciones invalida.');
-  }
-
-  return collection
-    .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
-    .filter((item): item is CatalogProduct => item !== null);
+export async function fetchProductsBySellerEmail(email: string): Promise<CatalogProduct[]> {
+  return fetchMyProducts(email);
 }
 
 export async function createProductRequest(data: CreateProductData): Promise<void> {
