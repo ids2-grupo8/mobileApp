@@ -1,39 +1,57 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Animated, KeyboardAvoidingView, Modal,
-  Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View,
+  ActivityIndicator,
+  Alert,
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
-import { createProductRequest } from '@/services/catalog';
+import {
+  createProductRequest,
+  fetchProductsBySellerEmail,
+  updateProductRequest,
+} from '@/services/catalog';
+import { useAuthStore } from '@/store/auth';
 
-const CATEGORIES = ['Electronics', 'Clothing'];
-const CATEGORY_LABELS: Record<string, string> = {
-  Electronics: 'Electronicos',
+const CATEGORIES = ['Electronics', 'Clothing'] as const;
+const CATEGORY_LABELS: Record<(typeof CATEGORIES)[number], string> = {
+  Electronics: 'Electrónica',
   Clothing: 'Ropa',
 };
+
+type ManagedImage = { uri: string; isRemote: boolean };
+type Errors = Partial<Record<'images' | 'title' | 'description' | 'price' | 'stock' | 'category' | 'brand' | 'model' | 'warranty_months' | 'size' | 'color' | 'material', string>>;
 
 function Toast({ message, visible, C }: { message: string; visible: boolean; C: ThemeColors }) {
   const opacity = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    if (visible) {
-      Animated.sequence([
-        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-        Animated.delay(1800),
-        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start();
-    }
+    if (!visible) return;
+
+    Animated.sequence([
+      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1800),
+      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
   }, [visible, opacity]);
 
   return (
     <Animated.View style={[s.toastWrap, { opacity }]} pointerEvents="none">
-      <View style={[s.toastCard, { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark }]}>
+      <View style={[s.toastCard, { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark }] }>
         <View style={[s.toastIconWrap, { backgroundColor: C.accentGlow }]}>
           <MaterialIcons name="check" size={32} color={C.accent} />
         </View>
@@ -45,21 +63,28 @@ function Toast({ message, visible, C }: { message: string; visible: boolean; C: 
 
 function CategoryPicker({ value, onSelect, C }: { value: string; onSelect: (v: string) => void; C: ThemeColors }) {
   const [open, setOpen] = useState(false);
+
   return (
     <>
-      <TouchableOpacity style={[s.catButton, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
-        onPress={() => setOpen(true)} accessibilityRole="button">
-        <Text style={[s.catButtonText, { color: value ? C.textPrimary : C.textMuted }]}>{value ? CATEGORY_LABELS[value] : 'Seleccioná una categoría'}</Text>
+      <TouchableOpacity
+        style={[s.catButton, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
+        onPress={() => setOpen(true)}
+        accessibilityRole="button">
+        <Text style={[s.catButtonText, { color: value ? C.textPrimary : C.textMuted }]}>
+          {value ? CATEGORY_LABELS[value as keyof typeof CATEGORY_LABELS] : 'Seleccioná una categoría'}
+        </Text>
         <MaterialIcons name="expand-more" size={20} color={C.textSecondary} />
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={s.modalOverlay} activeOpacity={1} onPress={() => setOpen(false)}>
-          <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
+          <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }] }>
             <Text style={[s.modalTitle, { color: C.textPrimary }]}>Categoría</Text>
             {CATEGORIES.map((cat) => (
-              <TouchableOpacity key={cat}
+              <TouchableOpacity
+                key={cat}
                 style={[s.modalOption, { borderColor: C.glassBorder }, cat === value && { backgroundColor: C.accentGlow }]}
-                onPress={() => { onSelect(cat); setOpen(false); }} accessibilityRole="button">
+                onPress={() => { onSelect(cat); setOpen(false); }}
+                accessibilityRole="button">
                 <Text style={[s.modalOptionText, { color: cat === value ? C.accent : C.textPrimary }]}>{CATEGORY_LABELS[cat]}</Text>
                 {cat === value && <MaterialIcons name="check" size={16} color={C.accent} />}
               </TouchableOpacity>
@@ -71,21 +96,32 @@ function CategoryPicker({ value, onSelect, C }: { value: string; onSelect: (v: s
   );
 }
 
-function ImageStrip({ uris, onAdd, onRemove, C }: { uris: string[]; onAdd: () => void; onRemove: (i: number) => void; C: ThemeColors }) {
+function ImageStrip({ items, onAdd, onRemove, C }: { items: ManagedImage[]; onAdd: () => void; onRemove: (i: number) => void; C: ThemeColors }) {
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.imgRow}>
-      {uris.map((uri, i) => (
-        <View key={uri} style={s.imgThumbWrap}>
-          <Image source={{ uri }} style={[s.imgThumb, { borderColor: i === 0 ? C.accent : C.glassBorder }]} contentFit="cover" />
-          {i === 0 && <View style={[s.mainBadge, { backgroundColor: C.accent }]}><Text style={s.mainBadgeText}>Principal</Text></View>}
-          <TouchableOpacity style={[s.removeBadge, { backgroundColor: C.red }]} onPress={() => onRemove(i)} accessibilityRole="button" accessibilityLabel="Eliminar imagen">
+      {items.map((item, i) => (
+        <View key={`${item.uri}-${i}`} style={s.imgThumbWrap}>
+          <Image source={{ uri: item.uri }} style={[s.imgThumb, { borderColor: i === 0 ? C.accent : C.glassBorder }]} contentFit="cover" />
+          {i === 0 && (
+            <View style={[s.mainBadge, { backgroundColor: C.accent }] }>
+              <Text style={s.mainBadgeText}>Principal</Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={[s.removeBadge, { backgroundColor: C.red }]}
+            onPress={() => onRemove(i)}
+            accessibilityRole="button"
+            accessibilityLabel="Eliminar imagen">
             <MaterialIcons name="close" size={12} color="#fff" />
           </TouchableOpacity>
         </View>
       ))}
-      {uris.length < 4 && (
-        <TouchableOpacity style={[s.imgAdd, { borderColor: C.glassBorder, backgroundColor: C.glass }]}
-          onPress={onAdd} accessibilityRole="button" accessibilityLabel="Agregar imagen">
+      {items.length < 4 && (
+        <TouchableOpacity
+          style={[s.imgAdd, { borderColor: C.glassBorder, backgroundColor: C.glass }]}
+          onPress={onAdd}
+          accessibilityRole="button"
+          accessibilityLabel="Agregar imagen">
           <MaterialIcons name="add-photo-alternate" size={24} color={C.textMuted} />
           <Text style={[s.imgAddLabel, { color: C.textMuted }]}>Agregar</Text>
         </TouchableOpacity>
@@ -102,20 +138,26 @@ function Field({ label, required, value, onChangeText, onBlur, placeholder, erro
     <View style={s.field}>
       <Text style={[s.label, { color: C.textSecondary }]}>{label}{required ? <Text style={{ color: C.red }}> *</Text> : null}</Text>
       <View style={[s.inputWrap, { backgroundColor: error ? C.redBg : C.glass, borderColor: error ? C.inputBorderError : C.glassBorder }, multiline && s.textarea]}>
-        <TextInput style={[s.input, { color: C.textPrimary }, multiline && { height: 90, textAlignVertical: 'top' }]}
-          value={value} onChangeText={onChangeText} onBlur={onBlur} placeholder={placeholder}
-          placeholderTextColor={C.textMuted} keyboardType={keyboardType ?? 'default'} multiline={multiline}
-          returnKeyType={multiline ? undefined : 'next'} selectionColor={C.accent} />
+        <TextInput
+          style={[s.input, { color: C.textPrimary }, multiline && { height: 90, textAlignVertical: 'top' }]}
+          value={value}
+          onChangeText={onChangeText}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          placeholderTextColor={C.textMuted}
+          keyboardType={keyboardType ?? 'default'}
+          multiline={multiline}
+          returnKeyType={multiline ? undefined : 'next'}
+          selectionColor={C.accent}
+        />
       </View>
       {error ? <Text style={[s.errorText, { color: C.red }]}>{error}</Text> : null}
     </View>
   );
 }
 
-type Errors = Partial<Record<'images' | 'title' | 'description' | 'price' | 'stock' | 'category' | 'brand' | 'model' | 'warranty_months' | 'size' | 'color' | 'material', string>>;
-
 function validate(
-  images: string[],
+  images: ManagedImage[],
   title: string,
   description: string,
   price: string,
@@ -158,11 +200,14 @@ function validate(
 }
 
 export default function PublishProductScreen() {
+  const { id: productId } = useLocalSearchParams<{ id?: string }>();
+  const isEditing = Boolean(productId);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const C = useTheme();
+  const user = useAuthStore((state) => state.user);
 
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<ManagedImage[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -177,6 +222,7 @@ export default function PublishProductScreen() {
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
+  const [hydrating, setHydrating] = useState(isEditing);
   const [showToast, setShowToast] = useState(false);
 
   const touch = (field: string) => setTouched((t) => ({ ...t, [field]: true }));
@@ -195,80 +241,196 @@ export default function PublishProductScreen() {
       clothingColor,
       clothingMaterial,
     );
-    if (field) { setErrors((prev) => ({ ...prev, [field]: e[field as keyof Errors] })); }
-    else { setErrors(e); }
+    if (field) setErrors((prev) => ({ ...prev, [field]: e[field as keyof Errors] }));
+    else setErrors(e);
     return e;
   };
 
+  useEffect(() => {
+    if (!isEditing) {
+      setHydrating(false);
+      return;
+    }
+
+    let active = true;
+
+    const loadProduct = async () => {
+      if (!user?.email || !productId) {
+        setHydrating(false);
+        return;
+      }
+
+      setHydrating(true);
+      try {
+        const products = await fetchProductsBySellerEmail(user.email);
+        const existing = products.find((item) => item.id === productId);
+
+        if (!existing) {
+          Alert.alert('Producto no encontrado', 'No pudimos cargar este producto para editarlo.');
+          router.back();
+          return;
+        }
+
+        if (!active) return;
+
+        setTitle(existing.title ?? '');
+        setDescription(existing.description ?? '');
+        setPrice(String(existing.price ?? ''));
+        setStock(String(existing.stock ?? ''));
+        setCategory(existing.category === 'Electronics' || existing.category === 'Clothing' ? existing.category : '');
+        setImages((existing.images?.length > 0 ? existing.images : [existing.imageUrl].filter(Boolean)).map((uri) => ({ uri, isRemote: true })));
+
+        const attrs = existing.attributes ?? {};
+        if (existing.category === 'Electronics') {
+          setElectronicsBrand(String(attrs.brand ?? ''));
+          setElectronicsModel(String(attrs.model ?? ''));
+          setElectronicsWarrantyMonths(String(attrs.warranty_months ?? ''));
+          setClothingSize('');
+          setClothingColor('');
+          setClothingMaterial('');
+        } else if (existing.category === 'Clothing') {
+          setClothingSize(String(attrs.size ?? ''));
+          setClothingColor(String(attrs.color ?? ''));
+          setClothingMaterial(String(attrs.material ?? ''));
+          setElectronicsBrand('');
+          setElectronicsModel('');
+          setElectronicsWarrantyMonths('');
+        }
+
+        setErrors({});
+        setTouched({});
+      } catch {
+        Alert.alert('Error', 'No pudimos cargar el producto para editar.');
+        router.back();
+      } finally {
+        if (active) setHydrating(false);
+      }
+    };
+
+    loadProduct();
+
+    return () => {
+      active = false;
+    };
+  }, [isEditing, productId, router, user?.email]);
+
   const handleAddImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') { Alert.alert('Permiso requerido', 'Necesitamos acceso a la galería.'); return; }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    if (status !== 'granted') {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a la galería.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.85,
+    });
+
     if (!result.canceled && result.assets[0]) {
-      const newUris = [...images, result.assets[0].uri];
-      setImages(newUris);
-      if (touched.images) setErrors((e) => ({ ...e, images: newUris.length > 0 ? undefined : 'Agregá al menos una imagen.' }));
+      const next = [...images, { uri: result.assets[0].uri, isRemote: false }];
+      setImages(next);
+      if (touched.images) setErrors((prev) => ({ ...prev, images: next.length > 0 ? undefined : 'Agregá al menos una imagen.' }));
     }
   };
 
   const handleRemoveImage = (index: number) => {
-    const newUris = images.filter((_, i) => i !== index);
-    setImages(newUris);
-    if (touched.images) setErrors((e) => ({ ...e, images: newUris.length === 0 ? 'Agregá al menos una imagen.' : undefined }));
+    const next = images.filter((_, i) => i !== index);
+    setImages(next);
+    if (touched.images) setErrors((prev) => ({ ...prev, images: next.length === 0 ? 'Agregá al menos una imagen.' : undefined }));
   };
 
   const handleSubmit = async () => {
     setTouched({ images: true, title: true, description: true, price: true, stock: true, category: true });
     const e = revalidate();
     if (Object.values(e).some(Boolean)) return;
+
     setLoading(true);
     try {
-      const imageFiles = images.map((uri, i) => ({
-        uri,
-        name: `image_${i}.jpg`,
-        type: 'image/jpeg',
-      }));
+      const newImageFiles = images
+        .filter((item) => !item.isRemote)
+        .map((item, i) => ({
+          uri: item.uri,
+          name: `image_${i}.jpg`,
+          type: 'image/jpeg',
+        }));
+      const existingImageUrls = images.filter((item) => item.isRemote).map((item) => item.uri);
       const basePayload = {
         name: title.trim(),
         description: description.trim(),
         price: parseFloat(price),
         actual_stock: parseInt(stock, 10),
         category: category as 'Electronics' | 'Clothing',
-        images: imageFiles,
+        images: newImageFiles,
       };
 
-      await createProductRequest(
-        category === 'Electronics'
-          ? {
-              ...basePayload,
-              category: 'Electronics',
-              brand: electronicsBrand.trim(),
-              model: electronicsModel.trim(),
-              warranty_months: parseInt(electronicsWarrantyMonths, 10),
-            }
-          : {
-              ...basePayload,
-              category: 'Clothing',
-              size: clothingSize.trim(),
-              color: clothingColor.trim(),
-              material: clothingMaterial.trim(),
-            },
-      );
+      if (isEditing && productId) {
+        await updateProductRequest(
+          productId,
+          category === 'Electronics'
+            ? {
+                ...basePayload,
+                category: 'Electronics',
+                brand: electronicsBrand.trim(),
+                model: electronicsModel.trim(),
+                warranty_months: parseInt(electronicsWarrantyMonths, 10),
+              }
+            : {
+                ...basePayload,
+                category: 'Clothing',
+                size: clothingSize.trim(),
+                color: clothingColor.trim(),
+                material: clothingMaterial.trim(),
+              },
+          existingImageUrls,
+        );
+      } else {
+        await createProductRequest(
+          category === 'Electronics'
+            ? {
+                ...basePayload,
+                category: 'Electronics',
+                brand: electronicsBrand.trim(),
+                model: electronicsModel.trim(),
+                warranty_months: parseInt(electronicsWarrantyMonths, 10),
+              }
+            : {
+                ...basePayload,
+                category: 'Clothing',
+                size: clothingSize.trim(),
+                color: clothingColor.trim(),
+                material: clothingMaterial.trim(),
+              },
+        );
+      }
+
       setShowToast(true);
       setTimeout(() => { setShowToast(false); router.back(); }, 2000);
-    } catch { Alert.alert('Error', 'No pudimos publicar el producto. Intentá de nuevo.'); }
-    finally { setLoading(false); }
+    } catch {
+      Alert.alert('Error', isEditing ? 'No pudimos actualizar el producto. Intentá de nuevo.' : 'No pudimos publicar el producto. Intentá de nuevo.');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  if (hydrating) {
+    return (
+      <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top, alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator color={C.accent} size="large" />
+      </View>
+    );
+  }
+
   return (
-    <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
-      <View style={[s.topBar, { borderBottomColor: C.glassBorder }]}>
+    <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }] }>
+      <View style={[s.topBar, { borderBottomColor: C.glassBorder }] }>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn} accessibilityRole="button">
-          <View style={[s.backCircle, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+          <View style={[s.backCircle, { backgroundColor: C.glass, borderColor: C.glassBorder }] }>
             <MaterialIcons name="arrow-back" size={20} color={C.textSecondary} />
           </View>
         </TouchableOpacity>
-        <Text style={[s.topTitle, { color: C.textPrimary }]}>Publicar producto</Text>
+        <Text style={[s.topTitle, { color: C.textPrimary }]}>{isEditing ? 'Editar producto' : 'Publicar producto'}</Text>
         <View style={s.backBtn} />
       </View>
 
@@ -317,97 +479,60 @@ export default function PublishProductScreen() {
 
           <View style={s.field}>
             <Text style={[s.label, { color: C.textSecondary }]}>Categoría<Text style={{ color: C.red }}> *</Text></Text>
-            <CategoryPicker value={category} onSelect={(v) => { setCategory(v); touch('category'); setErrors((e) => ({ ...e, category: undefined })); }} C={C} />
+            <CategoryPicker value={category} onSelect={(v) => { setCategory(v); touch('category'); setErrors((prev) => ({ ...prev, category: undefined })); }} C={C} />
             {touched.category && errors.category ? <Text style={[s.errorText, { color: C.red }]}>{errors.category}</Text> : null}
           </View>
 
           <View style={s.section}>
             <Text style={[s.sectionLabel, { color: C.textSecondary }]}>Imágenes<Text style={{ color: C.red }}> *</Text></Text>
-            <ImageStrip uris={images} onAdd={handleAddImage} onRemove={handleRemoveImage} C={C} />
+            <ImageStrip items={images} onAdd={handleAddImage} onRemove={handleRemoveImage} C={C} />
             <Text style={[s.hint, { color: C.textMuted }]}>La primera imagen será la portada.</Text>
             {touched.images && errors.images ? <Text style={[s.errorText, { color: C.red }]}>{errors.images}</Text> : null}
           </View>
 
           {category === 'Electronics' && (
             <>
-              <Field
-                label="Marca"
-                required
-                value={electronicsBrand}
+              <Field label="Marca" required value={electronicsBrand}
                 onChangeText={(v) => { setElectronicsBrand(v); if (touched.brand) revalidate('brand'); }}
                 onBlur={() => { touch('brand'); revalidate('brand'); }}
-                placeholder="Ej: Amazon"
-                error={touched.brand ? errors.brand : undefined}
-                C={C}
-              />
-              <Field
-                label="Modelo"
-                required
-                value={electronicsModel}
+                placeholder="Ej: Amazon" error={touched.brand ? errors.brand : undefined} C={C} />
+              <Field label="Modelo" required value={electronicsModel}
                 onChangeText={(v) => { setElectronicsModel(v); if (touched.model) revalidate('model'); }}
                 onBlur={() => { touch('model'); revalidate('model'); }}
-                placeholder="Ej: Kindle Paperwhite"
-                error={touched.model ? errors.model : undefined}
-                C={C}
-              />
-              <Field
-                label="Garantía (meses)"
-                required
-                value={electronicsWarrantyMonths}
+                placeholder="Ej: Kindle Paperwhite" error={touched.model ? errors.model : undefined} C={C} />
+              <Field label="Garantía (meses)" required value={electronicsWarrantyMonths}
                 onChangeText={(v) => { setElectronicsWarrantyMonths(v); if (touched.warranty_months) revalidate('warranty_months'); }}
                 onBlur={() => { touch('warranty_months'); revalidate('warranty_months'); }}
-                placeholder="Ej: 12"
-                error={touched.warranty_months ? errors.warranty_months : undefined}
-                keyboardType="numeric"
-                C={C}
-              />
+                placeholder="Ej: 12" error={touched.warranty_months ? errors.warranty_months : undefined} keyboardType="numeric" C={C} />
             </>
           )}
 
           {category === 'Clothing' && (
             <>
-              <Field
-                label="Talle"
-                required
-                value={clothingSize}
+              <Field label="Talle" required value={clothingSize}
                 onChangeText={(v) => { setClothingSize(v); if (touched.size) revalidate('size'); }}
                 onBlur={() => { touch('size'); revalidate('size'); }}
-                placeholder="Ej: M"
-                error={touched.size ? errors.size : undefined}
-                C={C}
-              />
-              <Field
-                label="Color"
-                required
-                value={clothingColor}
+                placeholder="Ej: M" error={touched.size ? errors.size : undefined} C={C} />
+              <Field label="Color" required value={clothingColor}
                 onChangeText={(v) => { setClothingColor(v); if (touched.color) revalidate('color'); }}
                 onBlur={() => { touch('color'); revalidate('color'); }}
-                placeholder="Ej: Negro"
-                error={touched.color ? errors.color : undefined}
-                C={C}
-              />
-              <Field
-                label="Material"
-                required
-                value={clothingMaterial}
+                placeholder="Ej: Negro" error={touched.color ? errors.color : undefined} C={C} />
+              <Field label="Material" required value={clothingMaterial}
                 onChangeText={(v) => { setClothingMaterial(v); if (touched.material) revalidate('material'); }}
                 onBlur={() => { touch('material'); revalidate('material'); }}
-                placeholder="Ej: Algodón"
-                error={touched.material ? errors.material : undefined}
-                C={C}
-              />
+                placeholder="Ej: Algodón" error={touched.material ? errors.material : undefined} C={C} />
             </>
           )}
 
           <TouchableOpacity style={[s.submitBtn, { backgroundColor: C.accent, shadowColor: C.accent }, loading && s.submitDisabled]}
             onPress={handleSubmit} disabled={loading} accessibilityRole="button">
             {loading ? <ActivityIndicator color="#050508" size="small" /> : (
-              <><MaterialIcons name="publish" size={18} color="#050508" /><Text style={s.submitText}>Publicar producto</Text></>
+              <><MaterialIcons name={isEditing ? 'save' : 'publish'} size={18} color="#050508" /><Text style={s.submitText}>{isEditing ? 'Guardar cambios' : 'Publicar producto'}</Text></>
             )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-      <Toast message="¡Producto publicado!" visible={showToast} C={C} />
+      <Toast message={isEditing ? '¡Producto actualizado!' : '¡Producto publicado!'} visible={showToast} C={C} />
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import { CATALOG } from '@/constants/api';
+import { CATALOG, USERS } from '@/constants/api';
 import { ImageFile, request, requestFormData } from './http';
 
 type BaseCreateProductData = {
@@ -64,6 +64,7 @@ export type CatalogProduct = {
   category: string;
   description?: string;
   isRecent?: boolean;
+  attributes?: Record<string, unknown>;
 };
 
 type RawProduct = Record<string, unknown>;
@@ -177,6 +178,7 @@ function normalizeProduct(raw: RawProduct): CatalogProduct | null {
     category: asString(categoryObj?.name ?? product.category_name ?? product.category) || 'General',
     description: asString(product.description) || undefined,
     isRecent: isRecentFromDate(product),
+    attributes: product.attributes && typeof product.attributes === 'object' ? (product.attributes as Record<string, unknown>) : undefined,
     ...(enabled ? {} : { stock: 0 }),
   };
 }
@@ -237,6 +239,22 @@ export async function fetchCatalogProductById(id: string): Promise<CatalogProduc
   }
 }
 
+export async function fetchProductsBySellerEmail(email: string): Promise<CatalogProduct[]> {
+  const payload = await request<unknown>(CATALOG(`/by-email/${encodeURIComponent(email)}`), {
+    method: 'GET',
+    auth: false,
+  });
+
+  const collection = extractCollection(payload);
+  if (!collection) {
+    throw new Error('Respuesta de publicaciones invalida.');
+  }
+
+  return collection
+    .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+    .filter((item): item is CatalogProduct => item !== null);
+}
+
 export async function createProductRequest(data: CreateProductData): Promise<void> {
   // POST /products  — multipart/form-data: product_data (JSON string) + images (files)
   const productData = JSON.stringify({
@@ -261,6 +279,41 @@ export async function createProductRequest(data: CreateProductData): Promise<voi
   await requestFormData(CATALOG('/products'), {
     method: 'POST',
     fields: { product_data: productData },
+    images: data.images,
+    auth: true,
+  });
+}
+
+export async function updateProductRequest(
+  productId: string,
+  data: CreateProductData,
+  existingImageUrls: string[],
+): Promise<void> {
+  const productData = JSON.stringify({
+    name: data.name,
+    description: data.description,
+    price: data.price,
+    actual_stock: data.actual_stock,
+    category: data.category,
+    ...(data.category === 'Electronics'
+      ? {
+          brand: data.brand,
+          model: data.model,
+          warranty_months: data.warranty_months,
+        }
+      : {
+          size: data.size,
+          color: data.color,
+          material: data.material,
+        }),
+  });
+
+  await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}`), {
+    method: 'PUT',
+    fields: {
+      product_data: productData,
+      existing_image_urls: JSON.stringify(existingImageUrls),
+    },
     images: data.images,
     auth: true,
   });

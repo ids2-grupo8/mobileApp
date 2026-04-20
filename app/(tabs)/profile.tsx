@@ -285,7 +285,7 @@ export default function ProfileScreen() {
           {/* ── Menú ── */}
           <View style={s.section}>
             <Text style={[s.sectionLabel, { color: C.textMuted }]}>Actividad</Text>
-            <MenuRow icon="inventory-2"      label="Mis publicaciones" onPress={() => {}} C={C} />
+            <MenuRow icon="inventory-2"      label="Mis publicaciones" onPress={() => router.push('/profile/publications')} C={C} />
             <MenuRow icon="favorite-border"  label="Wishlist"          onPress={() => {}} C={C} />
             <MenuRow icon="notifications-none" label="Notificaciones"  onPress={() => {}} C={C} />
           </View>
