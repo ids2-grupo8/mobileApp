@@ -335,15 +335,9 @@ export async function updateProductStock(productId: string, stock: number): Prom
   });
 }
 
-export async function updateProductStatus(
-  productId: string,
-  status: 'available' | 'disabled' | 'out_of_stock',
-): Promise<void> {
-  // PATCH /products/{product_id}/status  — update status only
-  await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}/status`), {
+export async function toggleProductStatus(productId: string): Promise<void> {
+  await request(CATALOG(`/products/${encodeURIComponent(productId)}/toggle-status`), {
     method: 'PATCH',
-    fields: { status_update: status },
-    images: [],
     auth: true,
   });
 }

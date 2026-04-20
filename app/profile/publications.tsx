@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
-import { fetchProductsBySellerEmail, type CatalogProduct } from '@/services/catalog';
+import { fetchProductsBySellerEmail, toggleProductStatus, type CatalogProduct } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 
 function formatPrice(value: number) {
@@ -29,30 +30,45 @@ function PublicationCard({
   product,
   onEdit,
   onOpen,
+  onToggle,
+  toggling,
   C,
 }: {
   product: CatalogProduct;
   onEdit: () => void;
   onOpen: () => void;
+  onToggle: () => void;
+  toggling: boolean;
   C: ReturnType<typeof useTheme>;
 }) {
-  const outOfStock = product.stock <= 0;
+  const isDisabled = product.status === 'disabled';
+  const outOfStock = product.stock <= 0 && !isDisabled;
 
   return (
     <TouchableOpacity
-      style={[s.card, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
+      style={[
+        s.card,
+        { backgroundColor: C.glass, borderColor: C.glassBorder },
+        isDisabled && { opacity: 0.6 },
+      ]}
       onPress={onOpen}
       accessibilityRole="button">
       <Image source={{ uri: product.imageUrl }} style={s.thumb} contentFit="cover" />
 
       <View style={s.body}>
         <View style={s.topRow}>
-          <View style={[s.badge, { backgroundColor: C.accentGlow, borderColor: C.accent }] }>
+          <View style={[s.badge, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
             <Text style={[s.badgeText, { color: C.accent }]}>{product.category}</Text>
           </View>
-          <Text style={[s.status, { color: outOfStock ? C.red : C.textMuted }]}>
-            {outOfStock ? 'Sin stock' : `Stock: ${product.stock}`}
-          </Text>
+          {isDisabled ? (
+            <View style={[s.statusBadge, { backgroundColor: C.redBg, borderColor: C.red }]}>
+              <Text style={[s.statusBadgeText, { color: C.red }]}>Deshabilitada</Text>
+            </View>
+          ) : (
+            <Text style={[s.status, { color: outOfStock ? C.red : C.textMuted }]}>
+              {outOfStock ? 'Sin stock' : `Stock: ${product.stock}`}
+            </Text>
+          )}
         </View>
 
         <Text style={[s.title, { color: C.textPrimary }]} numberOfLines={2}>
@@ -61,14 +77,40 @@ function PublicationCard({
         <Text style={[s.price, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
 
         <View style={s.actions}>
-          <TouchableOpacity
-            style={[s.editBtn, { backgroundColor: C.accent, shadowColor: C.accent }]}
-            onPress={onEdit}
-            accessibilityRole="button">
-            <MaterialIcons name="edit" size={16} color="#050508" />
-            <Text style={s.editBtnText}>Editar</Text>
-          </TouchableOpacity>
-          <Text style={[s.hint, { color: C.textMuted }]}>Tocá la tarjeta para editar</Text>
+          <View style={s.actionRow}>
+            <TouchableOpacity
+              style={[s.editBtn, { backgroundColor: C.accent, shadowColor: C.accent, flex: 1 }]}
+              onPress={onEdit}
+              accessibilityRole="button">
+              <MaterialIcons name="edit" size={16} color="#050508" />
+              <Text style={s.editBtnText}>Editar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                s.toggleBtn,
+                isDisabled
+                  ? { backgroundColor: C.accentGlow, borderColor: C.accent }
+                  : { backgroundColor: C.redBg, borderColor: C.red },
+              ]}
+              onPress={onToggle}
+              disabled={toggling}
+              accessibilityRole="button">
+              {toggling ? (
+                <ActivityIndicator size={16} color={isDisabled ? C.accent : C.red} />
+              ) : (
+                <>
+                  <MaterialIcons
+                    name={isDisabled ? 'visibility' : 'visibility-off'}
+                    size={16}
+                    color={isDisabled ? C.accent : C.red}
+                  />
+                  <Text style={[s.toggleBtnText, { color: isDisabled ? C.accent : C.red }]}>
+                    {isDisabled ? 'Habilitar' : 'Deshabilitar'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </TouchableOpacity>
@@ -85,6 +127,7 @@ export default function PublicationsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   const loadProducts = async () => {
     if (!user?.email) {
@@ -113,6 +156,34 @@ export default function PublicationsScreen() {
   const onRefresh = async () => {
     setRefreshing(true);
     await loadProducts();
+  };
+
+  const handleToggle = async (product: CatalogProduct) => {
+    const isDisabled = product.status === 'disabled';
+    const action = isDisabled ? 'habilitar' : 'deshabilitar';
+
+    Alert.alert(
+      `${isDisabled ? 'Habilitar' : 'Deshabilitar'} publicación`,
+      `¿Querés ${action} "${product.title}"?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: isDisabled ? 'Habilitar' : 'Deshabilitar',
+          style: isDisabled ? 'default' : 'destructive',
+          onPress: async () => {
+            setTogglingId(product.id);
+            try {
+              await toggleProductStatus(product.id);
+              await loadProducts();
+            } catch {
+              Alert.alert('Error', `No pudimos ${action} la publicación. Intentá de nuevo.`);
+            } finally {
+              setTogglingId(null);
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -174,6 +245,8 @@ export default function PublicationsScreen() {
                   C={C}
                   onEdit={() => router.push({ pathname: '/seller/publish', params: { id: product.id } })}
                   onOpen={() => router.push({ pathname: '/seller/publish', params: { id: product.id } })}
+                  onToggle={() => handleToggle(product)}
+                  toggling={togglingId === product.id}
                 />
               ))}
             </View>
@@ -280,6 +353,10 @@ const s = StyleSheet.create({
     marginTop: 2,
     gap: 8,
   },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -297,8 +374,30 @@ const s = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-  hint: {
-    fontSize: 12,
+  toggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  toggleBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  statusBadge: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   emptyCard: {
     borderWidth: 1,
