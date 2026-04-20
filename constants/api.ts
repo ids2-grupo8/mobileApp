@@ -12,7 +12,9 @@ const API_GATEWAY = 'http://35.247.247.86';
  */
 export function apiUrl(service: string, path: string) {
   const cleanPath = path.startsWith('/') ? path : `/${path}`;
-  return `${API_GATEWAY}/${service}${cleanPath}`;
+  const url = `${API_GATEWAY}/${service}${cleanPath}`;
+  // Remove trailing slash to avoid 404s
+  return url.endsWith('/') && url !== `${API_GATEWAY}/${service}/` ? url.slice(0, -1) : url;
 }
 
 export const USERS = (path: string) => apiUrl('users', path);
