@@ -142,38 +142,31 @@ export default function RegisterScreen() {
 
           {/* Password */}
           <View style={s.field}>
-            <Text style={[s.label, { color: C.textSecondary }]}>
-              Contraseña
-            </Text>
-            <TextInput
-              style={[
-                s.input,
-                {
-                  backgroundColor: C.inputBg,
-                  borderColor: C.inputBorder,
-                  color: C.textPrimary,
-                },
-                touched.password && errors.password
-                  ? { borderColor: C.inputBorderError }
-                  : null,
-              ]}
-              value={password}
-              onChangeText={(v) => {
-                setPassword(v);
-                if (touched.password) setErrors(validate(name, email, v));
-              }}
-              onBlur={() => handleBlur("password")}
-              placeholder="Mín. 8 car., mayúscula, minúscula y número"
-              placeholderTextColor={C.textMuted}
-              secureTextEntry
-              returnKeyType="done"
-              onSubmitEditing={handleSubmit}
-            />
-            {touched.password && errors.password ? (
-              <Text style={[s.errorText, { color: C.red }]}>
-                {errors.password}
-              </Text>
-            ) : null}
+            <Text style={[s.label, { color: C.textSecondary }]}>Contraseña</Text>
+            <View style={[
+              s.inputWrap,
+              { backgroundColor: C.glass, borderColor: touched.password && errors.password ? C.inputBorderError : C.glassBorder },
+            ]}>
+              <MaterialIcons name="lock-outline" size={18} color={C.textMuted} />
+              <TextInput
+                style={[s.input, { color: C.textPrimary }]}
+                value={password}
+                onChangeText={(v) => { setPassword(v); if (touched.password) setErrors(validate(name, email, v)); }}
+                onBlur={() => handleBlur('password')}
+                placeholder="Mín. 8 car., mayúscula y número"
+                placeholderTextColor={C.textMuted}
+                secureTextEntry={!showPass}
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                selectionColor={C.accent}
+              />
+              <TouchableOpacity onPress={() => setShowPass((v) => !v)} accessibilityRole="button" accessibilityLabel={showPass ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                <MaterialIcons name={showPass ? 'visibility-off' : 'visibility'} size={18} color={C.textMuted} />
+              </TouchableOpacity>
+            </View>
+            {touched.password && errors.password ? <Text style={[s.errorText, { color: C.red }]}>{errors.password}</Text> : null}
           </View>
 
           <TouchableOpacity
