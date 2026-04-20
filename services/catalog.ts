@@ -213,7 +213,7 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
 
 
 export async function fetchCatalogProducts(): Promise<CatalogProduct[]> {
-  const payload = await request<unknown>(CATALOG('/products'), { method: 'GET', auth: false });
+  const payload = await request<unknown>(CATALOG(''), { method: 'GET', auth: false });
   const collection = extractCollection(payload);
 
   if (!collection) {
@@ -230,7 +230,7 @@ export async function fetchCatalogProducts(): Promise<CatalogProduct[]> {
 export async function fetchCatalogProductById(id: string): Promise<CatalogProduct | null> {
   // GET /products/{product_id}  — si falla, busca en el listado
   try {
-    const raw = await request<RawProduct>(CATALOG(`/products/${encodeURIComponent(id)}`), {
+    const raw = await request<RawProduct>(CATALOG(`/${encodeURIComponent(id)}`), {
       method: 'GET',
       auth: false,
     });
@@ -262,7 +262,7 @@ export async function fetchProductsBySellerEmail(email: string): Promise<Catalog
 }
 
 export async function fetchMyProducts(): Promise<CatalogProduct[]> {
-  const payload = await request<unknown>(CATALOG('/products/my-products'), {
+  const payload = await request<unknown>(CATALOG('/my-products'), {
     method: 'GET',
     auth: true,
   });
@@ -298,7 +298,7 @@ export async function createProductRequest(data: CreateProductData): Promise<voi
         }),
   });
 
-  await requestFormData(CATALOG('/products'), {
+  await requestFormData(CATALOG(''), {
     method: 'POST',
     fields: { product_data: productData },
     images: data.images,
@@ -330,7 +330,7 @@ export async function updateProductRequest(
         }),
   });
 
-  await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}`), {
+  await requestFormData(CATALOG(`/${encodeURIComponent(productId)}`), {
     method: 'PUT',
     fields: {
       product_data: productData,
@@ -343,7 +343,7 @@ export async function updateProductRequest(
 
 export async function updateProductStock(productId: string, stock: number): Promise<void> {
   // PATCH /products/{product_id}/stock  — update stock only
-  await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}/stock`), {
+  await requestFormData(CATALOG(`/${encodeURIComponent(productId)}/stock`), {
     method: 'PATCH',
     fields: { stock_update: stock.toString() },
     images: [],
@@ -356,7 +356,7 @@ export async function updateProductStatus(
   status: 'available' | 'disabled' | 'out_of_stock',
 ): Promise<void> {
   // PATCH /products/{product_id}/status  — update status only
-  await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}/status`), {
+  await requestFormData(CATALOG(`/${encodeURIComponent(productId)}/status`), {
     method: 'PATCH',
     fields: { status_update: status },
     images: [],
