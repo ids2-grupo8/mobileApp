@@ -48,9 +48,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isReady) return;
     const inAuth = segments[0] === "(auth)";
-    const inPublicProductRoute = segments[0] === "product";
+    const inPublicRoute = segments[0] === "product" || segments[0] === "seller";
 
-    if (!isLoggedIn && !inAuth && !inPublicProductRoute) {
+    if (!isLoggedIn && !inAuth && !inPublicRoute) {
       router.replace("/(auth)/landing");
     } else if (isLoggedIn && inAuth) {
       router.replace("/(tabs)");
@@ -126,6 +126,7 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)"      options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="seller/publish" options={{ headerShown: false }} />
+        <Stack.Screen name="seller/[email]" options={{ headerShown: false }} />
         <Stack.Screen name="profile/publications" options={{ headerShown: false }} />
         <Stack.Screen name="modal"       options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />

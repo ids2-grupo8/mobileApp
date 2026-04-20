@@ -359,13 +359,25 @@ export default function ProductDetailScreen() {
         </View>
 
         <View style={s.sellerSection}>
-          <View style={[s.sellerCard, { backgroundColor: C.glass, borderColor: C.glassBorder }] }>
-            <Text style={[s.sellerSectionTitle, { color: C.textPrimary }]}>Vendedor</Text>
+          <TouchableOpacity
+            style={[s.sellerCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
+            activeOpacity={0.75}
+            onPress={() => {
+              const sellerEmail = product.sellerInfo?.email;
+              if (sellerEmail) router.push(`/seller/${encodeURIComponent(sellerEmail)}`);
+            }}
+          >
+            <View style={s.sellerCardHeader}>
+              <Text style={[s.sellerSectionTitle, { color: C.textPrimary }]}>Vendedor</Text>
+              {product.sellerInfo?.email ? (
+                <MaterialIcons name="chevron-right" size={20} color={C.textMuted} />
+              ) : null}
+            </View>
             <View style={s.sellerProfileRow}>
               {product.sellerInfo?.photo ? (
                 <Image source={{ uri: product.sellerInfo.photo }} style={s.sellerPhoto} contentFit="cover" />
               ) : (
-                <View style={[s.sellerPhotoFallback, { backgroundColor: C.accentGlow, borderColor: C.accent }] }>
+                <View style={[s.sellerPhotoFallback, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
                     <Text style={[s.sellerPhotoFallbackText, { color: C.accent }]}>{getInitials(getSellerDisplayName(product.sellerInfo))}</Text>
                 </View>
               )}
@@ -382,7 +394,7 @@ export default function ProductDetailScreen() {
                 ) : null}
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         </View>
 
       </ScrollView>
@@ -654,6 +666,11 @@ const s = StyleSheet.create({
     borderRadius: 20,
     padding: 18,
     gap: 14,
+  },
+  sellerCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   sellerSectionTitle: {
     fontSize: 16,
