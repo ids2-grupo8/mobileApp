@@ -13,7 +13,11 @@ import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
 import { createProductRequest } from '@/services/catalog';
 
-const CATEGORIES = ['Tecnología', 'Moda', 'Hogar', 'Gaming', 'Libros', 'Otros'];
+const CATEGORIES = ['Electronics', 'Clothing'];
+const CATEGORY_LABELS: Record<string, string> = {
+  Electronics: 'Electronicos',
+  Clothing: 'Ropa',
+};
 
 function Toast({ message, visible, C }: { message: string; visible: boolean; C: ThemeColors }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -45,7 +49,7 @@ function CategoryPicker({ value, onSelect, C }: { value: string; onSelect: (v: s
     <>
       <TouchableOpacity style={[s.catButton, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
         onPress={() => setOpen(true)} accessibilityRole="button">
-        <Text style={[s.catButtonText, { color: value ? C.textPrimary : C.textMuted }]}>{value || 'Seleccioná una categoría'}</Text>
+        <Text style={[s.catButtonText, { color: value ? C.textPrimary : C.textMuted }]}>{value ? CATEGORY_LABELS[value] : 'Seleccioná una categoría'}</Text>
         <MaterialIcons name="expand-more" size={20} color={C.textSecondary} />
       </TouchableOpacity>
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -56,7 +60,7 @@ function CategoryPicker({ value, onSelect, C }: { value: string; onSelect: (v: s
               <TouchableOpacity key={cat}
                 style={[s.modalOption, { borderColor: C.glassBorder }, cat === value && { backgroundColor: C.accentGlow }]}
                 onPress={() => { onSelect(cat); setOpen(false); }} accessibilityRole="button">
-                <Text style={[s.modalOptionText, { color: cat === value ? C.accent : C.textPrimary }]}>{cat}</Text>
+                <Text style={[s.modalOptionText, { color: cat === value ? C.accent : C.textPrimary }]}>{CATEGORY_LABELS[cat]}</Text>
                 {cat === value && <MaterialIcons name="check" size={16} color={C.accent} />}
               </TouchableOpacity>
             ))}
@@ -108,9 +112,22 @@ function Field({ label, required, value, onChangeText, onBlur, placeholder, erro
   );
 }
 
-type Errors = Partial<Record<'images' | 'title' | 'description' | 'price' | 'stock' | 'category', string>>;
+type Errors = Partial<Record<'images' | 'title' | 'description' | 'price' | 'stock' | 'category' | 'brand' | 'model' | 'warranty_months' | 'size' | 'color' | 'material', string>>;
 
-function validate(images: string[], title: string, description: string, price: string, stock: string, category: string): Errors {
+function validate(
+  images: string[],
+  title: string,
+  description: string,
+  price: string,
+  stock: string,
+  category: string,
+  electronicsBrand: string,
+  electronicsModel: string,
+  electronicsWarrantyMonths: string,
+  clothingSize: string,
+  clothingColor: string,
+  clothingMaterial: string,
+): Errors {
   const e: Errors = {};
   if (images.length === 0) e.images = 'Agregá al menos una imagen.';
   if (!title.trim()) e.title = 'El nombre es obligatorio.';
@@ -122,6 +139,21 @@ function validate(images: string[], title: string, description: string, price: s
   if (!stock.trim()) e.stock = 'El stock es obligatorio.';
   else if (Number.isNaN(st) || st < 0) e.stock = 'El stock no puede ser negativo.';
   if (!category) e.category = 'Seleccioná una categoría.';
+
+  if (category === 'Electronics') {
+    if (!electronicsBrand.trim()) e.brand = 'La marca es obligatoria.';
+    if (!electronicsModel.trim()) e.model = 'El modelo es obligatorio.';
+    const warranty = parseInt(electronicsWarrantyMonths, 10);
+    if (!electronicsWarrantyMonths.trim()) e.warranty_months = 'La garantía es obligatoria.';
+    else if (Number.isNaN(warranty) || warranty < 0) e.warranty_months = 'La garantía debe ser un número válido.';
+  }
+
+  if (category === 'Clothing') {
+    if (!clothingSize.trim()) e.size = 'El talle es obligatorio.';
+    if (!clothingColor.trim()) e.color = 'El color es obligatorio.';
+    if (!clothingMaterial.trim()) e.material = 'El material es obligatorio.';
+  }
+
   return e;
 }
 
@@ -136,6 +168,12 @@ export default function PublishProductScreen() {
   const [price, setPrice] = useState('');
   const [stock, setStock] = useState('');
   const [category, setCategory] = useState('');
+  const [electronicsBrand, setElectronicsBrand] = useState('');
+  const [electronicsModel, setElectronicsModel] = useState('');
+  const [electronicsWarrantyMonths, setElectronicsWarrantyMonths] = useState('');
+  const [clothingSize, setClothingSize] = useState('');
+  const [clothingColor, setClothingColor] = useState('');
+  const [clothingMaterial, setClothingMaterial] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -143,7 +181,20 @@ export default function PublishProductScreen() {
 
   const touch = (field: string) => setTouched((t) => ({ ...t, [field]: true }));
   const revalidate = (field?: string) => {
-    const e = validate(images, title, description, price, stock, category);
+    const e = validate(
+      images,
+      title,
+      description,
+      price,
+      stock,
+      category,
+      electronicsBrand,
+      electronicsModel,
+      electronicsWarrantyMonths,
+      clothingSize,
+      clothingColor,
+      clothingMaterial,
+    );
     if (field) { setErrors((prev) => ({ ...prev, [field]: e[field as keyof Errors] })); }
     else { setErrors(e); }
     return e;
@@ -177,7 +228,32 @@ export default function PublishProductScreen() {
         name: `image_${i}.jpg`,
         type: 'image/jpeg',
       }));
-      await createProductRequest({ name: title.trim(), description: description.trim(), price: parseFloat(price), actual_stock: parseInt(stock, 10), category, images: imageFiles });
+      const basePayload = {
+        name: title.trim(),
+        description: description.trim(),
+        price: parseFloat(price),
+        actual_stock: parseInt(stock, 10),
+        category: category as 'Electronics' | 'Clothing',
+        images: imageFiles,
+      };
+
+      await createProductRequest(
+        category === 'Electronics'
+          ? {
+              ...basePayload,
+              category: 'Electronics',
+              brand: electronicsBrand.trim(),
+              model: electronicsModel.trim(),
+              warranty_months: parseInt(electronicsWarrantyMonths, 10),
+            }
+          : {
+              ...basePayload,
+              category: 'Clothing',
+              size: clothingSize.trim(),
+              color: clothingColor.trim(),
+              material: clothingMaterial.trim(),
+            },
+      );
       setShowToast(true);
       setTimeout(() => { setShowToast(false); router.back(); }, 2000);
     } catch { Alert.alert('Error', 'No pudimos publicar el producto. Intentá de nuevo.'); }
@@ -251,6 +327,77 @@ export default function PublishProductScreen() {
             <Text style={[s.hint, { color: C.textMuted }]}>La primera imagen será la portada.</Text>
             {touched.images && errors.images ? <Text style={[s.errorText, { color: C.red }]}>{errors.images}</Text> : null}
           </View>
+
+          {category === 'Electronics' && (
+            <>
+              <Field
+                label="Marca"
+                required
+                value={electronicsBrand}
+                onChangeText={(v) => { setElectronicsBrand(v); if (touched.brand) revalidate('brand'); }}
+                onBlur={() => { touch('brand'); revalidate('brand'); }}
+                placeholder="Ej: Amazon"
+                error={touched.brand ? errors.brand : undefined}
+                C={C}
+              />
+              <Field
+                label="Modelo"
+                required
+                value={electronicsModel}
+                onChangeText={(v) => { setElectronicsModel(v); if (touched.model) revalidate('model'); }}
+                onBlur={() => { touch('model'); revalidate('model'); }}
+                placeholder="Ej: Kindle Paperwhite"
+                error={touched.model ? errors.model : undefined}
+                C={C}
+              />
+              <Field
+                label="Garantía (meses)"
+                required
+                value={electronicsWarrantyMonths}
+                onChangeText={(v) => { setElectronicsWarrantyMonths(v); if (touched.warranty_months) revalidate('warranty_months'); }}
+                onBlur={() => { touch('warranty_months'); revalidate('warranty_months'); }}
+                placeholder="Ej: 12"
+                error={touched.warranty_months ? errors.warranty_months : undefined}
+                keyboardType="numeric"
+                C={C}
+              />
+            </>
+          )}
+
+          {category === 'Clothing' && (
+            <>
+              <Field
+                label="Talle"
+                required
+                value={clothingSize}
+                onChangeText={(v) => { setClothingSize(v); if (touched.size) revalidate('size'); }}
+                onBlur={() => { touch('size'); revalidate('size'); }}
+                placeholder="Ej: M"
+                error={touched.size ? errors.size : undefined}
+                C={C}
+              />
+              <Field
+                label="Color"
+                required
+                value={clothingColor}
+                onChangeText={(v) => { setClothingColor(v); if (touched.color) revalidate('color'); }}
+                onBlur={() => { touch('color'); revalidate('color'); }}
+                placeholder="Ej: Negro"
+                error={touched.color ? errors.color : undefined}
+                C={C}
+              />
+              <Field
+                label="Material"
+                required
+                value={clothingMaterial}
+                onChangeText={(v) => { setClothingMaterial(v); if (touched.material) revalidate('material'); }}
+                onBlur={() => { touch('material'); revalidate('material'); }}
+                placeholder="Ej: Algodón"
+                error={touched.material ? errors.material : undefined}
+                C={C}
+              />
+            </>
+          )}
 
           <TouchableOpacity style={[s.submitBtn, { backgroundColor: C.accent, shadowColor: C.accent }, loading && s.submitDisabled]}
             onPress={handleSubmit} disabled={loading} accessibilityRole="button">

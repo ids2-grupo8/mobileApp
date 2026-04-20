@@ -1,14 +1,27 @@
 import { CATALOG } from '@/constants/api';
 import { ImageFile, request, requestFormData } from './http';
 
-export type CreateProductData = {
+type BaseCreateProductData = {
   name: string;
   description: string;
   price: number;
   actual_stock: number;
-  category: string;
   images: ImageFile[];
 };
+
+export type CreateProductData =
+  | (BaseCreateProductData & {
+      category: 'Electronics';
+      brand: string;
+      model: string;
+      warranty_months: number;
+    })
+  | (BaseCreateProductData & {
+      category: 'Clothing';
+      size: string;
+      color: string;
+      material: string;
+    });
 
 export type CatalogProduct = {
   id: string;
@@ -191,7 +204,17 @@ export async function createProductRequest(data: CreateProductData): Promise<voi
     price: data.price,
     actual_stock: data.actual_stock,
     category: data.category,
-    status: 'available',
+    ...(data.category === 'Electronics'
+      ? {
+          brand: data.brand,
+          model: data.model,
+          warranty_months: data.warranty_months,
+        }
+      : {
+          size: data.size,
+          color: data.color,
+          material: data.material,
+        }),
   });
 
   await requestFormData(CATALOG('/products'), {
