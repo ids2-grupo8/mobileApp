@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getUserProfile, uploadProfilePhoto, updateUserProfile } from "@/services/user";
 import { useAuthStore } from "./auth";
 
 export type Publication = {
@@ -36,16 +37,31 @@ export const useUserStore = create<UserStore>((set, get) => ({
     const authUser = useAuthStore.getState().user;
     if (!authUser) { set({ loading: false }); return; }
 
-    set({
-      profile: {
-        id: authUser.id,
-        name: authUser.name,
-        email: authUser.email,
-        bio: '',
-        publications: [],
-      },
-      loading: false,
-    });
+    try {
+      const res = await getUserProfile(authUser.email);
+      set({
+        profile: {
+          id: res.data.id,
+          name: res.data.full_name,
+          email: res.data.email,
+          bio: res.data.description ?? '',
+          avatarUrl: res.data.photo ?? undefined,
+          publications: [],
+        },
+        loading: false,
+      });
+    } catch {
+      set({
+        profile: {
+          id: authUser.id,
+          name: authUser.name,
+          email: authUser.email,
+          bio: '',
+          publications: [],
+        },
+        loading: false,
+      });
+    }
   },
 
   updateProfile: async (data) => {
@@ -54,10 +70,35 @@ export const useUserStore = create<UserStore>((set, get) => ({
     if (!authUser) { set({ saving: false }); return; }
 
     try {
-      // TODO: PATCH /users/me
+      const isLocalUri = (uri?: string) =>
+        !!uri && !uri.startsWith('http');
+
+      let resolvedPhotoUrl: string | undefined = data.avatarUrl;
+
+      if (isLocalUri(data.avatarUrl)) {
+        const res = await uploadProfilePhoto(data.avatarUrl!);
+        resolvedPhotoUrl = res.data.photo ?? undefined;
+      }
+
+      const profileRes = await updateUserProfile({
+        full_name: data.name,
+        description: data.bio,
+      });
+
       const current = get().profile;
-      if (current) set({ profile: { ...current, ...data }, saving: false });
-      else set({ saving: false });
+      if (current) {
+        set({
+          profile: {
+            ...current,
+            name: profileRes.data.full_name,
+            bio: profileRes.data.description ?? '',
+            avatarUrl: resolvedPhotoUrl ?? current.avatarUrl,
+          },
+          saving: false,
+        });
+      } else {
+        set({ saving: false });
+      }
     } catch {
       set({ saving: false });
     }

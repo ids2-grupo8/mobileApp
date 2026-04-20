@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import {
   Animated,
+  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -83,7 +84,7 @@ function ProfileSkeleton({ topPad, C }: { topPad: number; C: ThemeColors }) {
 
 // ─── Avatar ───────────────────────────────────────────────────────────────────
 
-function Avatar({ name, size = 80, C }: { name: string; size?: number; C: ThemeColors }) {
+function Avatar({ name, photoUrl, size = 80, C }: { name: string; photoUrl?: string; size?: number; C: ThemeColors }) {
   const initials = name.split(' ').slice(0, 2).map((w) => w[0]?.toUpperCase() ?? '').join('');
   return (
     <View style={[s.avatarOuter, { width: size + 8, height: size + 8, borderRadius: (size + 8) / 2 }]}>
@@ -95,14 +96,21 @@ function Avatar({ name, size = 80, C }: { name: string; size?: number; C: ThemeC
         borderColor: C.accent,
         shadowColor: C.accent,
       }]} />
-      <View style={[s.avatarInner, {
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: C.accentGlow,
-      }]}>
-        <Text style={[s.avatarText, { color: C.accent, fontSize: size * 0.32 }]}>{initials}</Text>
-      </View>
+      {photoUrl ? (
+        <Image
+          source={{ uri: photoUrl }}
+          style={{ width: size, height: size, borderRadius: size / 2 }}
+        />
+      ) : (
+        <View style={[s.avatarInner, {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: C.accentGlow,
+        }]}>
+          <Text style={[s.avatarText, { color: C.accent, fontSize: size * 0.32 }]}>{initials}</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -237,7 +245,7 @@ export default function ProfileScreen() {
 
           {/* Avatar + info centered */}
           <View style={s.profileCenter}>
-            <Avatar name={profile.name} C={C} />
+            <Avatar name={profile.name} photoUrl={profile.avatarUrl} C={C} />
             <Text style={[s.name, { color: C.textPrimary }]}>{profile.name}</Text>
             <Text style={[s.email, { color: C.textSecondary }]}>{profile.email}</Text>
             {profile.bio ? (

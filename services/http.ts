@@ -99,6 +99,57 @@ export type ImageFile = {
   type: string;
 };
 
+export async function requestFileUpload<T = unknown>(
+  url: string,
+  {
+    method = 'POST',
+    fileField = 'file',
+    file,
+    extraFields,
+    auth = true,
+  }: {
+    method?: 'POST' | 'PUT' | 'PATCH';
+    fileField?: string;
+    file: ImageFile;
+    extraFields?: Record<string, string>;
+    auth?: boolean;
+  }
+): Promise<T> {
+  const headers: Record<string, string> = { Accept: 'application/json' };
+
+  if (auth) {
+    const token = await getAccessToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const formData = new FormData();
+  formData.append(fileField, { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  if (extraFields) {
+    for (const [key, value] of Object.entries(extraFields)) {
+      formData.append(key, value);
+    }
+  }
+
+  const res = await fetch(url, { method, headers, body: formData });
+
+  const text = await res.text();
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    json = { message: text };
+  }
+
+  if (!res.ok) {
+    console.error(`[API] ${method} ${url} → ${res.status}`, JSON.stringify(json));
+    const j = json as { message?: string; error?: string; detail?: string; title?: string };
+    const message = j.detail ?? j.message ?? j.error ?? j.title ?? `Error ${res.status}`;
+    throw new ApiError(res.status, message, json);
+  }
+
+  return json as T;
+}
+
 export async function requestFormData<T = unknown>(
   url: string,
   {
