@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import * as Linking from 'expo-linking';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,9 +10,11 @@ import {
     Dimensions,
     NativeScrollEvent,
     NativeSyntheticEvent,
+  Platform,
     ScrollView,
     StyleSheet,
     Text,
+  Share,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -101,11 +104,13 @@ function ImageGallery({
   topInset,
   bg,
   onBack,
+  onShare,
 }: {
   images: string[];
   topInset: number;
   bg: string;
   onBack: () => void;
+  onShare: () => void;
 }) {
   const [activeIndex, setActiveIndex] = useState(0);
 
@@ -152,7 +157,7 @@ function ImageGallery({
         <View style={s.heroOverlayRight}>
           <TouchableOpacity
             style={[s.glassBtn, { width: 44, height: 44, borderRadius: 22 }]}
-            onPress={() => {}}
+            onPress={onShare}
             accessibilityRole="button">
             <MaterialIcons name="share" size={20} color="#F0F2F5" />
           </TouchableOpacity>
@@ -198,6 +203,25 @@ export default function ProductDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [networkError, setNetworkError] = useState(false);
   const [adding, setAdding] = useState(false);
+
+  const shareProduct = async () => {
+    if (!productId) return;
+
+    const shareUrl = Linking.createURL(`/product/${encodeURIComponent(productId)}`);
+    const sharePayload =
+      Platform.OS === 'ios'
+        ? { url: shareUrl }
+        : { message: shareUrl };
+
+    try {
+      await Share.share({
+        title: product?.title ?? 'Producto',
+        ...sharePayload,
+      });
+    } catch {
+      Alert.alert('Compartir', 'No se pudo abrir la opción para compartir.');
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -286,6 +310,7 @@ export default function ProductDetailScreen() {
           topInset={insets.top}
           bg={C.bg}
           onBack={() => router.back()}
+          onShare={shareProduct}
         />
 
         {/* ── Product Info ── */}

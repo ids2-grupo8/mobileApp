@@ -48,7 +48,9 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isReady) return;
     const inAuth = segments[0] === "(auth)";
-    if (!isLoggedIn && !inAuth) {
+    const inPublicProductRoute = segments[0] === "product";
+
+    if (!isLoggedIn && !inAuth && !inPublicProductRoute) {
       router.replace("/(auth)/landing");
     } else if (isLoggedIn && inAuth) {
       router.replace("/(tabs)");
