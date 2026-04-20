@@ -9,6 +9,34 @@ type BaseCreateProductData = {
   images: ImageFile[];
 };
 
+export type SellerInfo = {
+  id?: string;
+  email?: string;
+  full_name?: string;
+  first_name?: string;
+  last_name?: string;
+  photo?: string | null;
+  description?: string | null;
+};
+
+export function getSellerDisplayName(seller?: SellerInfo): string {
+  if (!seller) return 'Vendedor';
+
+  const fullName = seller.full_name?.trim();
+  if (fullName) return fullName;
+
+  const combinedName = [seller.first_name, seller.last_name]
+    .filter((value): value is string => Boolean(value && value.trim()))
+    .join(' ')
+    .trim();
+  if (combinedName) return combinedName;
+
+  const fallbackName = seller.first_name?.trim() || seller.last_name?.trim();
+  if (fallbackName) return fallbackName;
+
+  return seller.email?.trim() || 'Vendedor';
+}
+
 export type CreateProductData =
   | (BaseCreateProductData & {
       category: 'Electronics';
@@ -31,6 +59,7 @@ export type CatalogProduct = {
   imageUrl: string;
   images: string[];
   seller: string;
+  sellerInfo?: SellerInfo;
   sellerId?: string;
   category: string;
   description?: string;
@@ -123,6 +152,17 @@ function normalizeProduct(raw: RawProduct): CatalogProduct | null {
   const categoryObj = product.category && typeof product.category === 'object' ? (product.category as RawProduct) : null;
   const allImages = pickAllImages(product);
   const imageUrl = allImages[0] ?? DEFAULT_IMAGE;
+  const sellerInfo = sellerObj
+    ? {
+        id: asString(sellerObj.id ?? sellerObj._id) || undefined,
+        email: asString(sellerObj.email) || undefined,
+        full_name: asString(sellerObj.full_name ?? sellerObj.name) || undefined,
+        first_name: asString(sellerObj.first_name) || undefined,
+        last_name: asString(sellerObj.last_name) || undefined,
+        photo: asString(sellerObj.photo) || undefined,
+        description: asString(sellerObj.description) || undefined,
+      }
+    : undefined;
 
   return {
     id,
@@ -131,7 +171,8 @@ function normalizeProduct(raw: RawProduct): CatalogProduct | null {
     stock,
     imageUrl,
     images: allImages.length > 0 ? allImages : [imageUrl].filter(Boolean),
-    seller: asString(sellerObj?.name ?? product.seller_name ?? product.seller) || 'Vendedor',
+    seller: getSellerDisplayName(sellerInfo),
+    sellerInfo,
     sellerId: asString(sellerObj?.id ?? sellerObj?._id ?? product.seller_id) || undefined,
     category: asString(categoryObj?.name ?? product.category_name ?? product.category) || 'General',
     description: asString(product.description) || undefined,

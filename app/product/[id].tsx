@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
     type CatalogProduct,
+  getSellerDisplayName,
     fetchCatalogProductById,
 } from '@/services/catalog';
 import { useCartStore } from '@/store/cart';
@@ -33,6 +34,16 @@ function formatPrice(value: number) {
     currency: 'ARS',
     maximumFractionDigits: 0,
   }).format(value);
+}
+
+function getInitials(name?: string) {
+  if (!name) return 'V';
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -322,6 +333,33 @@ export default function ProductDetailScreen() {
           </View>
         </View>
 
+        <View style={s.sellerSection}>
+          <View style={[s.sellerCard, { backgroundColor: C.glass, borderColor: C.glassBorder }] }>
+            <Text style={[s.sellerSectionTitle, { color: C.textPrimary }]}>Vendedor</Text>
+            <View style={s.sellerProfileRow}>
+              {product.sellerInfo?.photo ? (
+                <Image source={{ uri: product.sellerInfo.photo }} style={s.sellerPhoto} contentFit="cover" />
+              ) : (
+                <View style={[s.sellerPhotoFallback, { backgroundColor: C.accentGlow, borderColor: C.accent }] }>
+                    <Text style={[s.sellerPhotoFallbackText, { color: C.accent }]}>{getInitials(getSellerDisplayName(product.sellerInfo))}</Text>
+                </View>
+              )}
+
+              <View style={s.sellerProfileText}>
+                  <Text style={[s.sellerProfileName, { color: C.textPrimary }]}>{getSellerDisplayName(product.sellerInfo) ?? product.seller}</Text>
+                {product.sellerInfo?.email ? (
+                  <Text style={[s.sellerProfileMeta, { color: C.textSecondary }]}>{product.sellerInfo.email}</Text>
+                ) : null}
+                {product.sellerInfo?.description ? (
+                  <Text style={[s.sellerProfileBio, { color: C.textSecondary }]} numberOfLines={3}>
+                    {product.sellerInfo.description}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        </View>
+
       </ScrollView>
 
       {/* ── Sticky Action Bar — CA-F3 disabled when out of stock ── */}
@@ -579,6 +617,62 @@ const s = StyleSheet.create({
     height: 40,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+
+  // ── Seller ──
+  sellerSection: {
+    paddingHorizontal: 20,
+    marginTop: 18,
+  },
+  sellerCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+    gap: 14,
+  },
+  sellerSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  sellerProfileRow: {
+    flexDirection: 'row',
+    gap: 14,
+    alignItems: 'flex-start',
+  },
+  sellerPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  sellerPhotoFallback: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellerPhotoFallbackText: {
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  sellerProfileText: {
+    flex: 1,
+    gap: 4,
+  },
+  sellerProfileName: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.2,
+  },
+  sellerProfileMeta: {
+    fontSize: 13,
+  },
+  sellerProfileBio: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 2,
   },
 
   // ── Sticky Action Bar ──
