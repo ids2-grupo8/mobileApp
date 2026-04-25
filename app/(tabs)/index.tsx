@@ -272,10 +272,10 @@ export default function HomeScreen() {
     router.push('/seller/publish');
   };
 
-  const loadProducts = async () => {
+  const loadProducts = async (searchTerm = query) => {
     setError(null);
     try {
-      const fromApi = await fetchCatalogProducts();
+      const fromApi = await fetchCatalogProducts(searchTerm);
       setProducts(fromApi);
     } catch {
       setProducts([]);
@@ -287,8 +287,13 @@ export default function HomeScreen() {
   };
 
   useEffect(() => {
-    loadProducts();
-  }, []);
+    const debounce = setTimeout(() => {
+      setLoading(true);
+      void loadProducts(query.trim());
+    }, 350);
+
+    return () => clearTimeout(debounce);
+  }, [query]);
 
   const hasActiveFilters = category !== 'Todos' || query.trim().length > 0 || minPrice !== '' || maxPrice !== '';
   const hasPriceFilter = minPrice !== '' || maxPrice !== '';
@@ -301,22 +306,17 @@ export default function HomeScreen() {
   };
 
   const filteredProducts = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
     const min = minPrice !== '' ? parseFloat(minPrice) : null;
     const max = maxPrice !== '' ? parseFloat(maxPrice) : null;
 
     return products.filter((p) => {
       const translatedCategory = CATEGORY_TRANSLATIONS[p.category] ?? p.category;
       const categoryMatch = category === 'Todos' || translatedCategory === category;
-      const queryMatch =
-        !normalizedQuery ||
-        p.title.toLowerCase().includes(normalizedQuery) ||
-        p.seller.toLowerCase().includes(normalizedQuery);
       const priceMin = min === null || p.price >= min;
       const priceMax = max === null || p.price <= max;
-      return categoryMatch && queryMatch && priceMin && priceMax;
+      return categoryMatch && priceMin && priceMax;
     });
-  }, [products, query, category, minPrice, maxPrice]);
+  }, [products, category, minPrice, maxPrice]);
 
   const recentProducts = useMemo(
     () => filteredProducts.filter((p) => p.isRecent),

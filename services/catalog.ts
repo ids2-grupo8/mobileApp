@@ -215,8 +215,13 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
 }
 
 
-export async function fetchCatalogProducts(): Promise<CatalogProduct[]> {
-  const payload = await request<unknown>(CATALOG('/products'), { method: 'GET', auth: false });
+export async function fetchCatalogProducts(searchQuery?: string): Promise<CatalogProduct[]> {
+  const normalizedQuery = searchQuery?.trim();
+  const endpoint =
+    normalizedQuery && normalizedQuery.length > 0
+      ? CATALOG(`/products?q=${encodeURIComponent(normalizedQuery)}`)
+      : CATALOG('/products');
+  const payload = await request<unknown>(endpoint, { method: 'GET', auth: false });
   const collection = extractCollection(payload);
 
   if (!collection) {
