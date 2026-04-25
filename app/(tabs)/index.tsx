@@ -384,6 +384,18 @@ export default function HomeScreen() {
           <View style={s.headerRight}>
             <TouchableOpacity
               accessibilityRole="button"
+              accessibilityLabel="Abrir carrito"
+              style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+              onPress={() => router.push('/cart')}>
+              <MaterialIcons name="shopping-bag" size={20} color={theme.textPrimary} />
+              {cartCount > 0 && (
+                <View style={[s.cartBadge, { backgroundColor: theme.accent, borderColor: theme.bg }]}>
+                  <Text style={s.cartBadgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
               style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
               onPress={createPublication}>
               <MaterialIcons name="add" size={20} color={theme.accent} />
@@ -689,6 +701,24 @@ const s = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBadgeText: {
+    color: '#050508',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
 
   // ── Search ──
