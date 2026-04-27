@@ -45,15 +45,15 @@ export type PublicUserProfileResponse = {
 };
 
 export async function getUserByEmail(email: string): Promise<UserData> {
-  const response = await request<UserProfileResponse>(USERS(`/profile/${encodeURIComponent(email)}`), {
+  const response = await request<UserProfileResponse>(USERS(`/profile`), {
     method: 'GET',
     auth: true,
   });
   return response.data;
 }
 
-export async function getUserProfile(email: string): Promise<UserProfileResponse> {
-  return request<UserProfileResponse>(USERS(`/profile/${encodeURIComponent(email)}`), {
+export async function getUserProfile(): Promise<UserProfileResponse> {
+  return request<UserProfileResponse>(USERS(`/profile`), {
     method: 'GET',
     auth: true,
   });

@@ -15,7 +15,7 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSAppTransportSecurity": {
           "NSExceptionDomains": {
-            "35.247.247.86": {
+            "34.151.224.181": {
               "NSExceptionAllowsInsecureHTTPLoads": true,
               "NSIncludesSubdomains": false
             }
