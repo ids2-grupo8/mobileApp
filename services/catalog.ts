@@ -253,10 +253,10 @@ export async function fetchCatalogProductById(id: string): Promise<CatalogProduc
   }
 }
 
-export async function fetchMyProducts(email: string): Promise<CatalogProduct[]> {
-  const payload = await request<PublicUserProfileResponse>(USERS(`/profile/public/${encodeURIComponent(email)}`), {
+export async function fetchMyProducts(): Promise<CatalogProduct[]> {
+  const payload = await request<PublicUserProfileResponse>(USERS(`/profile`), {
     method: 'GET',
-    auth: false,
+    auth: true,
   });
 
   return payload.data.products
@@ -265,7 +265,14 @@ export async function fetchMyProducts(email: string): Promise<CatalogProduct[]> 
 }
 
 export async function fetchProductsBySellerEmail(email: string): Promise<CatalogProduct[]> {
-  return fetchMyProducts(email);
+  const payload = await request<PublicUserProfileResponse>(USERS(`/profile/public/${encodeURIComponent(email)}`), {
+    method: 'GET',
+    auth: false,
+  });
+
+  return payload.data.products
+    .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+    .filter((item): item is CatalogProduct => item !== null);
 }
 
 export async function createProductRequest(data: CreateProductData): Promise<void> {
