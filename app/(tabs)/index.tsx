@@ -4,18 +4,19 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    Animated,
-    KeyboardAvoidingView,
-    Modal,
-    Platform,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Animated,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -253,6 +254,26 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const cartCount = useCartStore((s) => s.totalItems());
   const addItem = useCartStore((s) => s.addItem);
+  const cartItems = useCartStore((s) => s.items);
+
+  const handleQuickAdd = async (product: CatalogProduct) => {
+    const inCart = cartItems.find((i) => i.productId === product.id);
+    const currentQty = inCart ? inCart.quantity : 0;
+    const available = Math.max(0, product.stock - currentQty);
+
+    if (available <= 0) {
+      Alert.alert('Stock insuficiente', `No podés agregar más. Stock máximo: ${product.stock}`);
+      return;
+    }
+
+    try {
+      await addItem(product, 1);
+      Alert.alert('Agregado', 'Producto agregado al carrito');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'No se pudo agregar el producto';
+      Alert.alert('Error', msg);
+    }
+  };
 
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -382,6 +403,18 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={s.headerRight}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Abrir carrito"
+              style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+              onPress={() => router.push('/cart')}>
+              <MaterialIcons name="shopping-bag" size={20} color={theme.textPrimary} />
+              {cartCount > 0 && (
+                <View style={[s.cartBadge, { backgroundColor: theme.accent, borderColor: theme.bg }]}>
+                  <Text style={s.cartBadgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               accessibilityRole="button"
               style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
@@ -543,7 +576,7 @@ export default function HomeScreen() {
                       compact
                       isRecent
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => addItem(product)}
+                      onAddToCart={() => handleQuickAdd(product)}
                       {...cardThemeProps}
                     />
                   ))}
@@ -568,7 +601,7 @@ export default function HomeScreen() {
                       product={product}
                       compact
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => addItem(product)}
+                      onAddToCart={() => handleQuickAdd(product)}
                       {...cardThemeProps}
                     />
                   ))}
@@ -609,7 +642,7 @@ export default function HomeScreen() {
                       key={product.id}
                       product={product}
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => addItem(product)}
+                      onAddToCart={() => handleQuickAdd(product)}
                       isRecent={product.isRecent}
                       {...cardThemeProps}
                     />
@@ -624,7 +657,7 @@ export default function HomeScreen() {
                       product={product}
                       tall={i % 2 === 0}
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => addItem(product)}
+                      onAddToCart={() => handleQuickAdd(product)}
                       isRecent={product.isRecent}
                       {...cardThemeProps}
                     />
@@ -689,6 +722,24 @@ const s = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cartBadgeText: {
+    color: '#050508',
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
 
   // ── Search ──

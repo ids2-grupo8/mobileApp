@@ -16,6 +16,7 @@ import {
   Share,
     TouchableOpacity,
     View,
+    Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -245,6 +246,7 @@ export default function ProductDetailScreen() {
   const router = useRouter();
   const C = useTheme();
   const addItem = useCartStore((s) => s.addItem);
+  const cartItems = useCartStore((s) => s.items);
 
   const [product, setProduct] = useState<CatalogProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -488,13 +490,24 @@ export default function ProductDetailScreen() {
             ]}
             onPress={async () => {
               if (!product || adding || outOfStock) return;
+
+              const inCart = cartItems.find((i) => i.productId === product.id);
+              const currentQty = inCart ? inCart.quantity : 0;
+              const available = Math.max(0, product.stock - currentQty);
+
+              if (available <= 0) {
+                Alert.alert('Stock insuficiente', `No podés agregar más. Stock máximo: ${product.stock}`);
+                return;
+              }
+
+              const qtyToAdd = Math.min(qty, available);
+
               setAdding(true);
               try {
-                await addItem(product, qty);
+                await addItem(product, qtyToAdd);
                 setShowToast(true);
                 setTimeout(() => {
                   setShowToast(false);
-                  router.replace('/(tabs)');
                 }, 2000);
               } finally {
                 setAdding(false);
