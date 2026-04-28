@@ -43,64 +43,73 @@ function CartRow({
   onRemove: () => void;
 }) {
   const atMax = item.quantity >= item.stock;
-  const lowStock = item.stock <= 3;
+  const lowStock = item.stock <= 3 && item.stock > 0;
+  const notAvailable = item.available === false;
 
   return (
     <View
       style={[
         s.row,
-        { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
+        notAvailable && s.rowDisabled,
+        { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark, opacity: notAvailable ? 0.6 : 1 },
       ]}>
       <Image source={{ uri: item.imageUrl }} style={s.thumb} contentFit="cover" />
 
       <View style={s.rowBody}>
-        <Text numberOfLines={2} style={[s.rowTitle, { color: C.textPrimary }]}>
+        <Text numberOfLines={2} style={[s.rowTitle, { color: notAvailable ? C.textMuted : C.textPrimary }]}>
           {item.title}
         </Text>
         <Text style={[s.rowSeller, { color: C.textMuted }]} numberOfLines={1}>
           {item.seller}
         </Text>
 
-        {lowStock && (
+        {notAvailable ? (
+          <View style={[s.stockPill, { backgroundColor: C.redBg, borderColor: C.red }]}>
+            <Text style={[s.stockPillText, { color: C.red }]}>
+              No disponible
+            </Text>
+          </View>
+        ) : lowStock ? (
           <View style={[s.stockPill, { backgroundColor: C.redBg, borderColor: C.red }]}>
             <Text style={[s.stockPillText, { color: C.red }]}>
               Sólo {item.stock} en stock
             </Text>
           </View>
-        )}
+        ) : null}
 
         <View style={s.rowFooter}>
-          <Text style={[s.rowPrice, { color: C.accent }]}>
+          <Text style={[s.rowPrice, { color: notAvailable ? C.textMuted : C.accent }]}>
             {formatPrice(item.price * item.quantity)}
           </Text>
 
           <View
             style={[
               s.qtyWrap,
-              { backgroundColor: C.elevated, borderColor: C.glassBorder },
+              { backgroundColor: notAvailable ? C.glass : C.elevated, borderColor: C.glassBorder, opacity: notAvailable ? 0.5 : 1 },
             ]}>
             <TouchableOpacity
               onPress={onDec}
+              disabled={notAvailable}
               hitSlop={8}
               style={s.qtyBtn}
               accessibilityLabel="Disminuir cantidad">
               <MaterialIcons
                 name={item.quantity <= 1 ? 'delete-outline' : 'remove'}
                 size={16}
-                color={item.quantity <= 1 ? C.red : C.textSecondary}
+                color={notAvailable ? C.textMuted : (item.quantity <= 1 ? C.red : C.textSecondary)}
               />
             </TouchableOpacity>
-            <Text style={[s.qtyValue, { color: C.textPrimary }]}>{item.quantity}</Text>
+            <Text style={[s.qtyValue, { color: notAvailable ? C.textMuted : C.textPrimary }]}>{item.quantity}</Text>
             <TouchableOpacity
               onPress={onInc}
+              disabled={notAvailable || atMax}
               hitSlop={8}
-              disabled={atMax}
               style={s.qtyBtn}
               accessibilityLabel="Aumentar cantidad">
               <MaterialIcons
                 name="add"
                 size={16}
-                color={atMax ? C.textMuted : C.textSecondary}
+                color={notAvailable || atMax ? C.textMuted : C.textSecondary}
               />
             </TouchableOpacity>
           </View>
@@ -128,6 +137,10 @@ export default function CartScreen() {
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const clear = useCartStore((s) => s.clear);
+
+  const unavailableItems = items.filter((item) => item.available === false);
+  const hasUnavailableItems = unavailableItems.length > 0;
+  const canCheckout = items.length > 0 && !hasUnavailableItems;
 
   const shipping = subtotal === 0 || subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
@@ -167,7 +180,17 @@ export default function CartScreen() {
   };
 
   const handleCheckout = () => {
-    if (items.length === 0) return;
+    if (!canCheckout) {
+      if (hasUnavailableItems) {
+        Alert.alert(
+          'Productos no disponibles',
+          `${unavailableItems.length} producto(s) en tu carrito no están disponibles. Elimínalos para continuar.`,
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      if (items.length === 0) return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     router.push('/checkout');
   };
@@ -321,10 +344,27 @@ export default function CartScreen() {
               </View>
             </View>
 
+            {hasUnavailableItems && (
+              <View style={[s.errorBox, { backgroundColor: C.redBg, borderColor: C.red }]}>
+                <MaterialIcons name="error-outline" size={16} color={C.red} />
+                <Text style={[s.errorText, { color: C.red }]}>
+                  {unavailableItems.length} producto(s) no disponible(s). Elimínalos para continuar.
+                </Text>
+              </View>
+            )}
+
             <TouchableOpacity
               onPress={handleCheckout}
-              activeOpacity={0.92}
-              style={[s.cta, { backgroundColor: C.accent, shadowColor: C.accent }]}>
+              disabled={!canCheckout}
+              activeOpacity={canCheckout ? 0.92 : 1}
+              style={[
+                s.cta,
+                {
+                  backgroundColor: canCheckout ? C.accent : C.textMuted,
+                  shadowColor: canCheckout ? C.accent : 'transparent',
+                  opacity: canCheckout ? 1 : 0.5,
+                },
+              ]}>
               <Text style={s.ctaText}>Continuar al pago</Text>
               <MaterialIcons name="arrow-forward" size={20} color="#050508" />
             </TouchableOpacity>
@@ -477,6 +517,19 @@ const s = StyleSheet.create({
   totalsDivider: { height: 1, marginVertical: 4 },
   totalsLabelLg: { fontSize: 15, fontWeight: '700' },
   totalsValueLg: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+
+  // ── Error box ──
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    gap: 10,
+  },
+  errorText: { fontSize: 13, fontWeight: '500', flex: 1, lineHeight: 18 },
+
+  // ── CTA Button ──
   cta: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -490,4 +543,7 @@ const s = StyleSheet.create({
     elevation: 8,
   },
   ctaText: { color: '#050508', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
+
+  // ── Row disabled ──
+  rowDisabled: {},
 });
