@@ -235,6 +235,31 @@ export async function fetchCatalogProducts(searchQuery?: string): Promise<Catalo
   return filterVisible(normalized);
 }
 
+/**
+ * Fetch personalized product recommendations from the backend.
+ * Returns an empty array on any error so the Home screen gracefully
+ * hides the section when the service is unavailable.
+ */
+export async function fetchRecommendedProducts(limit = 10): Promise<CatalogProduct[]> {
+  try {
+    const payload = await request<unknown>(
+      CATALOG(`/products/recommendations?limit=${limit}`),
+      { method: 'GET', auth: true },
+    );
+    const collection = extractCollection(payload);
+    if (!collection) return [];
+
+    return collection
+      .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+      .filter((item): item is CatalogProduct => item !== null)
+      .filter((p) => p.stock > 0);
+  } catch {
+    // If the recommendations endpoint fails, return empty —
+    // the Home screen will simply not show the section.
+    return [];
+  }
+}
+
 export async function fetchCatalogProductById(id: string): Promise<CatalogProduct | null> {
   // GET /products/{product_id}  — si falla, busca en el listado
   try {

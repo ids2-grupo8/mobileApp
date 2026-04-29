@@ -24,6 +24,7 @@ import { useTheme } from '@/hooks/use-theme';
 import {
     type CatalogProduct,
     fetchCatalogProducts,
+    fetchRecommendedProducts,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -256,7 +257,21 @@ export default function HomeScreen() {
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
 
+  // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
+  // en vez de permitirle agregar al carrito.
   const handleQuickAdd = async (product: CatalogProduct) => {
+    if (!user) {
+      Alert.alert(
+        'Iniciar sesión',
+        'Necesitás iniciar sesión para agregar productos al carrito.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ],
+      );
+      return;
+    }
+
     const inCart = cartItems.find((i) => i.productId === product.id);
     const currentQty = inCart ? inCart.quantity : 0;
     const available = Math.max(0, product.stock - currentQty);
@@ -289,8 +304,38 @@ export default function HomeScreen() {
     router.push(`/product/${product.id}`);
   };
 
+  // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
+  // en vez de permitirle publicar un producto.
   const createPublication = () => {
+    if (!user) {
+      Alert.alert(
+        'Iniciar sesión',
+        'Necesitás iniciar sesión para publicar productos.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ],
+      );
+      return;
+    }
     router.push('/seller/publish');
+  };
+
+  // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
+  // en vez de dejarlo acceder al carrito.
+  const openCart = () => {
+    if (!user) {
+      Alert.alert(
+        'Iniciar sesión',
+        'Necesitás iniciar sesión para ver tu carrito.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ],
+      );
+      return;
+    }
+    router.push('/cart');
   };
 
   const loadProducts = async (searchTerm = query) => {
@@ -344,13 +389,22 @@ export default function HomeScreen() {
     [filteredProducts]
   );
 
-  // Recommended: top 6 by price descending (premium items) — shown only to logged-in users
-  const recommendedProducts = useMemo(() => {
-    if (!user) return [];
-    return [...products]
-      .sort((a, b) => b.price - a.price)
-      .slice(0, 6);
-  }, [products, user]);
+  // CA4: Recomendaciones personalizadas cargadas desde el backend.
+  // Se cargan asincrónicamente. Si no hay datos o falla, la sección no se muestra.
+  const [recommendedProducts, setRecommendedProducts] = useState<CatalogProduct[]>([]);
+
+  useEffect(() => {
+    // No mostramos recomendaciones cuando hay filtros activos
+    if (hasActiveFilters) {
+      setRecommendedProducts([]);
+      return;
+    }
+    let cancelled = false;
+    fetchRecommendedProducts(6).then((recs) => {
+      if (!cancelled) setRecommendedProducts(recs);
+    });
+    return () => { cancelled = true; };
+  }, [products, hasActiveFilters]);
 
   const categories = useMemo<CategoryFilter[]>(() => {
     const dynamic = Array.from(
@@ -407,7 +461,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Abrir carrito"
               style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
-              onPress={() => router.push('/cart')}>
+              onPress={openCart}>
               <MaterialIcons name="shopping-bag" size={20} color={theme.textPrimary} />
               {cartCount > 0 && (
                 <View style={[s.cartBadge, { backgroundColor: theme.accent, borderColor: theme.bg }]}>
@@ -551,7 +605,7 @@ export default function HomeScreen() {
             <MaterialIcons name="error-outline" size={20} color={theme.red} />
             <Text style={[s.errorText, { color: theme.red }]}>{error}</Text>
             <TouchableOpacity
-              onPress={loadProducts}
+              onPress={() => loadProducts()}
               style={[s.retryBtn, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
               <Text style={[s.retryText, { color: theme.accent }]}>Reintentar</Text>
             </TouchableOpacity>
@@ -585,7 +639,7 @@ export default function HomeScreen() {
             )}
 
             {/* ── Recommendations — CA4 (solo usuarios autenticados) ── */}
-            {recommendedProducts.length > 0 && !hasActiveFilters && (
+            {recommendedProducts.length > 0 && (
               <>
                 <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
                   <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Para vos</Text>
