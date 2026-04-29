@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
-import { fetchProductsBySellerEmail, toggleProductStatus, type CatalogProduct } from '@/services/catalog';
+import { fetchMyProducts, toggleProductStatus, type CatalogProduct } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 
 function formatPrice(value: number) {
@@ -139,7 +139,7 @@ export default function PublicationsScreen() {
 
     try {
       setError(null);
-        const list = await fetchProductsBySellerEmail(user.email);
+      const list = await fetchMyProducts();
       setProducts(list);
     } catch {
       setError('No pudimos cargar tus publicaciones. Intentá de nuevo.');
@@ -150,12 +150,12 @@ export default function PublicationsScreen() {
   };
 
   useEffect(() => {
-    loadProducts();
+    void loadProducts();
   }, [user?.email]);
 
   useFocusEffect(
     useCallback(() => {
-      loadProducts();
+      void loadProducts();
     }, [user?.email]),
   );
 

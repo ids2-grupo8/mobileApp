@@ -1,4 +1,4 @@
-const API_GATEWAY = 'http://34.151.224.181';
+const API_GATEWAY = 'http://35.247.221.39';
 
 /**
  * Construye la URL del API Gateway dado el servicio y el path local.

@@ -46,8 +46,9 @@ export const useUserStore = create<UserStore>((set, get) => ({
     try {
       const [profileRes, products] = await Promise.all([
         getUserByEmail(authUser.email),
-        fetchMyProducts(authUser.email).catch(() => []),
+        fetchMyProducts().catch(() => []),
       ]);
+      console.log('products', products);
       set({
         profile: {
           id: profileRes.id,
