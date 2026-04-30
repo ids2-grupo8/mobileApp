@@ -215,13 +215,28 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
 }
 
 
-export async function fetchCatalogProducts(searchQuery?: string): Promise<CatalogProduct[]> {
+export async function fetchCatalogProducts(searchQuery?: string, page?: number, perPage?: number): Promise<CatalogProduct[]> {
   const normalizedQuery = searchQuery?.trim();
-  const endpoint =
-    normalizedQuery && normalizedQuery.length > 0
-      ? CATALOG(`/products?q=${encodeURIComponent(normalizedQuery)}`)
-      : CATALOG('/products');
+  const base = normalizedQuery && normalizedQuery.length > 0
+    ? `/products?q=${encodeURIComponent(normalizedQuery)}`
+    : '/products';
+  const params: string[] = [];
+  if (page !== undefined && page !== null) params.push(`page=${encodeURIComponent(String(page))}`);
+  if (perPage !== undefined && perPage !== null) params.push(`per_page=${encodeURIComponent(String(perPage))}`);
+  const queryString = params.length > 0 ? `${base}&${params.join('&')}` : base;
+  const endpoint = CATALOG(queryString);
+
   const payload = await request<unknown>(endpoint, { method: 'GET', auth: false });
+
+  // Support paginated response shape: { items: [...], total, page, per_page }
+  if (payload && typeof payload === 'object' && Array.isArray((payload as any).items)) {
+    const items = (payload as any).items as unknown[];
+    const normalized = items
+      .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+      .filter((item): item is CatalogProduct => item !== null);
+    return filterVisible(normalized);
+  }
+
   const collection = extractCollection(payload);
 
   if (!collection) {

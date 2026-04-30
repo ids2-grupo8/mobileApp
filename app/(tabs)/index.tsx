@@ -329,15 +329,41 @@ export default function HomeScreen() {
   const filteredProducts = useMemo(() => {
     const min = minPrice !== '' ? parseFloat(minPrice) : null;
     const max = maxPrice !== '' ? parseFloat(maxPrice) : null;
+    const q = query.trim().toLowerCase();
 
-    return products.filter((p) => {
+    // Base filter: category + price
+    let list = products.filter((p) => {
       const translatedCategory = CATEGORY_TRANSLATIONS[p.category] ?? p.category;
       const categoryMatch = category === 'Todos' || translatedCategory === category;
       const priceMin = min === null || p.price >= min;
       const priceMax = max === null || p.price <= max;
       return categoryMatch && priceMin && priceMax;
     });
-  }, [products, category, minPrice, maxPrice]);
+
+    // If there's a search query, apply client-side name/description matching
+    if (q.length > 0) {
+      const scored = list
+        .map((p) => {
+          const name = (p.name ?? '').toLowerCase();
+          const desc = (p.description ?? '').toLowerCase();
+          let score = 0;
+          if (name === q) score += 100; // exact name match
+          if (name.startsWith(q)) score += 30;
+          if (name.includes(q)) score += 20;
+          if (desc.includes(q)) score += 10;
+          if (p.isRecent) score += 2;
+          return { product: p, score };
+        })
+        .filter((s) => s.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .map((s) => s.product);
+
+      // If no scored results from client-side matching, keep list empty so UI shows empty state
+      list = scored;
+    }
+
+    return list;
+  }, [products, category, minPrice, maxPrice, query]);
 
   const recentProducts = useMemo(
     () => filteredProducts.filter((p) => p.isRecent),
@@ -629,7 +655,9 @@ export default function HomeScreen() {
                   <TouchableOpacity
                     onPress={clearAllFilters}
                     style={[s.retryBtn, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
-                    <Text style={[s.retryText, { color: theme.accent }]}>Limpiar filtros</Text>
+                    <Text style={[s.retryText, { color: theme.accent }]}>
+                      {query.trim().length > 0 ? 'Limpiar búsqueda' : 'Limpiar filtros'}
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
