@@ -245,6 +245,58 @@ function FilterModal({
   );
 }
 
+// ─── Sort Modal ──────────────────────────────────────────────────────────────
+
+function SortModal({
+  visible,
+  selected,
+  onSelect,
+  onClose,
+}: {
+  visible: boolean;
+  selected: string | null;
+  onSelect: (s: string | null) => void;
+  onClose: () => void;
+}) {
+  const C = useTheme();
+
+  const pick = (value: string | null) => {
+    onSelect(value);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={s.modalOverlay}>
+        <TouchableOpacity style={s.modalBackdrop} onPress={onClose} activeOpacity={1} />
+        <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
+          <View style={[s.modalHandle, { backgroundColor: C.glassBorder }]} />
+          <Text style={[s.modalTitle, { color: C.textPrimary }]}>Ordenar resultados</Text>
+
+          <TouchableOpacity onPress={() => pick(null)} style={s.sortOption}>
+            <Text style={[s.sortOptionText, { color: selected === null ? C.accent : C.textPrimary }]}>Predeterminado</Text>
+            <Text style={[s.sortOptionHint, { color: C.textSecondary }]}>Relevancia si buscás, sino más recientes</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => pick('price_asc')} style={s.sortOption}>
+            <Text style={[s.sortOptionText, { color: selected === 'price_asc' ? C.accent : C.textPrimary }]}>Precio: menor primero</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => pick('price_desc')} style={s.sortOption}>
+            <Text style={[s.sortOptionText, { color: selected === 'price_desc' ? C.accent : C.textPrimary }]}>Precio: mayor primero</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => pick('newest')} style={s.sortOption}>
+            <Text style={[s.sortOptionText, { color: selected === 'newest' ? C.accent : C.textPrimary }]}>Más recientes</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+  );
+}
+
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 
 export default function HomeScreen() {
@@ -284,6 +336,8 @@ export default function HomeScreen() {
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortVisible, setSortVisible] = useState(false);
 
   const openProduct = (product: CatalogProduct) => {
     router.push(`/product/${product.id}`);
@@ -293,10 +347,10 @@ export default function HomeScreen() {
     router.push('/seller/publish');
   };
 
-  const loadProducts = async (searchTerm = query) => {
+  const loadProducts = async (searchTerm = query, sort = sortBy) => {
     setError(null);
     try {
-      const fromApi = await fetchCatalogProducts(searchTerm);
+      const fromApi = await fetchCatalogProducts(searchTerm, undefined, undefined, sort ?? undefined);
       setProducts(fromApi);
     } catch {
       setProducts([]);
@@ -310,11 +364,17 @@ export default function HomeScreen() {
   useEffect(() => {
     const debounce = setTimeout(() => {
       setLoading(true);
-      void loadProducts(query.trim());
+      void loadProducts(query.trim(), sortBy);
     }, 350);
 
     return () => clearTimeout(debounce);
   }, [query]);
+  
+  useEffect(() => {
+    // Reload when sort changes
+    setLoading(true);
+    void loadProducts(query.trim(), sortBy);
+  }, [sortBy]);
 
   const hasActiveFilters = category !== 'Todos' || query.trim().length > 0 || minPrice !== '' || maxPrice !== '';
   const hasPriceFilter = minPrice !== '' || maxPrice !== '';
@@ -340,27 +400,7 @@ export default function HomeScreen() {
       return categoryMatch && priceMin && priceMax;
     });
 
-    // If there's a search query, apply client-side name/description matching
-    if (q.length > 0) {
-      const scored = list
-        .map((p) => {
-          const name = (p.name ?? '').toLowerCase();
-          const desc = (p.description ?? '').toLowerCase();
-          let score = 0;
-          if (name === q) score += 100; // exact name match
-          if (name.startsWith(q)) score += 30;
-          if (name.includes(q)) score += 20;
-          if (desc.includes(q)) score += 10;
-          if (p.isRecent) score += 2;
-          return { product: p, score };
-        })
-        .filter((s) => s.score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map((s) => s.product);
-
-      // If no scored results from client-side matching, keep list empty so UI shows empty state
-      list = scored;
-    }
+    // Keep only category + price filtering here. Ordering and relevance is handled by backend when possible.
 
     return list;
   }, [products, category, minPrice, maxPrice, query]);
@@ -487,6 +527,18 @@ export default function HomeScreen() {
               color={hasPriceFilter ? theme.accent : theme.textSecondary}
             />
             {hasPriceFilter && (
+              <View style={[s.filterDot, { backgroundColor: theme.accent }]} />
+            )}
+          </TouchableOpacity>
+
+          {/* Sort button */}
+          <TouchableOpacity
+            onPress={() => setSortVisible(true)}
+            style={[s.filterBtn, { backgroundColor: sortBy ? theme.accentGlow : theme.glass, borderColor: sortBy ? theme.accent : theme.glassBorder }]}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir opciones de orden">
+            <MaterialIcons name="sort" size={20} color={sortBy ? theme.accent : theme.textSecondary} />
+            {sortBy && (
               <View style={[s.filterDot, { backgroundColor: theme.accent }]} />
             )}
           </TouchableOpacity>
@@ -704,6 +756,12 @@ export default function HomeScreen() {
         maxPrice={maxPrice}
         onApply={(min, max) => { setMinPrice(min); setMaxPrice(max); }}
         onClose={() => setFilterVisible(false)}
+      />
+      <SortModal
+        visible={sortVisible}
+        selected={sortBy}
+        onSelect={(s) => setSortBy(s)}
+        onClose={() => setSortVisible(false)}
       />
     </View>
   );
@@ -1106,6 +1164,20 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '500',
+  },
+  sortOption: {
+    paddingVertical: 12,
+    paddingHorizontal: 6,
+    borderBottomWidth: 1,
+    borderColor: '#00000010',
+  },
+  sortOptionText: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  sortOptionHint: {
+    fontSize: 12,
+    marginTop: 4,
   },
   priceSep: {
     width: 16,

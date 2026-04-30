@@ -215,7 +215,12 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
 }
 
 
-export async function fetchCatalogProducts(searchQuery?: string, page?: number, perPage?: number): Promise<CatalogProduct[]> {
+export async function fetchCatalogProducts(
+  searchQuery?: string,
+  page?: number,
+  perPage?: number,
+  sortBy?: string
+): Promise<CatalogProduct[]> {
   const normalizedQuery = searchQuery?.trim();
   const base = normalizedQuery && normalizedQuery.length > 0
     ? `/products?q=${encodeURIComponent(normalizedQuery)}`
@@ -223,7 +228,9 @@ export async function fetchCatalogProducts(searchQuery?: string, page?: number, 
   const params: string[] = [];
   if (page !== undefined && page !== null) params.push(`page=${encodeURIComponent(String(page))}`);
   if (perPage !== undefined && perPage !== null) params.push(`per_page=${encodeURIComponent(String(perPage))}`);
-  const queryString = params.length > 0 ? `${base}&${params.join('&')}` : base;
+  if (sortBy) params.push(`sort_by=${encodeURIComponent(sortBy)}`);
+  const separator = base.includes('?') ? '&' : '?';
+  const queryString = params.length > 0 ? `${base}${separator}${params.join('&')}` : base;
   const endpoint = CATALOG(queryString);
 
   const payload = await request<unknown>(endpoint, { method: 'GET', auth: false });
