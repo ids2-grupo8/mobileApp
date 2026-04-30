@@ -395,16 +395,17 @@ export default function HomeScreen() {
 
   useEffect(() => {
     // No mostramos recomendaciones cuando hay filtros activos
-    if (hasActiveFilters) {
+    // ni cuando el usuario no esta autenticado.
+    if (hasActiveFilters || !user) {
       setRecommendedProducts([]);
       return;
     }
     let cancelled = false;
-    fetchRecommendedProducts(6).then((recs) => {
+    fetchRecommendedProducts(12).then((recs) => {
       if (!cancelled) setRecommendedProducts(recs);
     });
     return () => { cancelled = true; };
-  }, [products, hasActiveFilters]);
+  }, [products, hasActiveFilters, user]);
 
   const categories = useMemo<CategoryFilter[]>(() => {
     const dynamic = Array.from(
@@ -413,13 +414,46 @@ export default function HomeScreen() {
     return ['Todos', ...dynamic];
   }, [products]);
 
+  const recommendedSectionProducts = useMemo(() => {
+    const seen = new Set<string>();
+    return recommendedProducts
+      .filter((p) => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      })
+      .slice(0, 4);
+  }, [recommendedProducts]);
+
+  const recommendedIds = useMemo(
+    () => new Set(recommendedSectionProducts.map((p) => p.id)),
+    [recommendedSectionProducts]
+  );
+
+  const orderedProducts = useMemo(
+    () =>
+      [...filteredProducts].sort((a, b) => {
+        // Mantener recomendados en el listado pero mas abajo para
+        // evitar repeticion visual inmediata entre secciones.
+        const aRecommended = recommendedIds.has(a.id);
+        const bRecommended = recommendedIds.has(b.id);
+        if (aRecommended && !bRecommended) return 1;
+        if (!aRecommended && bRecommended) return -1;
+
+        if (a.isRecent && !b.isRecent) return -1;
+        if (!a.isRecent && b.isRecent) return 1;
+        return a.title.localeCompare(b.title, 'es');
+      }),
+    [filteredProducts, recommendedIds]
+  );
+
   const leftCol = useMemo(
-    () => filteredProducts.filter((_, i) => i % 2 === 0),
-    [filteredProducts]
+    () => orderedProducts.filter((_, i) => i % 2 === 0),
+    [orderedProducts]
   );
   const rightCol = useMemo(
-    () => filteredProducts.filter((_, i) => i % 2 === 1),
-    [filteredProducts]
+    () => orderedProducts.filter((_, i) => i % 2 === 1),
+    [orderedProducts]
   );
 
   const cardThemeProps = {
@@ -639,7 +673,7 @@ export default function HomeScreen() {
             )}
 
             {/* ── Recommendations — CA4 (solo usuarios autenticados) ── */}
-            {recommendedProducts.length > 0 && (
+            {user && recommendedSectionProducts.length > 0 && (
               <>
                 <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
                   <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Para vos</Text>
@@ -649,7 +683,7 @@ export default function HomeScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={s.recentRow}>
-                  {recommendedProducts.map((product) => (
+                  {recommendedSectionProducts.map((product) => (
                     <ProductCard
                       key={product.id}
                       product={product}
@@ -669,11 +703,11 @@ export default function HomeScreen() {
                 Todos los productos
               </Text>
               <Text style={[s.sectionMeta, { color: theme.textMuted }]}>
-                {filteredProducts.length} resultados
+                {orderedProducts.length} resultados
               </Text>
             </View>
 
-            {filteredProducts.length === 0 ? (
+            {orderedProducts.length === 0 ? (
               <View style={s.emptyWrap}>
                 <MaterialIcons name="search-off" size={40} color={theme.textMuted} />
                 <Text style={[s.emptyText, { color: theme.textSecondary }]}>
