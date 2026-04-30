@@ -1,5 +1,5 @@
 import { USERS } from "@/constants/api";
-import { ApiError, request, saveTokens } from "./http";
+import { ApiError, getRefreshToken, request, saveTokens } from "./http";
 
 // ─── Federated (Google) OAuth ─────────────────────────────────────────────────
 
@@ -29,6 +29,10 @@ type LoginResponse = {
 
 type RegisterResponse = {
   data: UserData;
+};
+
+type PinStatusResponse = {
+  pin_enabled: boolean;
 };
 
 export type ResetPasswordPayload = {
@@ -112,6 +116,52 @@ export async function resetPasswordRequest(
   });
 }
 
+export async function enrollPinRequest(
+  pin: string,
+  deviceId: string,
+): Promise<void> {
+  await request(USERS("/auth/pin/enroll"), {
+    method: "POST",
+    body: { pin, device_id: deviceId },
+    auth: true,
+  });
+}
+
+export async function pinStatusRequest(deviceId: string): Promise<boolean> {
+  const res = await request<PinStatusResponse>(
+    `${USERS("/auth/pin/status")}?device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: "GET",
+      auth: true,
+    },
+  );
+  return Boolean(res.pin_enabled);
+}
+
+export async function pinLoginRequest(
+  pin: string,
+  deviceId: string,
+): Promise<AuthUser> {
+  const refreshToken = await getRefreshToken();
+  if (!refreshToken) {
+    throw new ApiError(
+      401,
+      "Sesión expirada. Iniciá sesión con email y contraseña.",
+    );
+  }
+  const res = await request<LoginResponse>(USERS("/auth/pin/login"), {
+    method: "POST",
+    body: { pin, device_id: deviceId, refresh_token: refreshToken },
+    auth: false,
+  });
+  await saveTokens(res.token.access_token, res.token.refresh_token);
+  return {
+    id: res.data.id,
+    email: res.data.email,
+    name: res.data.full_name,
+  };
+}
+
 // ─── Error handling ──────────────────────────────────────────────────────────
 
 export function toUserMessage(err: unknown): string {
@@ -120,12 +170,14 @@ export function toUserMessage(err: unknown): string {
     const detail = body?.detail?.toLowerCase() ?? "";
 
     if (err.status === 401)
-      return "Credenciales inválidas. Verificá tu email y contraseña.";
+      return "Credenciales inválidas. Verificá tu email/contraseña o PIN.";
     if (err.status === 409) return "Ya existe una cuenta con ese email.";
     if (err.status === 403)
       return "Tu cuenta está suspendida. Contactá soporte.";
     if (err.status === 429)
       return "Demasiados intentos. Esperá unos minutos e intentá de nuevo.";
+    if (err.status === 423)
+      return "El acceso por PIN está bloqueado temporalmente. Iniciá sesión con email y contraseña.";
     if (err.status === 400) {
       // Recovery link error
       if (body?.title === "Invalid recovery link") {

@@ -193,13 +193,14 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const C = useTheme();
   const { profile, loading, fetchProfile } = useUserStore();
-  const { logout } = useAuthStore();
+  const { logout, pinEnabled, loadPinAvailability } = useAuthStore();
   const { mode, toggle } = useThemeStore();
 
   useFocusEffect(
     useCallback(() => {
       void fetchProfile();
-    }, [fetchProfile]),
+      void loadPinAvailability();
+    }, [fetchProfile, loadPinAvailability]),
   );
 
   if (loading || !profile) {
@@ -300,6 +301,12 @@ export default function ProfileScreen() {
               label="Tema"
               onPress={toggle}
               rightLabel={THEME_LABELS[mode]}
+              C={C}
+            />
+            <MenuRow
+              icon="pin"
+              label={pinEnabled ? "Cambiar PIN de acceso" : "Configurar PIN de acceso"}
+              onPress={() => router.push("/profile/pin")}
               C={C}
             />
           </View>

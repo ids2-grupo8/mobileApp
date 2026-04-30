@@ -133,6 +133,7 @@ export default function RootLayout() {
         <Stack.Screen name="cart" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="checkout/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="checkout/success" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="profile/pin" options={{ headerShown: false }} />
         <Stack.Screen name="modal"       options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
       </Stack>

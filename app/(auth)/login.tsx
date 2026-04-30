@@ -16,6 +16,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GOOGLE_OAUTH_URL } from "@/services/auth";
+import { ENABLE_PIN_LOGIN } from "@/constants/features";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuthStore } from "@/store/auth";
 
@@ -33,7 +34,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const C = useTheme();
-  const { login, googleLogin, isLoading, error, clearError } = useAuthStore();
+  const { login, googleLogin, isLoading, error, clearError, pinEnabled, pinReady, loadPinAvailability } = useAuthStore();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -50,6 +51,10 @@ export default function LoginScreen() {
   useEffect(() => {
     return () => clearError();
   }, [clearError]);
+
+  useEffect(() => {
+    void loadPinAvailability();
+  }, [loadPinAvailability]);
 
   const handleBlur = (field: "email" | "password") => {
     setTouched((t) => ({ ...t, [field]: true }));
@@ -227,6 +232,17 @@ export default function LoginScreen() {
               ¿Olvidaste tu contraseña?
             </Text>
           </TouchableOpacity>
+
+          {ENABLE_PIN_LOGIN && pinReady && pinEnabled ? (
+            <TouchableOpacity
+              style={s.forgotWrap}
+              onPress={() => router.push("/(auth)/pin-login" as never)}
+            >
+              <Text style={[s.forgotText, { color: C.accentText }]}>
+                Ingresar con PIN
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={[

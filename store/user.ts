@@ -48,7 +48,6 @@ export const useUserStore = create<UserStore>((set, get) => ({
         getUserByEmail(authUser.email),
         fetchMyProducts().catch(() => []),
       ]);
-      console.log('products', products);
       set({
         profile: {
           id: profileRes.id,

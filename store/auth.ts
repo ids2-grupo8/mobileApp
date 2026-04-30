@@ -1,12 +1,17 @@
 import { create } from "zustand";
 
+import { ENABLE_PIN_LOGIN } from "@/constants/features";
+import { getOrCreateDeviceId, getPinEnabled, setPinEnabled } from "@/services/device";
 import { clearTokens } from "@/services/http";
 import {
   type AuthUser,
   type ResetPasswordPayload,
+  enrollPinRequest,
   federatedLoginRequest,
   forgotPasswordRequest,
   loginRequest,
+  pinLoginRequest,
+  pinStatusRequest,
   registerRequest,
   resetPasswordRequest,
   toUserMessage,
@@ -17,9 +22,14 @@ type AuthStore = {
   isLoading: boolean;
   error: string | null;
   user: AuthUser | null;
+  pinEnabled: boolean;
+  pinReady: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   googleLogin: (accessToken: string, refreshToken: string) => Promise<void>;
+  enrollPin: (pin: string) => Promise<boolean>;
+  loginWithPin: (pin: string) => Promise<void>;
+  loadPinAvailability: () => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   forgotPassword: (email: string) => Promise<boolean>;
@@ -31,6 +41,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   isLoading: false,
   error: null,
   user: null,
+  pinEnabled: false,
+  pinReady: false,
 
   login: async (email, password) => {
     set({ isLoading: true, error: null });
@@ -59,6 +71,55 @@ export const useAuthStore = create<AuthStore>((set) => ({
       set({ isLoggedIn: true, isLoading: false, user });
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
+    }
+  },
+
+  enrollPin: async (pin) => {
+    if (!ENABLE_PIN_LOGIN) return false;
+    set({ isLoading: true, error: null });
+    try {
+      const deviceId = await getOrCreateDeviceId();
+      await enrollPinRequest(pin, deviceId);
+      await setPinEnabled(true);
+      set({ isLoading: false, pinEnabled: true });
+      return true;
+    } catch (err) {
+      set({ isLoading: false, error: toUserMessage(err) });
+      return false;
+    }
+  },
+
+  loginWithPin: async (pin) => {
+    if (!ENABLE_PIN_LOGIN) return;
+    set({ isLoading: true, error: null });
+    try {
+      const deviceId = await getOrCreateDeviceId();
+      const user = await pinLoginRequest(pin, deviceId);
+      set({ isLoggedIn: true, isLoading: false, user, pinEnabled: true });
+    } catch (err) {
+      set({ isLoading: false, error: toUserMessage(err) });
+    }
+  },
+
+  loadPinAvailability: async () => {
+    if (!ENABLE_PIN_LOGIN) {
+      set({ pinEnabled: false, pinReady: true });
+      return;
+    }
+    try {
+      const localPinEnabled = await getPinEnabled();
+      if (!localPinEnabled) {
+        set({ pinEnabled: false, pinReady: true });
+        return;
+      }
+
+      const deviceId = await getOrCreateDeviceId();
+      const remotePinEnabled = await pinStatusRequest(deviceId);
+      await setPinEnabled(remotePinEnabled);
+      set({ pinEnabled: remotePinEnabled, pinReady: true });
+    } catch {
+      const localPinEnabled = await getPinEnabled();
+      set({ pinEnabled: localPinEnabled, pinReady: true });
     }
   },
 
