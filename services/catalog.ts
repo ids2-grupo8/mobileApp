@@ -215,12 +215,35 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
 }
 
 
-export async function fetchCatalogProducts(searchQuery?: string): Promise<CatalogProduct[]> {
+export type CatalogFetchOptions = {
+  category?: string;
+  priceMin?: number;
+  priceMax?: number;
+};
+
+export async function fetchCatalogProducts(
+  searchQuery?: string,
+  options?: CatalogFetchOptions,
+): Promise<CatalogProduct[]> {
+  const params = new URLSearchParams();
+
   const normalizedQuery = searchQuery?.trim();
-  const endpoint =
-    normalizedQuery && normalizedQuery.length > 0
-      ? CATALOG(`/products?q=${encodeURIComponent(normalizedQuery)}`)
-      : CATALOG('/products');
+  if (normalizedQuery && normalizedQuery.length > 0) {
+    params.set('q', normalizedQuery);
+  }
+
+  if (options?.category) {
+    params.set('category', options.category);
+  }
+  if (options?.priceMin != null) {
+    params.set('price_min', String(options.priceMin));
+  }
+  if (options?.priceMax != null) {
+    params.set('price_max', String(options.priceMax));
+  }
+
+  const qs = params.toString();
+  const endpoint = CATALOG(`/products${qs ? `?${qs}` : ''}`);
   const payload = await request<unknown>(endpoint, { method: 'GET', auth: false });
   const collection = extractCollection(payload);
 

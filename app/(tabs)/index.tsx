@@ -23,6 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
     type CatalogProduct,
+    type CatalogFetchOptions,
     fetchCatalogProducts,
     fetchRecommendedProducts,
 } from '@/services/catalog';
@@ -43,6 +44,11 @@ const CATEGORY_TRANSLATIONS: Record<string, string> = {
   'Electronics': 'Electrónica',
   'Clothing':    'Ropa',
 };
+
+// Reverse mapping: translated label → backend category code
+const CATEGORY_CODES: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_TRANSLATIONS).map(([code, label]) => [label, code]),
+);
 
 const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   'Todos':       'apps',
@@ -341,7 +347,19 @@ export default function HomeScreen() {
   const loadProducts = async (searchTerm = query) => {
     setError(null);
     try {
-      const fromApi = await fetchCatalogProducts(searchTerm);
+      // Build server-side filter options from current UI state
+      const options: CatalogFetchOptions = {};
+      // Map translated category label back to backend code
+      if (category !== 'Todos') {
+        const code = CATEGORY_CODES[category] ?? category;
+        options.category = code;
+      }
+      const parsedMin = minPrice !== '' ? parseFloat(minPrice) : undefined;
+      const parsedMax = maxPrice !== '' ? parseFloat(maxPrice) : undefined;
+      if (parsedMin != null && !Number.isNaN(parsedMin)) options.priceMin = parsedMin;
+      if (parsedMax != null && !Number.isNaN(parsedMax)) options.priceMax = parsedMax;
+
+      const fromApi = await fetchCatalogProducts(searchTerm, options);
       setProducts(fromApi);
     } catch {
       setProducts([]);
@@ -359,7 +377,7 @@ export default function HomeScreen() {
     }, 350);
 
     return () => clearTimeout(debounce);
-  }, [query]);
+  }, [query, category, minPrice, maxPrice]);
 
   const hasActiveFilters = category !== 'Todos' || query.trim().length > 0 || minPrice !== '' || maxPrice !== '';
   const hasPriceFilter = minPrice !== '' || maxPrice !== '';
