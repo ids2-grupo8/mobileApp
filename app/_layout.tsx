@@ -49,7 +49,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isReady) return;
     const inAuth = segments[0] === "(auth)";
-    const inPublicRoute = segments[0] === "product" || segments[0] === "seller";
+    // CA5: (tabs) es ruta pública — los usuarios no autenticados pueden
+    // ver la Home y navegar el catálogo. Las acciones protegidas (carrito,
+    // publicar, agregar al carrito) piden login individualmente.
+    const inPublicRoute =
+      segments[0] === "(tabs)" ||
+      segments[0] === "product" ||
+      segments[0] === "seller";
 
     if (!isLoggedIn && !inAuth && !inPublicRoute) {
       router.replace("/(auth)/landing");
