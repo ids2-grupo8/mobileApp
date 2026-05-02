@@ -193,15 +193,39 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const C = useTheme();
   const { profile, loading, fetchProfile } = useUserStore();
-  const { logout, pinEnabled, loadPinAvailability } = useAuthStore();
+  const { isLoggedIn, logout, pinEnabled, loadPinAvailability } = useAuthStore();
   const { mode, toggle } = useThemeStore();
 
   useFocusEffect(
     useCallback(() => {
+      if (!isLoggedIn) return;
       void fetchProfile();
       void loadPinAvailability();
-    }, [fetchProfile, loadPinAvailability]),
+    }, [fetchProfile, isLoggedIn, loadPinAvailability]),
   );
+
+  if (!isLoggedIn) {
+    return (
+      <View style={[s.guestRoot, { backgroundColor: C.bg, paddingTop: insets.top + 24 }]}>
+        <View style={[s.guestCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+          <View style={[s.guestIconWrap, { backgroundColor: C.accentGlow }]}>
+            <MaterialIcons name="lock-outline" size={28} color={C.accent} />
+          </View>
+          <Text style={[s.guestTitle, { color: C.textPrimary }]}>Iniciá sesión para ver tu perfil</Text>
+          <Text style={[s.guestDescription, { color: C.textSecondary }]}>
+            Necesitás una sesión activa para acceder a tu cuenta y configuraciones.
+          </Text>
+          <TouchableOpacity
+            style={[s.guestButton, { backgroundColor: C.accent }]}
+            onPress={() => router.push("/(auth)/landing")}
+            accessibilityRole="button"
+            accessibilityLabel="Ir a iniciar sesión o registrarse">
+            <Text style={s.guestButtonText}>Iniciar sesión o registrarme</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   if (loading || !profile) {
     return <ProfileSkeleton topPad={insets.top} C={C} />;
@@ -326,6 +350,51 @@ export default function ProfileScreen() {
 const s = StyleSheet.create({
   root:  { flex: 1 },
   scroll: {},
+  guestRoot: {
+    flex: 1,
+    paddingHorizontal: 20,
+    justifyContent: "center",
+  },
+  guestCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    alignItems: "center",
+  },
+  guestIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+  guestTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  guestDescription: {
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginBottom: 22,
+  },
+  guestButton: {
+    minWidth: 170,
+    height: 46,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+  guestButtonText: {
+    color: "#050508",
+    fontSize: 14,
+    fontWeight: "700",
+  },
 
   // ── Mesh gradient header ──
   meshHeader: {
