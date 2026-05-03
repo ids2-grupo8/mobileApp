@@ -19,10 +19,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/constants/colors';
-import { CHECKOUT } from '@/constants/api';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
+import { useCheckoutStore } from '@/store/checkout';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -194,7 +194,14 @@ export default function CheckoutScreen() {
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore((s) => s.subtotal());
   const clear = useCartStore((s) => s.clear);
+  const syncWithBackend = useCartStore((s) => s.syncWithBackend);
   const user = useAuthStore((s) => s.user);
+  const { isSubmitting: checkoutSubmitting, submitMercadoPago } = useCheckoutStore();
+
+  // Sincronizar carrito con backend al entrar a checkout
+  useEffect(() => {
+    syncWithBackend();
+  }, [syncWithBackend]);
 
   const [address, setAddress] = useState<Address>({
     fullName: user?.name ?? '',
@@ -205,7 +212,6 @@ export default function CheckoutScreen() {
   });
   const [errors, setErrors] = useState<Errors>({});
   const [payment, setPayment] = useState<PaymentMethod>('stripe');
-  const [submitting, setSubmitting] = useState(false);
 
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
@@ -234,31 +240,10 @@ export default function CheckoutScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setSubmitting(true);
 
     try {
       if (payment === 'mercadopago') {
-        const idempotencyKey = `${user?.email ?? 'guest'}-${Date.now()}`;
-        const baseUrl = Linking.createURL('');
-        const res = await fetch(CHECKOUT(''), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json',
-            'X-User-Email': user?.email ?? '',
-          },
-          body: JSON.stringify({
-            idempotency_key: idempotencyKey,
-            back_url: baseUrl,
-          }),
-        });
-
-        const data = await res.json() as { init_point?: string; sandbox_init_point?: string };
-        const checkoutUrl = data.init_point ?? data.sandbox_init_point;
-
-        if (!checkoutUrl) throw new Error('No se pudo obtener el link de pago');
-
-        setSubmitting(false);
+        const checkoutUrl = await submitMercadoPago();
         await openBrowserAsync(checkoutUrl);
 
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
@@ -271,12 +256,10 @@ export default function CheckoutScreen() {
 
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
         await clear();
-        setSubmitting(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
       }
     } catch (e) {
-      setSubmitting(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       console.error('[Checkout]', e);
     }
@@ -489,17 +472,17 @@ export default function CheckoutScreen() {
           </View>
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={submitting}
+            disabled={checkoutSubmitting}
             activeOpacity={0.92}
             style={[
               s.cta,
               {
-                backgroundColor: submitting ? C.accentDim : C.accent,
+                backgroundColor: checkoutSubmitting ? C.accentDim : C.accent,
                 shadowColor: C.accent,
-                opacity: submitting ? 0.85 : 1,
+                opacity: checkoutSubmitting ? 0.85 : 1,
               },
             ]}>
-            {submitting ? (
+            {checkoutSubmitting ? (
               <>
                 <ActivityIndicator color="#050508" size="small" />
                 <Text style={s.ctaText}>Procesando pago...</Text>

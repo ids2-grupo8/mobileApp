@@ -64,7 +64,10 @@ export async function request<T = unknown>(
   if (auth) {
     const token = await getAccessToken();
     if (token) headers["Authorization"] = `Bearer ${token}`;
+    else console.warn('[HTTP] No token available but auth: true');
   }
+
+  console.log(`[HTTP] ${method} ${url}`, { auth, hasToken: !!headers["Authorization"] });
 
   const res = await fetch(url, {
     method,
