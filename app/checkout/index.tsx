@@ -1,7 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { openBrowserAsync } from 'expo-web-browser';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -16,6 +19,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/constants/colors';
+import { CHECKOUT } from '@/constants/api';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -178,6 +182,15 @@ export default function CheckoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (url?.includes('mobileapp://')) {
+        if (Platform.OS === 'ios') WebBrowser.dismissBrowser();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore((s) => s.subtotal());
   const clear = useCartStore((s) => s.clear);
@@ -223,15 +236,50 @@ export default function CheckoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSubmitting(true);
 
-    // Simulate gateway processing — gateway call goes here
-    await new Promise((r) => setTimeout(r, 1500));
+    try {
+      if (payment === 'mercadopago') {
+        const idempotencyKey = `${user?.email ?? 'guest'}-${Date.now()}`;
+        const baseUrl = Linking.createURL('');
+        const res = await fetch(CHECKOUT(''), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            'X-User-Email': user?.email ?? '',
+          },
+          body: JSON.stringify({
+            idempotency_key: idempotencyKey,
+            back_url: baseUrl,
+          }),
+        });
 
-    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-    await clear();
-    setSubmitting(false);
+        const data = await res.json() as { init_point?: string; sandbox_init_point?: string };
+        const checkoutUrl = data.init_point ?? data.sandbox_init_point;
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+        if (!checkoutUrl) throw new Error('No se pudo obtener el link de pago');
+
+        setSubmitting(false);
+        await openBrowserAsync(checkoutUrl);
+
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      } else {
+        // Stripe — gateway call goes here
+        await new Promise((r) => setTimeout(r, 1500));
+
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        setSubmitting(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      }
+    } catch (e) {
+      setSubmitting(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('[Checkout]', e);
+    }
   };
 
   if (items.length === 0) {
