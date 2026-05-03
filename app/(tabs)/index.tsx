@@ -23,7 +23,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/hooks/use-theme';
 import {
     type CatalogProduct,
+    type CatalogFetchOptions,
     fetchCatalogProducts,
+    fetchRecommendedProducts,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -42,6 +44,11 @@ const CATEGORY_TRANSLATIONS: Record<string, string> = {
   'Electronics': 'Electrónica',
   'Clothing':    'Ropa',
 };
+
+// Reverse mapping: translated label → backend category code
+const CATEGORY_CODES: Record<string, string> = Object.fromEntries(
+  Object.entries(CATEGORY_TRANSLATIONS).map(([code, label]) => [label, code]),
+);
 
 const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
   'Todos':       'apps',
@@ -308,7 +315,21 @@ export default function HomeScreen() {
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
 
+  // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
+  // en vez de permitirle agregar al carrito.
   const handleQuickAdd = async (product: CatalogProduct) => {
+    if (!user) {
+      Alert.alert(
+        'Iniciar sesión',
+        'Necesitás iniciar sesión para agregar productos al carrito.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ],
+      );
+      return;
+    }
+
     const inCart = cartItems.find((i) => i.productId === product.id);
     const currentQty = inCart ? inCart.quantity : 0;
     const available = Math.max(0, product.stock - currentQty);
@@ -343,14 +364,60 @@ export default function HomeScreen() {
     router.push(`/product/${product.id}`);
   };
 
+  // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
+  // en vez de permitirle publicar un producto.
   const createPublication = () => {
+    if (!user) {
+      Alert.alert(
+        'Iniciar sesión',
+        'Necesitás iniciar sesión para publicar productos.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ],
+      );
+      return;
+    }
     router.push('/seller/publish');
+  };
+
+  // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
+  // en vez de dejarlo acceder al carrito.
+  const openCart = () => {
+    if (!user) {
+      Alert.alert(
+        'Iniciar sesión',
+        'Necesitás iniciar sesión para ver tu carrito.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ],
+      );
+      return;
+    }
+    router.push('/cart');
   };
 
   const loadProducts = async (searchTerm = query, sort = sortBy) => {
     setError(null);
     try {
-      const fromApi = await fetchCatalogProducts(searchTerm, undefined, undefined, sort ?? undefined);
+      const options: CatalogFetchOptions = {};
+      if (category !== 'Todos') {
+        const code = CATEGORY_CODES[category] ?? category;
+        options.category = code;
+      }
+      const parsedMin = minPrice !== '' ? parseFloat(minPrice) : undefined;
+      const parsedMax = maxPrice !== '' ? parseFloat(maxPrice) : undefined;
+      if (parsedMin != null && !Number.isNaN(parsedMin)) options.priceMin = parsedMin;
+      if (parsedMax != null && !Number.isNaN(parsedMax)) options.priceMax = parsedMax;
+
+      const fromApi = await fetchCatalogProducts(
+        searchTerm,
+        options,
+        undefined,
+        undefined,
+        sort ?? undefined,
+      );
       setProducts(fromApi);
     } catch {
       setProducts([]);
@@ -368,10 +435,9 @@ export default function HomeScreen() {
     }, 350);
 
     return () => clearTimeout(debounce);
-  }, [query]);
-  
+  }, [query, category, minPrice, maxPrice]);
+
   useEffect(() => {
-    // Reload when sort changes
     setLoading(true);
     void loadProducts(query.trim(), sortBy);
   }, [sortBy]);
@@ -410,13 +476,23 @@ export default function HomeScreen() {
     [filteredProducts]
   );
 
-  // Recommended: top 6 by price descending (premium items) — shown only to logged-in users
-  const recommendedProducts = useMemo(() => {
-    if (!user) return [];
-    return [...products]
-      .sort((a, b) => b.price - a.price)
-      .slice(0, 6);
-  }, [products, user]);
+  // CA4: Recomendaciones personalizadas cargadas desde el backend.
+  // Se cargan asincrónicamente. Si no hay datos o falla, la sección no se muestra.
+  const [recommendedProducts, setRecommendedProducts] = useState<CatalogProduct[]>([]);
+
+  useEffect(() => {
+    // No mostramos recomendaciones cuando hay filtros activos
+    // ni cuando el usuario no esta autenticado.
+    if (hasActiveFilters || !user) {
+      setRecommendedProducts([]);
+      return;
+    }
+    let cancelled = false;
+    fetchRecommendedProducts(12).then((recs) => {
+      if (!cancelled) setRecommendedProducts(recs);
+    });
+    return () => { cancelled = true; };
+  }, [products, hasActiveFilters, user]);
 
   const categories = useMemo<CategoryFilter[]>(() => {
     const dynamic = Array.from(
@@ -425,13 +501,46 @@ export default function HomeScreen() {
     return ['Todos', ...dynamic];
   }, [products]);
 
+  const recommendedSectionProducts = useMemo(() => {
+    const seen = new Set<string>();
+    return recommendedProducts
+      .filter((p) => {
+        if (seen.has(p.id)) return false;
+        seen.add(p.id);
+        return true;
+      })
+      .slice(0, 4);
+  }, [recommendedProducts]);
+
+  const recommendedIds = useMemo(
+    () => new Set(recommendedSectionProducts.map((p) => p.id)),
+    [recommendedSectionProducts]
+  );
+
+  const orderedProducts = useMemo(
+    () =>
+      [...filteredProducts].sort((a, b) => {
+        // Mantener recomendados en el listado pero mas abajo para
+        // evitar repeticion visual inmediata entre secciones.
+        const aRecommended = recommendedIds.has(a.id);
+        const bRecommended = recommendedIds.has(b.id);
+        if (aRecommended && !bRecommended) return 1;
+        if (!aRecommended && bRecommended) return -1;
+
+        if (a.isRecent && !b.isRecent) return -1;
+        if (!a.isRecent && b.isRecent) return 1;
+        return a.title.localeCompare(b.title, 'es');
+      }),
+    [filteredProducts, recommendedIds]
+  );
+
   const leftCol = useMemo(
-    () => filteredProducts.filter((_, i) => i % 2 === 0),
-    [filteredProducts]
+    () => orderedProducts.filter((_, i) => i % 2 === 0),
+    [orderedProducts]
   );
   const rightCol = useMemo(
-    () => filteredProducts.filter((_, i) => i % 2 === 1),
-    [filteredProducts]
+    () => orderedProducts.filter((_, i) => i % 2 === 1),
+    [orderedProducts]
   );
 
   const cardThemeProps = {
@@ -473,7 +582,7 @@ export default function HomeScreen() {
               accessibilityRole="button"
               accessibilityLabel="Abrir carrito"
               style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
-              onPress={() => router.push('/cart')}>
+              onPress={openCart}>
               <MaterialIcons name="shopping-bag" size={20} color={theme.textPrimary} />
               {cartCount > 0 && (
                 <View style={[s.cartBadge, { backgroundColor: theme.accent, borderColor: theme.bg }]}>
@@ -629,7 +738,7 @@ export default function HomeScreen() {
             <MaterialIcons name="error-outline" size={20} color={theme.red} />
             <Text style={[s.errorText, { color: theme.red }]}>{error}</Text>
             <TouchableOpacity
-              onPress={loadProducts}
+              onPress={() => loadProducts()}
               style={[s.retryBtn, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
               <Text style={[s.retryText, { color: theme.accent }]}>Reintentar</Text>
             </TouchableOpacity>
@@ -663,7 +772,7 @@ export default function HomeScreen() {
             )}
 
             {/* ── Recommendations — CA4 (solo usuarios autenticados) ── */}
-            {recommendedProducts.length > 0 && !hasActiveFilters && (
+            {user && recommendedSectionProducts.length > 0 && (
               <>
                 <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
                   <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Para vos</Text>
@@ -673,7 +782,7 @@ export default function HomeScreen() {
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={s.recentRow}>
-                  {recommendedProducts.map((product) => (
+                  {recommendedSectionProducts.map((product) => (
                     <ProductCard
                       key={product.id}
                       product={product}
@@ -693,11 +802,11 @@ export default function HomeScreen() {
                 Todos los productos
               </Text>
               <Text style={[s.sectionMeta, { color: theme.textMuted }]}>
-                {filteredProducts.length} resultados
+                {orderedProducts.length} resultados
               </Text>
             </View>
 
-            {filteredProducts.length === 0 ? (
+            {orderedProducts.length === 0 ? (
               <View style={s.emptyWrap}>
                 <MaterialIcons name="search-off" size={40} color={theme.textMuted} />
                 <Text style={[s.emptyText, { color: theme.textSecondary }]}>

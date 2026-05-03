@@ -49,7 +49,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (!isReady) return;
     const inAuth = segments[0] === "(auth)";
-    const inPublicRoute = segments[0] === "product" || segments[0] === "seller";
+    // CA5: (tabs) es ruta pública — los usuarios no autenticados pueden
+    // ver la Home y navegar el catálogo. Las acciones protegidas (carrito,
+    // publicar, agregar al carrito) piden login individualmente.
+    const inPublicRoute =
+      segments[0] === "(tabs)" ||
+      segments[0] === "product" ||
+      segments[0] === "seller";
 
     if (!isLoggedIn && !inAuth && !inPublicRoute) {
       router.replace("/(auth)/landing");
@@ -133,6 +139,7 @@ export default function RootLayout() {
         <Stack.Screen name="cart" options={{ headerShown: false, presentation: 'modal', animation: 'slide_from_bottom' }} />
         <Stack.Screen name="checkout/index" options={{ headerShown: false, animation: 'slide_from_right' }} />
         <Stack.Screen name="checkout/success" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="profile/pin" options={{ headerShown: false }} />
         <Stack.Screen name="modal"       options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
       </Stack>

@@ -11,6 +11,10 @@ export async function getAccessToken() {
   return SecureStore.getItemAsync(TOKEN_KEY);
 }
 
+export async function getRefreshToken() {
+  return SecureStore.getItemAsync(REFRESH_KEY);
+}
+
 export async function saveTokens(accessToken: string, refreshToken?: string) {
   await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
   if (refreshToken) await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
@@ -44,15 +48,17 @@ type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;
   auth?: boolean; // include Bearer token (default true)
+  headers?: Record<string, string>;
 };
 
 export async function request<T = unknown>(
   url: string,
-  { method = "GET", body, auth = true }: RequestOptions = {},
+  { method = "GET", body, auth = true, headers: customHeaders = {} }: RequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
+    ...customHeaders,
   };
 
   if (auth) {

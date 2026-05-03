@@ -4,6 +4,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -16,6 +17,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { GOOGLE_OAUTH_URL } from "@/services/auth";
+import { ENABLE_PIN_LOGIN } from "@/constants/features";
 import { useTheme } from "@/hooks/use-theme";
 import { useAuthStore } from "@/store/auth";
 
@@ -33,7 +35,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const C = useTheme();
-  const { login, googleLogin, isLoading, error, clearError } = useAuthStore();
+  const { login, googleLogin, isLoading, error, clearError, suggestPinLink, dismissPinLink } = useAuthStore();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -63,6 +65,18 @@ export default function LoginScreen() {
     setTouched({ email: true, password: true });
     if (Object.keys(errs).length > 0) return;
     await login(email.trim(), password);
+    const { suggestPinLink: suggest, dismissPinLink: dismiss, isLoggedIn } = useAuthStore.getState();
+    if (isLoggedIn && suggest) {
+      dismiss();
+      Alert.alert(
+        "Vincular PIN",
+        "Este dispositivo ya tiene cuentas con PIN. ¿Querés configurar PIN para esta cuenta también?",
+        [
+          { text: "Ahora no", style: "cancel" },
+          { text: "Configurar PIN", onPress: () => router.push("/profile/pin") },
+        ],
+      );
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -227,6 +241,17 @@ export default function LoginScreen() {
               ¿Olvidaste tu contraseña?
             </Text>
           </TouchableOpacity>
+
+          {ENABLE_PIN_LOGIN ? (
+            <TouchableOpacity
+              style={s.forgotWrap}
+              onPress={() => router.push("/(auth)/pin-login" as never)}
+            >
+              <Text style={[s.forgotText, { color: C.accentText }]}>
+                Ingresar con PIN
+              </Text>
+            </TouchableOpacity>
+          ) : null}
 
           <TouchableOpacity
             style={[

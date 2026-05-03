@@ -215,24 +215,42 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
 }
 
 
+export type CatalogFetchOptions = {
+  category?: string;
+  priceMin?: number;
+  priceMax?: number;
+};
+
 export async function fetchCatalogProducts(
   searchQuery?: string,
+  options?: CatalogFetchOptions,
   page?: number,
   perPage?: number,
-  sortBy?: string
+  sortBy?: string,
 ): Promise<CatalogProduct[]> {
-  const normalizedQuery = searchQuery?.trim();
-  const base = normalizedQuery && normalizedQuery.length > 0
-    ? `/products?q=${encodeURIComponent(normalizedQuery)}`
-    : '/products';
-  const params: string[] = [];
-  if (page !== undefined && page !== null) params.push(`page=${encodeURIComponent(String(page))}`);
-  if (perPage !== undefined && perPage !== null) params.push(`per_page=${encodeURIComponent(String(perPage))}`);
-  if (sortBy) params.push(`sort_by=${encodeURIComponent(sortBy)}`);
-  const separator = base.includes('?') ? '&' : '?';
-  const queryString = params.length > 0 ? `${base}${separator}${params.join('&')}` : base;
-  const endpoint = CATALOG(queryString);
+  const params = new URLSearchParams();
 
+  const normalizedQuery = searchQuery?.trim();
+  if (normalizedQuery && normalizedQuery.length > 0) {
+    params.set('q', normalizedQuery);
+  }
+
+  if (options?.category) {
+    params.set('category', options.category);
+  }
+  if (options?.priceMin != null) {
+    params.set('price_min', String(options.priceMin));
+  }
+  if (options?.priceMax != null) {
+    params.set('price_max', String(options.priceMax));
+  }
+
+  if (page !== undefined && page !== null) params.set('page', String(page));
+  if (perPage !== undefined && perPage !== null) params.set('per_page', String(perPage));
+  if (sortBy) params.set('sort_by', sortBy);
+
+  const qs = params.toString();
+  const endpoint = CATALOG(`/products${qs ? `?${qs}` : ''}`);
   const payload = await request<unknown>(endpoint, { method: 'GET', auth: false });
 
   // Support paginated response shape: { items: [...], total, page, per_page }
@@ -255,6 +273,31 @@ export async function fetchCatalogProducts(
     .filter((item): item is CatalogProduct => item !== null);
 
   return filterVisible(normalized);
+}
+
+/**
+ * Fetch personalized product recommendations from the backend.
+ * Returns an empty array on any error so the Home screen gracefully
+ * hides the section when the service is unavailable.
+ */
+export async function fetchRecommendedProducts(limit = 10): Promise<CatalogProduct[]> {
+  try {
+    const payload = await request<unknown>(
+      CATALOG(`/products/recommendations?limit=${limit}`),
+      { method: 'GET', auth: true },
+    );
+    const collection = extractCollection(payload);
+    if (!collection) return [];
+
+    return collection
+      .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+      .filter((item): item is CatalogProduct => item !== null)
+      .filter((p) => p.stock > 0);
+  } catch {
+    // If the recommendations endpoint fails, return empty —
+    // the Home screen will simply not show the section.
+    return [];
+  }
 }
 
 export async function fetchCatalogProductById(id: string): Promise<CatalogProduct | null> {
