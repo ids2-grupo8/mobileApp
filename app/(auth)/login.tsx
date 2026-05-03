@@ -4,6 +4,7 @@ import * as WebBrowser from "expo-web-browser";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -34,7 +35,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const C = useTheme();
-  const { login, googleLogin, isLoading, error, clearError, pinEnabled, pinReady, loadPinAvailability } = useAuthStore();
+  const { login, googleLogin, isLoading, error, clearError, suggestPinLink, dismissPinLink } = useAuthStore();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
@@ -52,10 +53,6 @@ export default function LoginScreen() {
     return () => clearError();
   }, [clearError]);
 
-  useEffect(() => {
-    void loadPinAvailability();
-  }, [loadPinAvailability]);
-
   const handleBlur = (field: "email" | "password") => {
     setTouched((t) => ({ ...t, [field]: true }));
     setErrors(validate(email, password));
@@ -68,6 +65,18 @@ export default function LoginScreen() {
     setTouched({ email: true, password: true });
     if (Object.keys(errs).length > 0) return;
     await login(email.trim(), password);
+    const { suggestPinLink: suggest, dismissPinLink: dismiss, isLoggedIn } = useAuthStore.getState();
+    if (isLoggedIn && suggest) {
+      dismiss();
+      Alert.alert(
+        "Vincular PIN",
+        "Este dispositivo ya tiene cuentas con PIN. ¿Querés configurar PIN para esta cuenta también?",
+        [
+          { text: "Ahora no", style: "cancel" },
+          { text: "Configurar PIN", onPress: () => router.push("/profile/pin") },
+        ],
+      );
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -233,7 +242,7 @@ export default function LoginScreen() {
             </Text>
           </TouchableOpacity>
 
-          {ENABLE_PIN_LOGIN && pinReady && pinEnabled ? (
+          {ENABLE_PIN_LOGIN ? (
             <TouchableOpacity
               style={s.forgotWrap}
               onPress={() => router.push("/(auth)/pin-login" as never)}
