@@ -10,6 +10,7 @@ export type CartItem = {
   quantity: number;
   subtotal: number;
   available: boolean;
+  image_urls?: string[];
 };
 
 type CartItemResponse = {

@@ -19,7 +19,8 @@ export async function createCheckoutMercadopago(
   idempotencyKey: string,
   backUrl: string,
 ): Promise<CheckoutMercadopagoResponse> {
-  return request<CheckoutMercadopagoResponse>(CHECKOUT(""), {
+  console.log(backUrl);
+  return request<CheckoutMercadopagoResponse>(CHECKOUT("//"), {
     method: "POST",
     body: {
       idempotency_key: idempotencyKey,

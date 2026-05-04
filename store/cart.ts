@@ -244,7 +244,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
         productId: item.product_id,
         title: item.name,
         price: item.price,
-        imageUrl: '', // El backend no devuelve imageUrl, dejar vacío
+        imageUrl: item.image_urls?.[0] ?? '', // Usar primera imagen del backend si está disponible
         seller: '', // El backend no devuelve seller
         quantity: item.quantity,
         stock: 999, // Asumir stock alto si viene del backend

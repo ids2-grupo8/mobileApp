@@ -22,14 +22,14 @@ export const useCheckoutStore = create<CheckoutStore>((set) => ({
     set({ isSubmitting: true, error: null });
     try {
       const idempotencyKey = `order-${Date.now()}`;
-      const backUrl = Linking.createURL("");
+      const backUrl = Linking.createURL("") + "/checkout";
 
       const response = await createCheckoutMercadopago(
         idempotencyKey,
         backUrl,
       );
 
-      const checkoutUrl = response.init_point ?? response.sandbox_init_point;
+      const checkoutUrl = response.init_point ??  response.sandbox_init_point;
 
       if (!checkoutUrl) {
         throw new Error("No se pudo obtener el link de pago");
