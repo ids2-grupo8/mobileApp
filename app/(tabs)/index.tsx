@@ -1,10 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   KeyboardAvoidingView,
   Modal,
@@ -16,21 +16,21 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
 import {
-    type CatalogProduct,
-    type CatalogFetchOptions,
-    fetchCatalogProducts,
-    fetchRecommendedProducts,
+  type CatalogFetchOptions,
+  type CatalogProduct,
+  fetchCatalogCategories,
+  fetchCatalogProducts,
+  fetchRecommendedProducts,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 
-type CategoryFilter = 'Todos' | string;
+
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -49,12 +49,6 @@ const CATEGORY_TRANSLATIONS: Record<string, string> = {
 const CATEGORY_CODES: Record<string, string> = Object.fromEntries(
   Object.entries(CATEGORY_TRANSLATIONS).map(([code, label]) => [label, code]),
 );
-
-const CATEGORY_ICONS: Record<string, keyof typeof MaterialIcons.glyphMap> = {
-  'Todos':       'apps',
-  'Electrónica': 'devices',
-  'Ropa':        'checkroom',
-};
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
@@ -157,37 +151,44 @@ function ProductCard({
 
 function FilterModal({
   visible,
+  categories,
+  selectedCategories,
   minPrice,
   maxPrice,
   onApply,
   onClose,
 }: {
   visible: boolean;
+  categories: string[];
+  selectedCategories: string[];
   minPrice: string;
   maxPrice: string;
-  onApply: (min: string, max: string) => void;
+  onApply: (nextCategories: string[], min: string, max: string) => void;
   onClose: () => void;
 }) {
   const C = useTheme();
+  const [localCategories, setLocalCategories] = useState<Set<string>>(new Set(selectedCategories));
   const [localMin, setLocalMin] = useState(minPrice);
   const [localMax, setLocalMax] = useState(maxPrice);
 
   useEffect(() => {
     if (visible) {
+      setLocalCategories(new Set(selectedCategories));
       setLocalMin(minPrice);
       setLocalMax(maxPrice);
     }
-  }, [visible, minPrice, maxPrice]);
+  }, [visible, selectedCategories, minPrice, maxPrice]);
 
   const handleApply = () => {
-    onApply(localMin, localMax);
+    onApply(Array.from(localCategories), localMin, localMax);
     onClose();
   };
 
   const handleClear = () => {
+    setLocalCategories(new Set());
     setLocalMin('');
     setLocalMax('');
-    onApply('', '');
+    onApply([], '', '');
     onClose();
   };
 
@@ -204,6 +205,41 @@ function FilterModal({
         <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
           <View style={[s.modalHandle, { backgroundColor: C.glassBorder }]} />
           <Text style={[s.modalTitle, { color: C.textPrimary }]}>Filtros</Text>
+
+          <Text style={[s.filterLabel, { color: C.textSecondary }]}>Categorías</Text>
+          <View style={s.modalCategoryWrap}>
+            {categories
+              .filter((cat) => cat !== 'Todos')
+              .map((cat) => {
+                const active = localCategories.has(cat);
+                return (
+                  <TouchableOpacity
+                    key={cat}
+                    onPress={() => {
+                      setLocalCategories((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(cat)) {
+                          next.delete(cat);
+                        } else {
+                          next.add(cat);
+                        }
+                        return next;
+                      });
+                    }}
+                    style={[
+                      s.modalCategoryChip,
+                      {
+                        backgroundColor: active ? C.accentGlow : C.glass,
+                        borderColor: active ? C.accent : C.glassBorder,
+                      },
+                    ]}>
+                    <Text style={[s.modalCategoryChipText, { color: active ? C.accent : C.textSecondary }]}>
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+          </View>
 
           <Text style={[s.filterLabel, { color: C.textSecondary }]}>Rango de precio</Text>
           <View style={s.priceRow}>
@@ -353,7 +389,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState<CategoryFilter>('Todos');
+  const [category, setCategory] = useState<Set<string>>(new Set());
   const [minPrice, setMinPrice] = useState('');
   const [maxPrice, setMaxPrice] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
@@ -402,9 +438,8 @@ export default function HomeScreen() {
     setError(null);
     try {
       const options: CatalogFetchOptions = {};
-      if (category !== 'Todos') {
-        const code = CATEGORY_CODES[category] ?? category;
-        options.category = code;
+      if (category.size > 0) {
+        options.categories = Array.from(category).map(label => CATEGORY_CODES[label] ?? label);
       }
       const parsedMin = minPrice !== '' ? parseFloat(minPrice) : undefined;
       const parsedMax = maxPrice !== '' ? parseFloat(maxPrice) : undefined;
@@ -442,11 +477,12 @@ export default function HomeScreen() {
     void loadProducts(query.trim(), sortBy);
   }, [sortBy]);
 
-  const hasActiveFilters = category !== 'Todos' || query.trim().length > 0 || minPrice !== '' || maxPrice !== '';
+  const hasActiveFilters = category.size > 0 || query.trim().length > 0 || minPrice !== '' || maxPrice !== '';
   const hasPriceFilter = minPrice !== '' || maxPrice !== '';
+  const hasCategoryFilter = category.size > 0;
 
   const clearAllFilters = () => {
-    setCategory('Todos');
+    setCategory(new Set());
     setQuery('');
     setMinPrice('');
     setMaxPrice('');
@@ -460,7 +496,7 @@ export default function HomeScreen() {
     // Base filter: category + price
     let list = products.filter((p) => {
       const translatedCategory = CATEGORY_TRANSLATIONS[p.category] ?? p.category;
-      const categoryMatch = category === 'Todos' || translatedCategory === category;
+      const categoryMatch = category.size === 0 || category.has(translatedCategory);
       const priceMin = min === null || p.price >= min;
       const priceMax = max === null || p.price <= max;
       return categoryMatch && priceMin && priceMax;
@@ -494,12 +530,19 @@ export default function HomeScreen() {
     return () => { cancelled = true; };
   }, [products, hasActiveFilters, user]);
 
-  const categories = useMemo<CategoryFilter[]>(() => {
-    const dynamic = Array.from(
-      new Set(products.map((p) => CATEGORY_TRANSLATIONS[p.category] ?? p.category))
-    ).sort();
-    return ['Todos', ...dynamic];
-  }, [products]);
+  // Fetch categories from backend so all are always visible regardless of current filter
+  const [backendCategories, setBackendCategories] = useState<string[]>([]);
+  useEffect(() => {
+    fetchCatalogCategories().then((cats) => setBackendCategories(cats));
+  }, []);
+
+  const categories = useMemo(() => {
+    // Translate backend codes to display labels
+    const labels = backendCategories.map(code => CATEGORY_TRANSLATIONS[code] ?? code);
+    const fromProducts = products.map((p) => CATEGORY_TRANSLATIONS[p.category] ?? p.category);
+    const merged = Array.from(new Set([...labels, ...fromProducts])).sort();
+    return ['Todos', ...merged];
+  }, [backendCategories, products]);
 
   const recommendedSectionProducts = useMemo(() => {
     const seen = new Set<string>();
@@ -664,8 +707,24 @@ export default function HomeScreen() {
         </View>
 
         {/* ── Active filter chips ── */}
-        {hasPriceFilter && (
+        {(hasPriceFilter || hasCategoryFilter) && (
           <View style={s.chipRow}>
+            {Array.from(category).map((cat) => (
+              <View key={cat} style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
+                <Text style={[s.chipText, { color: theme.accent }]}>{cat}</Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    setCategory((prev) => {
+                      const next = new Set(prev);
+                      next.delete(cat);
+                      return next;
+                    })
+                  }
+                  hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                  <MaterialIcons name="close" size={13} color={theme.accent} />
+                </TouchableOpacity>
+              </View>
+            ))}
             {minPrice !== '' && (
               <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
                 <Text style={[s.chipText, { color: theme.accent }]}>Desde ${minPrice}</Text>
@@ -684,48 +743,6 @@ export default function HomeScreen() {
             )}
           </View>
         )}
-
-        {/* ── Category tiles ── */}
-        <View style={s.sectionHeaderRow}>
-          <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>
-            Categorías
-          </Text>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={s.categoryTileRow}>
-          {categories.map((cat) => {
-            const active = cat === category;
-            const iconName: keyof typeof MaterialIcons.glyphMap =
-              CATEGORY_ICONS[cat] ?? 'label';
-            return (
-              <TouchableOpacity
-                key={cat}
-                onPress={() => setCategory(cat)}
-                accessibilityRole="button"
-                style={[
-                  s.categoryTile,
-                  {
-                    backgroundColor: active ? theme.accentGlow : theme.glass,
-                    borderColor: active ? theme.accent : theme.glassBorder,
-                  },
-                ]}>
-                <MaterialIcons
-                  name={iconName}
-                  size={22}
-                  color={active ? theme.accent : theme.textSecondary}
-                />
-                <Text
-                  style={[s.categoryTileText, { color: active ? theme.accent : theme.textSecondary }]}
-                  numberOfLines={1}>
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
 
         {/* ── Content ── */}
         {loading ? (
@@ -861,9 +878,15 @@ export default function HomeScreen() {
       {/* ── Filter Modal ── */}
       <FilterModal
         visible={filterVisible}
+        categories={categories}
+        selectedCategories={Array.from(category)}
         minPrice={minPrice}
         maxPrice={maxPrice}
-        onApply={(min, max) => { setMinPrice(min); setMaxPrice(max); }}
+        onApply={(nextCategories, min, max) => {
+          setCategory(new Set(nextCategories));
+          setMinPrice(min);
+          setMaxPrice(max);
+        }}
         onClose={() => setFilterVisible(false)}
       />
       <SortModal
@@ -1017,7 +1040,7 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
 
-  // ── Category tiles ──
+  // ── Section headers ──
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1029,37 +1052,6 @@ const s = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: -0.3,
   },
-  seeAllText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  categoryTileRow: {
-    gap: 10,
-    paddingBottom: 20,
-    paddingRight: 4,
-  },
-  categoryTile: {
-    width: 60,
-    height: 68,
-    borderRadius: 14,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  categoryTileText: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 0.1,
-    textAlign: 'center',
-  },
-
-  // ── Section headers ──
   sectionLine: {
     flex: 1,
     height: 1,
@@ -1249,6 +1241,21 @@ const s = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: 0.2,
+  },
+  modalCategoryWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  modalCategoryChip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  modalCategoryChipText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   priceRow: {
     flexDirection: 'row',
