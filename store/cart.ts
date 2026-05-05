@@ -160,6 +160,11 @@ export const useCartStore = create<CartStore>((set, get) => ({
     try {
       set({ syncing: true, error: null });
 
+      if (!userEmail) {
+        set({ syncing: false, error: 'No user email provided for sync' });
+        return;
+      }
+
       // Fetch what's on the backend first
       const { items: backendItems } = await getCartItems(userEmail);
 

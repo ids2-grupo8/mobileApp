@@ -222,6 +222,19 @@ export default function CheckoutScreen() {
       return;
     }
 
+    // Require authentication before performing checkout — backend expects X-User-Email
+    if (!user || !user.email) {
+      Alert.alert(
+        'Iniciar sesión requerido',
+        'Debes iniciar sesión para completar la compra. ¿Deseas iniciar sesión ahora?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ]
+      );
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSubmitting(true);
 
@@ -233,6 +246,10 @@ export default function CheckoutScreen() {
         Accept: 'application/json',
         'X-User-Email': user?.email ?? '',
       };
+      try {
+        const token = await (await import('@/services/http')).getAccessToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      } catch {}
 
       const body = {
         idempotency_key,

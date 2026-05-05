@@ -1,4 +1,4 @@
-import { request, type ApiError } from "@/services/http";
+import { request, type ApiError, getAccessToken } from "@/services/http";
 import { CHECKOUT } from "@/constants/api";
 
 // Types
@@ -31,12 +31,26 @@ async function cartRequest<T = unknown>(
   } = {}
 ): Promise<T> {
   // The gateway exposes checkout routes without the internal /api/v1 prefix.
+  if (!userEmail) {
+    const err = new Error('User email is required for cart requests');
+    (err as any).status = 401;
+    throw err;
+  }
+
   const url = CHECKOUT(`/cart${endpoint}`);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json",
     "X-User-Email": userEmail,
   };
+
+  // Include Authorization Bearer token when available (gateway may require it)
+  try {
+    const token = await getAccessToken();
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+  } catch {
+    // ignore token retrieval errors
+  }
 
   const res = await fetch(url, {
     method: options.method || "GET",
@@ -83,6 +97,7 @@ export async function addToCart(
   productId: string,
   quantity: number = 1
 ): Promise<CartItem> {
+  if (!userEmail) throw new Error('User email required to add to cart');
   const response = await cartRequest<CartItemResponse>(
     "/items",
     userEmail,
@@ -103,6 +118,7 @@ export async function addToCart(
 export async function getCartItems(
   userEmail: string
 ): Promise<{ items: CartItem[]; totalPrice: number }> {
+  if (!userEmail) throw new Error('User email required to get cart items');
   const response = await cartRequest<CartItemsListResponse>(
     "/items",
     userEmail,
@@ -123,6 +139,7 @@ export async function updateCartItem(
   productId: string,
   quantity: number
 ): Promise<CartItem | null> {
+  if (!userEmail) throw new Error('User email required to update cart item');
   try {
     const response = await cartRequest<CartItemResponse>(
       `/items/${productId}`,
@@ -151,6 +168,7 @@ export async function removeFromCart(
   userEmail: string,
   productId: string
 ): Promise<void> {
+  if (!userEmail) throw new Error('User email required to remove cart item');
   await cartRequest<void>(`/items/${productId}`, userEmail, {
     method: "DELETE",
   });
