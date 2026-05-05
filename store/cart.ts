@@ -2,7 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import type { CatalogProduct } from '@/services/catalog';
-import { getCartItems, removeFromCart, updateCartItem } from '@/services/cart';
+import { getCartItems, removeFromCart, updateCartItem, addToCart } from '@/services/cart';
 
 const CART_KEY = 'cart_items_v1';
 
@@ -159,25 +159,47 @@ export const useCartStore = create<CartStore>((set, get) => ({
   syncWithBackend: async (userEmail: string) => {
     try {
       set({ syncing: true, error: null });
+
+      // Fetch what's on the backend first
       const { items: backendItems } = await getCartItems(userEmail);
 
-      // Map backend items to local CartItem format
-      const syncedItems = get().items.map((localItem) => {
-        const backendItem = backendItems.find(
-          (bi) => bi.product_id === localItem.productId
-        );
-        
-        if (backendItem) {
-          return {
-            ...localItem,
-            available: backendItem.available,
-          };
+      // Push local items to backend (merge): prefer local quantities
+      for (const localItem of get().items) {
+        const backendItem = backendItems.find((bi) => bi.product_id === localItem.productId);
+        try {
+          if (backendItem) {
+            // If quantities differ, update backend to match local preferred quantity
+            if (backendItem.quantity !== localItem.quantity) {
+              await updateCartItem(userEmail, localItem.productId, localItem.quantity);
+            }
+          } else {
+            // Add missing item on backend
+            await addToCart(userEmail, localItem.productId, localItem.quantity);
+          }
+        } catch (e) {
+          // ignore individual item errors, continue with rest
         }
-        return localItem;
+      }
+
+      // Fetch merged state from backend and map to local shape
+      const { items: freshBackend } = await getCartItems(userEmail);
+      const mapped: CartItem[] = freshBackend.map((bi) => {
+        // try to reuse local metadata if available
+        const local = get().items.find((li) => li.productId === bi.product_id);
+        return {
+          productId: bi.product_id,
+          title: bi.name ?? local?.title ?? String(bi.product_id),
+          price: typeof bi.price === 'number' ? bi.price : Number(bi.price) || 0,
+          imageUrl: local?.imageUrl ?? '',
+          seller: local?.seller ?? '',
+          quantity: bi.quantity,
+          stock: local?.stock ?? bi.quantity,
+          available: !!bi.available,
+        };
       });
 
-      set({ items: syncedItems, syncing: false });
-      await persist(syncedItems);
+      set({ items: mapped, syncing: false });
+      await persist(mapped);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error syncing cart';
       set({ syncing: false, error: message });

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -19,6 +20,7 @@ import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
+import { CHECKOUT } from '@/constants/api';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -223,15 +225,51 @@ export default function CheckoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSubmitting(true);
 
-    // Simulate gateway processing — gateway call goes here
-    await new Promise((r) => setTimeout(r, 1500));
+    const idempotency_key = `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    try {
+      const url = CHECKOUT('/');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-User-Email': user?.email ?? '',
+      };
 
-    const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-    await clear();
-    setSubmitting(false);
+      const body = {
+        idempotency_key,
+        address: address,
+        payment: payment,
+      };
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      const text = await res.text();
+      let json: any;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = { message: text };
+      }
+
+      if (!res.ok) {
+        const message = json.detail ?? json.message ?? json.error ?? 'Error al procesar el pago';
+        throw new Error(message);
+      }
+
+      // Backend accepted checkout — clear local cart and navigate to success
+      await clear();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+      router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', err?.message ?? 'Error procesando checkout');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (items.length === 0) {
