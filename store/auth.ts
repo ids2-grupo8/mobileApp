@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { useCartStore } from '@/store/cart';
 
 import { ENABLE_PIN_LOGIN } from "@/constants/features";
 import { getOrCreateDeviceId, setPinEnabled } from "@/services/device";
@@ -65,6 +66,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
       
       const user = await loginRequest(email, password);
       set({ isLoggedIn: true, isLoading: false, user });
+      try {
+        const emailAddr = user?.email;
+        if (emailAddr) {
+          useCartStore.getState().syncWithBackend(emailAddr).catch(() => {});
+        }
+      } catch {}
       if (ENABLE_PIN_LOGIN) {
         try {
           const deviceId = await getOrCreateDeviceId();
@@ -94,6 +101,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
       
       const user = await registerRequest(name, email, password);
       set({ isLoggedIn: true, isLoading: false, user });
+      try {
+        const emailAddr = user?.email;
+        if (emailAddr) {
+          useCartStore.getState().syncWithBackend(emailAddr).catch(() => {});
+        }
+      } catch {}
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
     }
@@ -111,6 +124,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
       
       const user = await federatedLoginRequest(accessToken, refreshToken);
       set({ isLoggedIn: true, isLoading: false, user });
+      try {
+        const emailAddr = user?.email;
+        if (emailAddr) {
+          useCartStore.getState().syncWithBackend(emailAddr).catch(() => {});
+        }
+      } catch {}
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
     }
@@ -160,6 +179,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
       const user = await pinLoginRequest(pin, deviceId, userId);
       await setPinEnabled(true);
       set({ isLoggedIn: true, isLoading: false, user, pinEnabled: true });
+      try {
+        const emailAddr = user?.email;
+        if (emailAddr) {
+          useCartStore.getState().syncWithBackend(emailAddr).catch(() => {});
+        }
+      } catch {}
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
     }

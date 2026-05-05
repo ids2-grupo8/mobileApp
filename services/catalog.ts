@@ -216,7 +216,7 @@ function filterVisible(products: CatalogProduct[]): CatalogProduct[] {
 
 
 export type CatalogFetchOptions = {
-  category?: string;
+  categories?: string[];
   priceMin?: number;
   priceMax?: number;
 };
@@ -235,8 +235,10 @@ export async function fetchCatalogProducts(
     params.set('q', normalizedQuery);
   }
 
-  if (options?.category) {
-    params.set('category', options.category);
+  if (options?.categories?.length) {
+    for (const cat of options.categories) {
+      params.append('category', cat);
+    }
   }
   if (options?.priceMin != null) {
     params.set('price_min', String(options.priceMin));
@@ -273,6 +275,22 @@ export async function fetchCatalogProducts(
     .filter((item): item is CatalogProduct => item !== null);
 
   return filterVisible(normalized);
+}
+
+/**
+ * Fetch the list of predefined catalog categories from the backend.
+ * Returns an empty array on error so callers can fall back gracefully.
+ */
+export async function fetchCatalogCategories(): Promise<string[]> {
+  try {
+    const payload = await request<{ categories: string[] }>(
+      CATALOG('/products/categories'),
+      { method: 'GET', auth: false },
+    );
+    return payload.categories ?? [];
+  } catch {
+    return [];
+  }
 }
 
 /**

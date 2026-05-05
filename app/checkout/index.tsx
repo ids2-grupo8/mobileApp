@@ -7,6 +7,7 @@ import { openBrowserAsync } from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -239,6 +240,19 @@ export default function CheckoutScreen() {
       return;
     }
 
+    // Require authentication before performing checkout — backend expects X-User-Email
+    if (!user || !user.email) {
+      Alert.alert(
+        'Iniciar sesión requerido',
+        'Debes iniciar sesión para completar la compra. ¿Deseas iniciar sesión ahora?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ]
+      );
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
@@ -262,6 +276,56 @@ export default function CheckoutScreen() {
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       console.error('[Checkout]', e);
+    setSubmitting(true);
+
+    const idempotency_key = `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    try {
+      const url = CHECKOUT('/');
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        'X-User-Email': user?.email ?? '',
+      };
+      try {
+        const token = await (await import('@/services/http')).getAccessToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      } catch {}
+
+      const body = {
+        idempotency_key,
+        address: address,
+        payment: payment,
+      };
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+
+      const text = await res.text();
+      let json: any;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        json = { message: text };
+      }
+
+      if (!res.ok) {
+        const message = json.detail ?? json.message ?? json.error ?? 'Error al procesar el pago';
+        throw new Error(message);
+      }
+
+      // Backend accepted checkout — clear local cart and navigate to success
+      await clear();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+      router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+    } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Error', err?.message ?? 'Error procesando checkout');
+    } finally {
+      setSubmitting(false);
     }
   };
 
