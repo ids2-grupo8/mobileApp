@@ -42,7 +42,18 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   useEffect(() => { setIsReady(true); }, []);
   useEffect(() => {
-    hydrateCart();
+    // Hydrate local cart; if user is logged in, also sync with backend
+    (async () => {
+      await hydrateCart();
+      try {
+        if (isLoggedIn) {
+          const email = useAuthStore.getState().user?.email;
+          if (email) await useCartStore.getState().syncWithBackend();
+        }
+      } catch (e) {
+        // ignore sync errors on startup
+      }
+    })();
   }, [hydrateCart]);
 
   // Redirect guard: push unauthenticated users to landing, authenticated to tabs
@@ -56,8 +67,11 @@ export default function RootLayout() {
       segments[0] === "(tabs)" ||
       segments[0] === "product" ||
       segments[0] === "seller";
+    // Deep link post-pago (Mercado Pago): puede llegar sin sesión activa
+    const isCheckoutSuccessDeepLink =
+      segments[0] === "checkout" && segments[1] === "success";
 
-    if (!isLoggedIn && !inAuth && !inPublicRoute) {
+    if (!isLoggedIn && !inAuth && !inPublicRoute && !isCheckoutSuccessDeepLink) {
       router.replace("/(auth)/landing");
     } else if (isLoggedIn && inAuth) {
       router.replace("/(tabs)");

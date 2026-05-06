@@ -7,6 +7,7 @@ import { openBrowserAsync } from 'expo-web-browser';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -35,7 +36,7 @@ function formatPrice(value: number) {
 const SHIPPING_FLAT = 1500;
 const FREE_SHIPPING_THRESHOLD = 50000;
 
-type PaymentMethod = 'stripe' | 'mercadopago';
+type PaymentMethod = 'mercadopago';
 
 type Address = {
   fullName: string;
@@ -211,7 +212,7 @@ export default function CheckoutScreen() {
     phone: '',
   });
   const [errors, setErrors] = useState<Errors>({});
-  const [payment, setPayment] = useState<PaymentMethod>('stripe');
+  const [payment, setPayment] = useState<PaymentMethod>('mercadopago');
 
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
@@ -239,29 +240,34 @@ export default function CheckoutScreen() {
       return;
     }
 
+    // Require authentication before performing checkout — backend expects X-User-Email
+    if (!user || !user.email) {
+      Alert.alert(
+        'Iniciar sesión requerido',
+        'Debes iniciar sesión para completar la compra. ¿Deseas iniciar sesión ahora?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ]
+      );
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      if (payment === 'mercadopago') {
-        const checkoutUrl = await submitMercadoPago();
-        await openBrowserAsync(checkoutUrl);
+      // MercadoPago flow — delegates to the checkout store / service
+      const checkoutUrl = await submitMercadoPago();
+      await openBrowserAsync(checkoutUrl);
 
-        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-        await clear();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
-      } else {
-        // Stripe — gateway call goes here
-        await new Promise((r) => setTimeout(r, 1500));
-
-        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-        await clear();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
-      }
-    } catch (e) {
+      // Backend accepted checkout — clear local cart and navigate to success
+      const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+      await clear();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+    } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      console.error('[Checkout]', e);
+      Alert.alert('Error', err?.message ?? 'Error procesando checkout');
     }
   };
 
@@ -380,19 +386,11 @@ export default function CheckoutScreen() {
           <Section title="Método de pago" step={2} C={C}>
             <View style={s.payList}>
               <PaymentOption
-                selected={payment === 'stripe'}
-                icon="credit-card"
-                title="Tarjeta (Stripe)"
-                subtitle="Visa, Mastercard, Amex"
-                onPress={() => setPayment('stripe')}
-                C={C}
-              />
-              <PaymentOption
-                selected={payment === 'mercadopago'}
+                selected={true}
                 icon="account-balance-wallet"
                 title="MercadoPago"
-                subtitle="Dinero en cuenta o tarjeta"
-                onPress={() => setPayment('mercadopago')}
+                subtitle="Dinero en cuenta, tarjeta o transferencia"
+                onPress={() => {}}
                 C={C}
               />
             </View>
