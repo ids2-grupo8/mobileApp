@@ -1,7 +1,10 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import * as Haptics from 'expo-haptics';
+import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
+import { openBrowserAsync } from 'expo-web-browser';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,7 +23,7 @@ import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
-import { CHECKOUT } from '@/constants/api';
+import { useCheckoutStore } from '@/store/checkout';
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat('es-AR', {
@@ -180,10 +183,26 @@ export default function CheckoutScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (url?.includes('mobileapp://')) {
+        if (Platform.OS === 'ios') WebBrowser.dismissBrowser();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore((s) => s.subtotal());
   const clear = useCartStore((s) => s.clear);
+  const syncWithBackend = useCartStore((s) => s.syncWithBackend);
   const user = useAuthStore((s) => s.user);
+  const { isSubmitting: checkoutSubmitting, submitMercadoPago } = useCheckoutStore();
+
+  // Sincronizar carrito con backend al entrar a checkout
+  useEffect(() => {
+    syncWithBackend();
+  }, [syncWithBackend]);
 
   const [address, setAddress] = useState<Address>({
     fullName: user?.name ?? '',
@@ -194,7 +213,6 @@ export default function CheckoutScreen() {
   });
   const [errors, setErrors] = useState<Errors>({});
   const [payment, setPayment] = useState<PaymentMethod>('stripe');
-  const [submitting, setSubmitting] = useState(false);
 
   const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
   const total = subtotal + shipping;
@@ -236,6 +254,28 @@ export default function CheckoutScreen() {
     }
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      if (payment === 'mercadopago') {
+        const checkoutUrl = await submitMercadoPago();
+        await openBrowserAsync(checkoutUrl);
+
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      } else {
+        // Stripe — gateway call goes here
+        await new Promise((r) => setTimeout(r, 1500));
+
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      }
+    } catch (e) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('[Checkout]', e);
     setSubmitting(true);
 
     const idempotency_key = `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -496,17 +536,17 @@ export default function CheckoutScreen() {
           </View>
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={submitting}
+            disabled={checkoutSubmitting}
             activeOpacity={0.92}
             style={[
               s.cta,
               {
-                backgroundColor: submitting ? C.accentDim : C.accent,
+                backgroundColor: checkoutSubmitting ? C.accentDim : C.accent,
                 shadowColor: C.accent,
-                opacity: submitting ? 0.85 : 1,
+                opacity: checkoutSubmitting ? 0.85 : 1,
               },
             ]}>
-            {submitting ? (
+            {checkoutSubmitting ? (
               <>
                 <ActivityIndicator color="#050508" size="small" />
                 <Text style={s.ctaText}>Procesando pago...</Text>

@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   Alert,
   Animated,
@@ -137,6 +137,8 @@ export default function CartScreen() {
   const updateQuantity = useCartStore((s) => s.updateQuantity);
   const removeItem = useCartStore((s) => s.removeItem);
   const clear = useCartStore((s) => s.clear);
+  const cartError = useCartStore((s) => s.error);
+  const syncWithBackend = useCartStore((s) => s.syncWithBackend);
 
   const unavailableItems = items.filter((item) => item.available === false);
   const hasUnavailableItems = unavailableItems.length > 0;
@@ -147,6 +149,11 @@ export default function CartScreen() {
   const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
   const freeShippingProgress = Math.min(1, subtotal / FREE_SHIPPING_THRESHOLD);
 
+  // Sincronizar carrito con backend al entrar a la pantalla
+  useEffect(() => {
+    syncWithBackend();
+  }, [syncWithBackend]);
+
   const handleInc = (item: CartItem) => {
     Haptics.selectionAsync();
     updateQuantity(item.productId, item.quantity + 1);
@@ -156,6 +163,12 @@ export default function CartScreen() {
     Haptics.selectionAsync();
     updateQuantity(item.productId, item.quantity - 1);
   };
+
+  useEffect(() => {
+    if (cartError) {
+      Alert.alert('Error', cartError);
+    }
+  }, [cartError]);
 
   const handleRemove = (item: CartItem) => {
     Alert.alert('Eliminar producto', `¿Quitar "${item.title}" del carrito?`, [

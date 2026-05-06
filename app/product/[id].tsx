@@ -247,6 +247,7 @@ export default function ProductDetailScreen() {
   const C = useTheme();
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
+  const cartError = useCartStore((s) => s.error);
 
   const [product, setProduct] = useState<CatalogProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -302,6 +303,12 @@ export default function ProductDetailScreen() {
       mounted = false;
     };
   }, [productId]);
+
+  useEffect(() => {
+    if (cartError) {
+      Alert.alert('Error', cartError);
+    }
+  }, [cartError]);
 
   if (loading) {
     return <ProductDetailSkeleton bg={C.bg} base={C.skeletonBase} />;

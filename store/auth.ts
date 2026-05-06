@@ -4,6 +4,7 @@ import { useCartStore } from '@/store/cart';
 import { ENABLE_PIN_LOGIN } from "@/constants/features";
 import { getOrCreateDeviceId, setPinEnabled } from "@/services/device";
 import { clearTokens } from "@/services/http";
+import { useCartStore } from "@/store/cart";
 import {
   type AuthUser,
   type PinAccount,
@@ -56,6 +57,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
+      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      try {
+        await useCartStore.getState().clearLocal();
+      } catch (err) {
+        console.error('[Auth] Error clearing cart on login:', err);
+      }
+      
       const user = await loginRequest(email, password);
       set({ isLoggedIn: true, isLoading: false, user });
       try {
@@ -84,6 +92,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   register: async (name, email, password) => {
     set({ isLoading: true, error: null });
     try {
+      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      try {
+        await useCartStore.getState().clearLocal();
+      } catch (err) {
+        console.error('[Auth] Error clearing cart on register:', err);
+      }
+      
       const user = await registerRequest(name, email, password);
       set({ isLoggedIn: true, isLoading: false, user });
       try {
@@ -100,6 +115,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
   googleLogin: async (accessToken, refreshToken) => {
     set({ isLoading: true, error: null });
     try {
+      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      try {
+        await useCartStore.getState().clearLocal();
+      } catch (err) {
+        console.error('[Auth] Error clearing cart on googleLogin:', err);
+      }
+      
       const user = await federatedLoginRequest(accessToken, refreshToken);
       set({ isLoggedIn: true, isLoading: false, user });
       try {
@@ -146,6 +168,13 @@ export const useAuthStore = create<AuthStore>((set) => ({
     if (!ENABLE_PIN_LOGIN) return;
     set({ isLoading: true, error: null });
     try {
+      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      try {
+        await useCartStore.getState().clearLocal();
+      } catch (err) {
+        console.error('[Auth] Error clearing cart on loginWithPin:', err);
+      }
+      
       const deviceId = await getOrCreateDeviceId();
       const user = await pinLoginRequest(pin, deviceId, userId);
       await setPinEnabled(true);
@@ -179,8 +208,17 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
 
   logout: async () => {
+    // Limpiar tokens
     await clearTokens();
-    set({ isLoggedIn: false, user: null, error: null, suggestPinLink: false });
+    
+    // Limpiar carrito local (sin tocar backend)
+    try {
+      await useCartStore.getState().clearLocal();
+    } catch (err) {
+      console.error('[Auth] Error clearing cart on logout:', err);
+    }
+    
+    set({ isLoggedIn: false, user: null, error: null, suggestPinLink: false, pinEnabled: false });
   },
 
   forgotPassword: async (email) => {
