@@ -48,6 +48,175 @@ type Address = {
 
 type Errors = Partial<Record<keyof Address, string>>;
 
+const s = StyleSheet.create({
+  root: { flex: 1 },
+
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerCenter: { flex: 1, alignItems: 'center' },
+  headerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
+  headerSubtitle: { fontSize: 12, fontWeight: '500', marginTop: 2 },
+
+  scrollContent: { paddingHorizontal: 20, paddingTop: 4 },
+
+  // ── Sections ──
+  section: { marginBottom: 24 },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  stepBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepBadgeText: { fontSize: 12, fontWeight: '800' },
+  sectionTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
+
+  // ── Card ──
+  card: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    elevation: 4,
+  },
+
+  // ── Fields ──
+  field: { gap: 6 },
+  fieldRow: { flexDirection: 'row', gap: 10 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.2 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    justifyContent: 'center',
+  },
+  inputText: { fontSize: 15, fontWeight: '500' },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  errorText: { fontSize: 11, fontWeight: '600' },
+
+  // ── Payment ──
+  payList: { gap: 10 },
+  payOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+  },
+  payIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payTitle: { fontSize: 14, fontWeight: '700' },
+  paySubtitle: { fontSize: 11, fontWeight: '500', marginTop: 2 },
+  radio: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: { width: 10, height: 10, borderRadius: 5 },
+
+  notice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 12,
+  },
+  noticeText: { fontSize: 11, lineHeight: 16, flex: 1 },
+
+  // ── Summary ──
+  summaryList: { gap: 8 },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  summaryItemTitle: { flex: 1, fontSize: 13, fontWeight: '500' },
+  summaryItemPrice: { fontSize: 13, fontWeight: '600' },
+  summaryDivider: { height: 1, marginVertical: 4 },
+  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  totalsLabel: { fontSize: 13, fontWeight: '500' },
+  totalsValue: { fontSize: 14, fontWeight: '700' },
+  totalsLabelLg: { fontSize: 15, fontWeight: '700' },
+  totalsValueLg: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+
+  // ── Sticky panel ──
+  stickyPanel: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    gap: 12,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 16,
+  },
+  stickyTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  stickyLabel: { fontSize: 13, fontWeight: '500' },
+  stickyTotal: { fontSize: 18, fontWeight: '800' },
+  cta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 56,
+    borderRadius: 16,
+    gap: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  ctaText: { color: '#050508', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
+
+  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+  emptyText: { fontSize: 14, fontWeight: '500' },
+});
+
 function Section({
   title,
   step,
@@ -256,18 +425,30 @@ export default function CheckoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     try {
-      // MercadoPago flow — delegates to the checkout store / service
-      const checkoutUrl = await submitMercadoPago();
-      await openBrowserAsync(checkoutUrl);
+      if (payment === 'mercadopago') {
+        const checkoutUrl = await submitMercadoPago();
+        await openBrowserAsync(checkoutUrl);
 
-      // Backend accepted checkout — clear local cart and navigate to success
-      const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-      await clear();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
-    } catch (err: any) {
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      } else {
+        // Stripe — gateway call goes here
+        await new Promise((r) => setTimeout(r, 1500));
+
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      }
+    } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', err?.message ?? 'Error procesando checkout');
+      console.error('[Checkout]', e);
+      Alert.alert(
+        'Error',
+        e instanceof Error ? e.message : 'Error procesando checkout',
+      );
     }
   };
 
@@ -497,172 +678,3 @@ export default function CheckoutScreen() {
     </View>
   );
 }
-
-const s = StyleSheet.create({
-  root: { flex: 1 },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-    gap: 12,
-  },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
-  headerSubtitle: { fontSize: 12, fontWeight: '500', marginTop: 2 },
-
-  scrollContent: { paddingHorizontal: 20, paddingTop: 4 },
-
-  // ── Sections ──
-  section: { marginBottom: 24 },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
-  },
-  stepBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  stepBadgeText: { fontSize: 12, fontWeight: '800' },
-  sectionTitle: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2 },
-
-  // ── Card ──
-  card: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    gap: 12,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    elevation: 4,
-  },
-
-  // ── Fields ──
-  field: { gap: 6 },
-  fieldRow: { flexDirection: 'row', gap: 10 },
-  fieldLabel: { fontSize: 12, fontWeight: '600', letterSpacing: 0.2 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    height: 48,
-    justifyContent: 'center',
-  },
-  inputText: { fontSize: 15, fontWeight: '500' },
-  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  errorText: { fontSize: 11, fontWeight: '600' },
-
-  // ── Payment ──
-  payList: { gap: 10 },
-  payOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-  },
-  payIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  payTitle: { fontSize: 14, fontWeight: '700' },
-  paySubtitle: { fontSize: 11, fontWeight: '500', marginTop: 2 },
-  radio: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioDot: { width: 10, height: 10, borderRadius: 5 },
-
-  notice: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 12,
-  },
-  noticeText: { fontSize: 11, lineHeight: 16, flex: 1 },
-
-  // ── Summary ──
-  summaryList: { gap: 8 },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  summaryItemTitle: { flex: 1, fontSize: 13, fontWeight: '500' },
-  summaryItemPrice: { fontSize: 13, fontWeight: '600' },
-  summaryDivider: { height: 1, marginVertical: 4 },
-  totalsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  totalsLabel: { fontSize: 13, fontWeight: '500' },
-  totalsValue: { fontSize: 14, fontWeight: '700' },
-  totalsLabelLg: { fontSize: 15, fontWeight: '700' },
-  totalsValueLg: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
-
-  // ── Sticky panel ──
-  stickyPanel: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    gap: 12,
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 16,
-  },
-  stickyTotalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  stickyLabel: { fontSize: 13, fontWeight: '500' },
-  stickyTotal: { fontSize: 18, fontWeight: '800' },
-  cta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 56,
-    borderRadius: 16,
-    gap: 10,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 8,
-  },
-  ctaText: { color: '#050508', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
-
-  emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  emptyText: { fontSize: 14, fontWeight: '500' },
-});

@@ -22,7 +22,7 @@ type CartItemsListResponse = {
   total_price: number;
 };
 
-// API Functions
+// ─── API Functions ───────────────────────────────────────────────────────────
 
 /**
  * Add an item to the user's cart
