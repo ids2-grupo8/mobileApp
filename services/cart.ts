@@ -1,4 +1,4 @@
-import { request, type ApiError, getAccessToken } from "@/services/http";
+import { request, type ApiError } from "@/services/http";
 import { CHECKOUT } from "@/constants/api";
 
 // Types
@@ -67,7 +67,6 @@ export async function updateCartItem(
   productId: string,
   quantity: number,
 ): Promise<CartItem | null> {
-  if (!userEmail) throw new Error('User email required to update cart item');
   try {
     const response = await request<CartItemResponse>(
       CHECKOUT(`/cart/items/${productId}`),

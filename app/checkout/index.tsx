@@ -36,7 +36,7 @@ function formatPrice(value: number) {
 const SHIPPING_FLAT = 1500;
 const FREE_SHIPPING_THRESHOLD = 50000;
 
-type PaymentMethod = 'stripe' | 'mercadopago';
+type PaymentMethod = 'mercadopago';
 
 type Address = {
   fullName: string;
@@ -47,522 +47,6 @@ type Address = {
 };
 
 type Errors = Partial<Record<keyof Address, string>>;
-
-function Section({
-  title,
-  step,
-  C,
-  children,
-}: {
-  title: string;
-  step: number;
-  C: ThemeColors;
-  children: React.ReactNode;
-}) {
-  return (
-    <View style={s.section}>
-      <View style={s.sectionHeader}>
-        <View style={[s.stepBadge, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
-          <Text style={[s.stepBadgeText, { color: C.accent }]}>{step}</Text>
-        </View>
-        <Text style={[s.sectionTitle, { color: C.textPrimary }]}>{title}</Text>
-      </View>
-      {children}
-    </View>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChangeText,
-  placeholder,
-  error,
-  C,
-  keyboardType,
-  autoCapitalize,
-}: {
-  label: string;
-  value: string;
-  onChangeText: (v: string) => void;
-  placeholder: string;
-  error?: string;
-  C: ThemeColors;
-  keyboardType?: 'default' | 'numeric' | 'phone-pad';
-  autoCapitalize?: 'none' | 'words' | 'sentences';
-}) {
-  return (
-    <View style={s.field}>
-      <Text style={[s.fieldLabel, { color: C.textSecondary }]}>{label}</Text>
-      <View
-        style={[
-          s.input,
-          {
-            backgroundColor: C.inputBg,
-            borderColor: error ? C.inputBorderError : C.inputBorder,
-          },
-        ]}>
-        <TextInput
-          value={value}
-          onChangeText={onChangeText}
-          placeholder={placeholder}
-          placeholderTextColor={C.textMuted}
-          style={[s.inputText, { color: C.textPrimary }]}
-          selectionColor={C.accent}
-          keyboardType={keyboardType ?? 'default'}
-          autoCapitalize={autoCapitalize ?? 'sentences'}
-        />
-      </View>
-      {error && (
-        <View style={s.errorRow}>
-          <MaterialIcons name="error-outline" size={13} color={C.red} />
-          <Text style={[s.errorText, { color: C.red }]}>{error}</Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-function PaymentOption({
-  selected,
-  icon,
-  title,
-  subtitle,
-  onPress,
-  C,
-}: {
-  selected: boolean;
-  icon: keyof typeof MaterialIcons.glyphMap;
-  title: string;
-  subtitle: string;
-  onPress: () => void;
-  C: ThemeColors;
-}) {
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      activeOpacity={0.85}
-      style={[
-        s.payOption,
-        {
-          backgroundColor: selected ? C.accentGlow : C.glass,
-          borderColor: selected ? C.accent : C.glassBorder,
-        },
-      ]}>
-      <View
-        style={[
-          s.payIconWrap,
-          {
-            backgroundColor: selected ? C.accent : C.elevated,
-            borderColor: selected ? C.accent : C.glassBorder,
-          },
-        ]}>
-        <MaterialIcons
-          name={icon}
-          size={22}
-          color={selected ? '#050508' : C.textSecondary}
-        />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[s.payTitle, { color: selected ? C.accent : C.textPrimary }]}>{title}</Text>
-        <Text style={[s.paySubtitle, { color: C.textMuted }]}>{subtitle}</Text>
-      </View>
-      <View
-        style={[
-          s.radio,
-          { borderColor: selected ? C.accent : C.glassBorder },
-        ]}>
-        {selected && <View style={[s.radioDot, { backgroundColor: C.accent }]} />}
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-export default function CheckoutScreen() {
-  const C = useTheme();
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
-
-  useEffect(() => {
-    const subscription = Linking.addEventListener('url', ({ url }) => {
-      if (url?.includes('mobileapp://')) {
-        if (Platform.OS === 'ios') WebBrowser.dismissBrowser();
-      }
-    });
-    return () => subscription.remove();
-  }, []);
-
-  const items = useCartStore((s) => s.items);
-  const subtotal = useCartStore((s) => s.subtotal());
-  const clear = useCartStore((s) => s.clear);
-  const syncWithBackend = useCartStore((s) => s.syncWithBackend);
-  const user = useAuthStore((s) => s.user);
-  const { isSubmitting: checkoutSubmitting, submitMercadoPago } = useCheckoutStore();
-
-  // Sincronizar carrito con backend al entrar a checkout
-  useEffect(() => {
-    syncWithBackend();
-  }, [syncWithBackend]);
-
-  const [address, setAddress] = useState<Address>({
-    fullName: user?.name ?? '',
-    street: '',
-    city: '',
-    zip: '',
-    phone: '',
-  });
-  const [errors, setErrors] = useState<Errors>({});
-  const [payment, setPayment] = useState<PaymentMethod>('stripe');
-
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
-  const total = subtotal + shipping;
-  const itemCount = useMemo(() => items.reduce((acc, i) => acc + i.quantity, 0), [items]);
-
-  const setField = <K extends keyof Address>(key: K, value: string) => {
-    setAddress((prev) => ({ ...prev, [key]: value }));
-    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
-  };
-
-  const validate = (): boolean => {
-    const next: Errors = {};
-    if (!address.fullName.trim()) next.fullName = 'Ingresá un nombre';
-    if (!address.street.trim()) next.street = 'Ingresá una dirección';
-    if (!address.city.trim()) next.city = 'Ingresá la ciudad';
-    if (!/^\d{4,8}$/.test(address.zip.trim())) next.zip = 'Código postal inválido';
-    if (!/^[\d\s+()-]{8,}$/.test(address.phone.trim())) next.phone = 'Teléfono inválido';
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      return;
-    }
-
-    // Require authentication before performing checkout — backend expects X-User-Email
-    if (!user || !user.email) {
-      Alert.alert(
-        'Iniciar sesión requerido',
-        'Debes iniciar sesión para completar la compra. ¿Deseas iniciar sesión ahora?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
-        ]
-      );
-      return;
-    }
-
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-    try {
-      if (payment === 'mercadopago') {
-        const checkoutUrl = await submitMercadoPago();
-        await openBrowserAsync(checkoutUrl);
-
-        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-        await clear();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
-      } else {
-        // Stripe — gateway call goes here
-        await new Promise((r) => setTimeout(r, 1500));
-
-        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-        await clear();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
-      }
-    } catch (e) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      console.error('[Checkout]', e);
-    setSubmitting(true);
-
-    const idempotency_key = `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-    try {
-      const url = CHECKOUT('/');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'X-User-Email': user?.email ?? '',
-      };
-      try {
-        const token = await (await import('@/services/http')).getAccessToken();
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-      } catch {}
-
-      const body = {
-        idempotency_key,
-        address: address,
-        payment: payment,
-      };
-
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(body),
-      });
-
-      const text = await res.text();
-      let json: any;
-      try {
-        json = JSON.parse(text);
-      } catch {
-        json = { message: text };
-      }
-
-      if (!res.ok) {
-        const message = json.detail ?? json.message ?? json.error ?? 'Error al procesar el pago';
-        throw new Error(message);
-      }
-
-      // Backend accepted checkout — clear local cart and navigate to success
-      await clear();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-      router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
-    } catch (err: any) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Error', err?.message ?? 'Error procesando checkout');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  if (items.length === 0) {
-    return (
-      <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
-        <View style={s.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            hitSlop={10}
-            style={[s.iconBtn, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-            <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
-          </TouchableOpacity>
-          <Text style={[s.headerTitle, { color: C.textPrimary, flex: 1, textAlign: 'center' }]}>
-            Checkout
-          </Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <View style={s.emptyWrap}>
-          <MaterialIcons name="shopping-cart" size={48} color={C.textMuted} />
-          <Text style={[s.emptyText, { color: C.textSecondary }]}>
-            Tu carrito está vacío.
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
-      <View style={s.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={[s.iconBtn, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-          <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
-        </TouchableOpacity>
-        <View style={s.headerCenter}>
-          <Text style={[s.headerTitle, { color: C.textPrimary }]}>Checkout</Text>
-          <Text style={[s.headerSubtitle, { color: C.textMuted }]}>
-            {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
-          </Text>
-        </View>
-        <View style={{ width: 40 }} />
-      </View>
-
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={20}>
-        <ScrollView
-          contentContainerStyle={[s.scrollContent, { paddingBottom: 220 + insets.bottom }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled">
-          <Section title="Dirección de envío" step={1} C={C}>
-            <View
-              style={[
-                s.card,
-                { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
-              ]}>
-              <Field
-                label="Nombre y apellido"
-                value={address.fullName}
-                onChangeText={(v) => setField('fullName', v)}
-                placeholder="Ej: Lucía Pérez"
-                error={errors.fullName}
-                autoCapitalize="words"
-                C={C}
-              />
-              <Field
-                label="Calle y número"
-                value={address.street}
-                onChangeText={(v) => setField('street', v)}
-                placeholder="Av. Corrientes 1234, Piso 4 A"
-                error={errors.street}
-                C={C}
-              />
-              <View style={s.fieldRow}>
-                <View style={{ flex: 2 }}>
-                  <Field
-                    label="Ciudad"
-                    value={address.city}
-                    onChangeText={(v) => setField('city', v)}
-                    placeholder="CABA"
-                    error={errors.city}
-                    autoCapitalize="words"
-                    C={C}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Field
-                    label="CP"
-                    value={address.zip}
-                    onChangeText={(v) => setField('zip', v.replace(/\D/g, ''))}
-                    placeholder="1043"
-                    error={errors.zip}
-                    keyboardType="numeric"
-                    autoCapitalize="none"
-                    C={C}
-                  />
-                </View>
-              </View>
-              <Field
-                label="Teléfono de contacto"
-                value={address.phone}
-                onChangeText={(v) => setField('phone', v)}
-                placeholder="+54 11 1234-5678"
-                error={errors.phone}
-                keyboardType="phone-pad"
-                autoCapitalize="none"
-                C={C}
-              />
-            </View>
-          </Section>
-
-          <Section title="Método de pago" step={2} C={C}>
-            <View style={s.payList}>
-              <PaymentOption
-                selected={payment === 'stripe'}
-                icon="credit-card"
-                title="Tarjeta (Stripe)"
-                subtitle="Visa, Mastercard, Amex"
-                onPress={() => setPayment('stripe')}
-                C={C}
-              />
-              <PaymentOption
-                selected={payment === 'mercadopago'}
-                icon="account-balance-wallet"
-                title="MercadoPago"
-                subtitle="Dinero en cuenta o tarjeta"
-                onPress={() => setPayment('mercadopago')}
-                C={C}
-              />
-            </View>
-
-            <View style={[s.notice, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-              <MaterialIcons name="lock" size={14} color={C.accent} />
-              <Text style={[s.noticeText, { color: C.textMuted }]}>
-                Pago procesado de forma segura. Tu información no se almacena en este dispositivo.
-              </Text>
-            </View>
-          </Section>
-
-          <Section title="Resumen" step={3} C={C}>
-            <View
-              style={[
-                s.card,
-                { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
-              ]}>
-              <View style={s.summaryList}>
-                {items.map((item) => (
-                  <View key={item.productId} style={s.summaryRow}>
-                    <Text
-                      style={[s.summaryItemTitle, { color: C.textPrimary }]}
-                      numberOfLines={1}>
-                      <Text style={{ color: C.textMuted, fontWeight: '600' }}>
-                        {item.quantity}× {' '}
-                      </Text>
-                      {item.title}
-                    </Text>
-                    <Text style={[s.summaryItemPrice, { color: C.textSecondary }]}>
-                      {formatPrice(item.price * item.quantity)}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-
-              <View style={[s.summaryDivider, { backgroundColor: C.glassBorder }]} />
-
-              <View style={s.totalsRow}>
-                <Text style={[s.totalsLabel, { color: C.textSecondary }]}>Subtotal</Text>
-                <Text style={[s.totalsValue, { color: C.textPrimary }]}>
-                  {formatPrice(subtotal)}
-                </Text>
-              </View>
-              <View style={s.totalsRow}>
-                <Text style={[s.totalsLabel, { color: C.textSecondary }]}>Envío</Text>
-                <Text
-                  style={[
-                    s.totalsValue,
-                    { color: shipping === 0 ? C.accent : C.textPrimary },
-                  ]}>
-                  {shipping === 0 ? 'Gratis' : formatPrice(shipping)}
-                </Text>
-              </View>
-              <View style={[s.summaryDivider, { backgroundColor: C.glassBorder }]} />
-              <View style={s.totalsRow}>
-                <Text style={[s.totalsLabelLg, { color: C.textPrimary }]}>Total a pagar</Text>
-                <Text style={[s.totalsValueLg, { color: C.accent }]}>{formatPrice(total)}</Text>
-              </View>
-            </View>
-          </Section>
-        </ScrollView>
-
-        <View
-          style={[
-            s.stickyPanel,
-            {
-              backgroundColor: C.elevated,
-              borderColor: C.glassBorder,
-              paddingBottom: Math.max(insets.bottom, 16) + 12,
-              shadowColor: C.shadowDark,
-            },
-          ]}>
-          <View style={s.stickyTotalRow}>
-            <Text style={[s.stickyLabel, { color: C.textSecondary }]}>Total</Text>
-            <Text style={[s.stickyTotal, { color: C.textPrimary }]}>{formatPrice(total)}</Text>
-          </View>
-          <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={checkoutSubmitting}
-            activeOpacity={0.92}
-            style={[
-              s.cta,
-              {
-                backgroundColor: checkoutSubmitting ? C.accentDim : C.accent,
-                shadowColor: C.accent,
-                opacity: checkoutSubmitting ? 0.85 : 1,
-              },
-            ]}>
-            {checkoutSubmitting ? (
-              <>
-                <ActivityIndicator color="#050508" size="small" />
-                <Text style={s.ctaText}>Procesando pago...</Text>
-              </>
-            ) : (
-              <>
-                <MaterialIcons name="lock" size={18} color="#050508" />
-                <Text style={s.ctaText}>Pagar {formatPrice(total)}</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
-  );
-}
 
 const s = StyleSheet.create({
   root: { flex: 1 },
@@ -732,3 +216,465 @@ const s = StyleSheet.create({
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 14, fontWeight: '500' },
 });
+
+function Section({
+  title,
+  step,
+  C,
+  children,
+}: {
+  title: string;
+  step: number;
+  C: ThemeColors;
+  children: React.ReactNode;
+}) {
+  return (
+    <View style={s.section}>
+      <View style={s.sectionHeader}>
+        <View style={[s.stepBadge, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
+          <Text style={[s.stepBadgeText, { color: C.accent }]}>{step}</Text>
+        </View>
+        <Text style={[s.sectionTitle, { color: C.textPrimary }]}>{title}</Text>
+      </View>
+      {children}
+    </View>
+  );
+}
+
+function Field({
+  label,
+  value,
+  onChangeText,
+  placeholder,
+  error,
+  C,
+  keyboardType,
+  autoCapitalize,
+}: {
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder: string;
+  error?: string;
+  C: ThemeColors;
+  keyboardType?: 'default' | 'numeric' | 'phone-pad';
+  autoCapitalize?: 'none' | 'words' | 'sentences';
+}) {
+  return (
+    <View style={s.field}>
+      <Text style={[s.fieldLabel, { color: C.textSecondary }]}>{label}</Text>
+      <View
+        style={[
+          s.input,
+          {
+            backgroundColor: C.inputBg,
+            borderColor: error ? C.inputBorderError : C.inputBorder,
+          },
+        ]}>
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={C.textMuted}
+          style={[s.inputText, { color: C.textPrimary }]}
+          selectionColor={C.accent}
+          keyboardType={keyboardType ?? 'default'}
+          autoCapitalize={autoCapitalize ?? 'sentences'}
+        />
+      </View>
+      {error && (
+        <View style={s.errorRow}>
+          <MaterialIcons name="error-outline" size={13} color={C.red} />
+          <Text style={[s.errorText, { color: C.red }]}>{error}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function PaymentOption({
+  selected,
+  icon,
+  title,
+  subtitle,
+  onPress,
+  C,
+}: {
+  selected: boolean;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  title: string;
+  subtitle: string;
+  onPress: () => void;
+  C: ThemeColors;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={[
+        s.payOption,
+        {
+          backgroundColor: selected ? C.accentGlow : C.glass,
+          borderColor: selected ? C.accent : C.glassBorder,
+        },
+      ]}>
+      <View
+        style={[
+          s.payIconWrap,
+          {
+            backgroundColor: selected ? C.accent : C.elevated,
+            borderColor: selected ? C.accent : C.glassBorder,
+          },
+        ]}>
+        <MaterialIcons
+          name={icon}
+          size={22}
+          color={selected ? '#050508' : C.textSecondary}
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[s.payTitle, { color: selected ? C.accent : C.textPrimary }]}>{title}</Text>
+        <Text style={[s.paySubtitle, { color: C.textMuted }]}>{subtitle}</Text>
+      </View>
+      <View
+        style={[
+          s.radio,
+          { borderColor: selected ? C.accent : C.glassBorder },
+        ]}>
+        {selected && <View style={[s.radioDot, { backgroundColor: C.accent }]} />}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+export default function CheckoutScreen() {
+  const C = useTheme();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    const subscription = Linking.addEventListener('url', ({ url }) => {
+      if (url?.includes('mobileapp://')) {
+        if (Platform.OS === 'ios') WebBrowser.dismissBrowser();
+      }
+    });
+    return () => subscription.remove();
+  }, []);
+
+  const items = useCartStore((s) => s.items);
+  const subtotal = useCartStore((s) => s.subtotal());
+  const clear = useCartStore((s) => s.clear);
+  const syncWithBackend = useCartStore((s) => s.syncWithBackend);
+  const user = useAuthStore((s) => s.user);
+  const { isSubmitting: checkoutSubmitting, submitMercadoPago } = useCheckoutStore();
+
+  // Sincronizar carrito con backend al entrar a checkout
+  useEffect(() => {
+    syncWithBackend();
+  }, [syncWithBackend]);
+
+  const [address, setAddress] = useState<Address>({
+    fullName: user?.name ?? '',
+    street: '',
+    city: '',
+    zip: '',
+    phone: '',
+  });
+  const [errors, setErrors] = useState<Errors>({});
+  const [payment, setPayment] = useState<PaymentMethod>('mercadopago');
+
+  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
+  const total = subtotal + shipping;
+  const itemCount = useMemo(() => items.reduce((acc, i) => acc + i.quantity, 0), [items]);
+
+  const setField = <K extends keyof Address>(key: K, value: string) => {
+    setAddress((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
+
+  const validate = (): boolean => {
+    const next: Errors = {};
+    if (!address.fullName.trim()) next.fullName = 'Ingresá un nombre';
+    if (!address.street.trim()) next.street = 'Ingresá una dirección';
+    if (!address.city.trim()) next.city = 'Ingresá la ciudad';
+    if (!/^\d{4,8}$/.test(address.zip.trim())) next.zip = 'Código postal inválido';
+    if (!/^[\d\s+()-]{8,}$/.test(address.phone.trim())) next.phone = 'Teléfono inválido';
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    // Require authentication before performing checkout — backend expects X-User-Email
+    if (!user || !user.email) {
+      Alert.alert(
+        'Iniciar sesión requerido',
+        'Debes iniciar sesión para completar la compra. ¿Deseas iniciar sesión ahora?',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+        ]
+      );
+      return;
+    }
+
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      if (payment === 'mercadopago') {
+        const checkoutUrl = await submitMercadoPago();
+        await openBrowserAsync(checkoutUrl);
+
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      } else {
+        // Stripe — gateway call goes here
+        await new Promise((r) => setTimeout(r, 1500));
+
+        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
+        await clear();
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+      }
+    } catch (e) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      console.error('[Checkout]', e);
+      Alert.alert(
+        'Error',
+        e instanceof Error ? e.message : 'Error procesando checkout',
+      );
+    }
+  };
+
+  if (items.length === 0) {
+    return (
+      <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
+        <View style={s.header}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={[s.iconBtn, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+            <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+          </TouchableOpacity>
+          <Text style={[s.headerTitle, { color: C.textPrimary, flex: 1, textAlign: 'center' }]}>
+            Checkout
+          </Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={s.emptyWrap}>
+          <MaterialIcons name="shopping-cart" size={48} color={C.textMuted} />
+          <Text style={[s.emptyText, { color: C.textSecondary }]}>
+            Tu carrito está vacío.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
+      <View style={s.header}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={[s.iconBtn, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+          <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
+        </TouchableOpacity>
+        <View style={s.headerCenter}>
+          <Text style={[s.headerTitle, { color: C.textPrimary }]}>Checkout</Text>
+          <Text style={[s.headerSubtitle, { color: C.textMuted }]}>
+            {itemCount} {itemCount === 1 ? 'producto' : 'productos'}
+          </Text>
+        </View>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={20}>
+        <ScrollView
+          contentContainerStyle={[s.scrollContent, { paddingBottom: 220 + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled">
+          <Section title="Dirección de envío" step={1} C={C}>
+            <View
+              style={[
+                s.card,
+                { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
+              ]}>
+              <Field
+                label="Nombre y apellido"
+                value={address.fullName}
+                onChangeText={(v) => setField('fullName', v)}
+                placeholder="Ej: Lucía Pérez"
+                error={errors.fullName}
+                autoCapitalize="words"
+                C={C}
+              />
+              <Field
+                label="Calle y número"
+                value={address.street}
+                onChangeText={(v) => setField('street', v)}
+                placeholder="Av. Corrientes 1234, Piso 4 A"
+                error={errors.street}
+                C={C}
+              />
+              <View style={s.fieldRow}>
+                <View style={{ flex: 2 }}>
+                  <Field
+                    label="Ciudad"
+                    value={address.city}
+                    onChangeText={(v) => setField('city', v)}
+                    placeholder="CABA"
+                    error={errors.city}
+                    autoCapitalize="words"
+                    C={C}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Field
+                    label="CP"
+                    value={address.zip}
+                    onChangeText={(v) => setField('zip', v.replace(/\D/g, ''))}
+                    placeholder="1043"
+                    error={errors.zip}
+                    keyboardType="numeric"
+                    autoCapitalize="none"
+                    C={C}
+                  />
+                </View>
+              </View>
+              <Field
+                label="Teléfono de contacto"
+                value={address.phone}
+                onChangeText={(v) => setField('phone', v)}
+                placeholder="+54 11 1234-5678"
+                error={errors.phone}
+                keyboardType="phone-pad"
+                autoCapitalize="none"
+                C={C}
+              />
+            </View>
+          </Section>
+
+          <Section title="Método de pago" step={2} C={C}>
+            <View style={s.payList}>
+              <PaymentOption
+                selected={true}
+                icon="account-balance-wallet"
+                title="MercadoPago"
+                subtitle="Dinero en cuenta, tarjeta o transferencia"
+                onPress={() => {}}
+                C={C}
+              />
+            </View>
+
+            <View style={[s.notice, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+              <MaterialIcons name="lock" size={14} color={C.accent} />
+              <Text style={[s.noticeText, { color: C.textMuted }]}>
+                Pago procesado de forma segura. Tu información no se almacena en este dispositivo.
+              </Text>
+            </View>
+          </Section>
+
+          <Section title="Resumen" step={3} C={C}>
+            <View
+              style={[
+                s.card,
+                { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
+              ]}>
+              <View style={s.summaryList}>
+                {items.map((item) => (
+                  <View key={item.productId} style={s.summaryRow}>
+                    <Text
+                      style={[s.summaryItemTitle, { color: C.textPrimary }]}
+                      numberOfLines={1}>
+                      <Text style={{ color: C.textMuted, fontWeight: '600' }}>
+                        {item.quantity}× {' '}
+                      </Text>
+                      {item.title}
+                    </Text>
+                    <Text style={[s.summaryItemPrice, { color: C.textSecondary }]}>
+                      {formatPrice(item.price * item.quantity)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+
+              <View style={[s.summaryDivider, { backgroundColor: C.glassBorder }]} />
+
+              <View style={s.totalsRow}>
+                <Text style={[s.totalsLabel, { color: C.textSecondary }]}>Subtotal</Text>
+                <Text style={[s.totalsValue, { color: C.textPrimary }]}>
+                  {formatPrice(subtotal)}
+                </Text>
+              </View>
+              <View style={s.totalsRow}>
+                <Text style={[s.totalsLabel, { color: C.textSecondary }]}>Envío</Text>
+                <Text
+                  style={[
+                    s.totalsValue,
+                    { color: shipping === 0 ? C.accent : C.textPrimary },
+                  ]}>
+                  {shipping === 0 ? 'Gratis' : formatPrice(shipping)}
+                </Text>
+              </View>
+              <View style={[s.summaryDivider, { backgroundColor: C.glassBorder }]} />
+              <View style={s.totalsRow}>
+                <Text style={[s.totalsLabelLg, { color: C.textPrimary }]}>Total a pagar</Text>
+                <Text style={[s.totalsValueLg, { color: C.accent }]}>{formatPrice(total)}</Text>
+              </View>
+            </View>
+          </Section>
+        </ScrollView>
+
+        <View
+          style={[
+            s.stickyPanel,
+            {
+              backgroundColor: C.elevated,
+              borderColor: C.glassBorder,
+              paddingBottom: Math.max(insets.bottom, 16) + 12,
+              shadowColor: C.shadowDark,
+            },
+          ]}>
+          <View style={s.stickyTotalRow}>
+            <Text style={[s.stickyLabel, { color: C.textSecondary }]}>Total</Text>
+            <Text style={[s.stickyTotal, { color: C.textPrimary }]}>{formatPrice(total)}</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleSubmit}
+            disabled={checkoutSubmitting}
+            activeOpacity={0.92}
+            style={[
+              s.cta,
+              {
+                backgroundColor: checkoutSubmitting ? C.accentDim : C.accent,
+                shadowColor: C.accent,
+                opacity: checkoutSubmitting ? 0.85 : 1,
+              },
+            ]}>
+            {checkoutSubmitting ? (
+              <>
+                <ActivityIndicator color="#050508" size="small" />
+                <Text style={s.ctaText}>Procesando pago...</Text>
+              </>
+            ) : (
+              <>
+                <MaterialIcons name="lock" size={18} color="#050508" />
+                <Text style={s.ctaText}>Pagar {formatPrice(total)}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
