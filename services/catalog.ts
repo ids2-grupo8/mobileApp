@@ -71,6 +71,14 @@ export type CatalogProduct = {
   enabled?: boolean;
 };
 
+type RecommendationsSource = 'profile' | 'cart' | 'browse' | 'global';
+
+export type RecommendationsResult = {
+  items: CatalogProduct[];
+  source: RecommendationsSource;
+  isPersonalized: boolean;
+};
+
 type RawProduct = Record<string, unknown>;
 
 const DEFAULT_IMAGE = '';
@@ -298,24 +306,50 @@ export async function fetchCatalogCategories(): Promise<string[]> {
  * Returns an empty array on any error so the Home screen gracefully
  * hides the section when the service is unavailable.
  */
-export async function fetchRecommendedProducts(limit = 10): Promise<CatalogProduct[]> {
+export async function fetchRecommendedProducts(limit = 10): Promise<RecommendationsResult> {
   try {
     const payload = await request<unknown>(
-      CATALOG(`/products/recommendations?limit=${limit}`),
+      CATALOG(`/products/recommendations/context?limit=${limit}`),
       { method: 'GET', auth: true },
     );
-    const collection = extractCollection(payload);
-    if (!collection) return [];
+    if (!payload || typeof payload !== 'object') {
+      return { items: [], source: 'global', isPersonalized: false };
+    }
 
-    return collection
+    const sourceRaw = (payload as Record<string, unknown>).source;
+    const source: RecommendationsSource =
+      sourceRaw === 'profile' || sourceRaw === 'cart' || sourceRaw === 'browse' || sourceRaw === 'global'
+        ? sourceRaw
+        : 'global';
+    const isPersonalized = Boolean((payload as Record<string, unknown>).is_personalized);
+    const collection = extractCollection((payload as Record<string, unknown>).items);
+    if (!collection) return { items: [], source, isPersonalized };
+
+    const items = collection
       .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
       .filter((item): item is CatalogProduct => item !== null)
       .filter((p) => p.stock > 0);
+    return { items, source, isPersonalized };
   } catch {
     // If the recommendations endpoint fails, return empty —
     // the Home screen will simply not show the section.
-    return [];
+    return { items: [], source: 'global', isPersonalized: false };
   }
+}
+
+/**
+ * Persist a detail-page view for personalized recommendations (browse fallback).
+ * Fire-and-forget from the product screen; ignores errors silently at call sites if desired.
+ */
+export async function recordProductDetailView(productId: string, userEmail: string): Promise<void> {
+  const email = userEmail.trim();
+  if (!email) return;
+
+  await request(CATALOG(`/products/${encodeURIComponent(productId)}/recent-detail-view`), {
+    method: 'POST',
+    auth: true,
+    headers: { 'X-User-Email': email },
+  });
 }
 
 export async function fetchCatalogProductById(id: string): Promise<CatalogProduct | null> {

@@ -515,17 +515,22 @@ export default function HomeScreen() {
   // CA4: Recomendaciones personalizadas cargadas desde el backend.
   // Se cargan asincrónicamente. Si no hay datos o falla, la sección no se muestra.
   const [recommendedProducts, setRecommendedProducts] = useState<CatalogProduct[]>([]);
+  const [hasPersonalizedRecommendations, setHasPersonalizedRecommendations] = useState(false);
 
   useEffect(() => {
     // No mostramos recomendaciones cuando hay filtros activos
     // ni cuando el usuario no esta autenticado.
     if (hasActiveFilters || !user) {
       setRecommendedProducts([]);
+      setHasPersonalizedRecommendations(false);
       return;
     }
     let cancelled = false;
-    fetchRecommendedProducts(12).then((recs) => {
-      if (!cancelled) setRecommendedProducts(recs);
+    fetchRecommendedProducts(12).then((result) => {
+      if (!cancelled) {
+        setRecommendedProducts(result.items);
+        setHasPersonalizedRecommendations(result.isPersonalized);
+      }
     });
     return () => { cancelled = true; };
   }, [products, hasActiveFilters, user]);
@@ -789,7 +794,7 @@ export default function HomeScreen() {
             )}
 
             {/* ── Recommendations — CA4 (solo usuarios autenticados) ── */}
-            {user && recommendedSectionProducts.length > 0 && (
+            {user && hasPersonalizedRecommendations && recommendedSectionProducts.length > 0 && (
               <>
                 <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
                   <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Para vos</Text>
