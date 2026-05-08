@@ -256,6 +256,7 @@ export default function ProductDetailScreen() {
   const [adding, setAdding] = useState(false);
   const [qty, setQty] = useState(1);
   const [showToast, setShowToast] = useState(false);
+  const authUser = useAuthStore((s) => s.user);
   const viewerEmail = useAuthStore((s) => s.user?.email)?.trim();
 
   const shareProduct = async () => {
@@ -498,6 +499,17 @@ export default function ProductDetailScreen() {
             ]}
             onPress={async () => {
               if (!product || adding || outOfStock) return;
+              if (!authUser?.email) {
+                Alert.alert(
+                  'Iniciar sesión',
+                  'Para agregar productos al carrito necesitás iniciar sesión.',
+                  [
+                    { text: 'Cancelar', style: 'cancel' },
+                    { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+                  ],
+                );
+                return;
+              }
 
               const inCart = cartItems.find((i) => i.productId === product.id);
               const currentQty = inCart ? inCart.quantity : 0;
