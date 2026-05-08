@@ -25,7 +25,9 @@ import {
     type CatalogProduct,
   getSellerDisplayName,
     fetchCatalogProductById,
+    recordProductDetailView,
 } from '@/services/catalog';
+import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -254,6 +256,7 @@ export default function ProductDetailScreen() {
   const [adding, setAdding] = useState(false);
   const [qty, setQty] = useState(1);
   const [showToast, setShowToast] = useState(false);
+  const viewerEmail = useAuthStore((s) => s.user?.email)?.trim();
 
   const shareProduct = async () => {
     if (!productId) return;
@@ -284,6 +287,11 @@ export default function ProductDetailScreen() {
       try {
         const fromApi = await fetchCatalogProductById(productId);
         if (mounted) setProduct(fromApi);
+        if (mounted && fromApi && viewerEmail) {
+          void recordProductDetailView(productId, viewerEmail).catch(() => {
+            /* no UI impact */
+          });
+        }
       } catch {
         if (mounted) setNetworkError(true);
       } finally {
@@ -301,7 +309,7 @@ export default function ProductDetailScreen() {
     return () => {
       mounted = false;
     };
-  }, [productId]);
+  }, [productId, viewerEmail]);
 
   if (loading) {
     return <ProductDetailSkeleton bg={C.bg} base={C.skeletonBase} />;
