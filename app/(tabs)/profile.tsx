@@ -309,10 +309,37 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* ── Menú ── */}
+          {/* ── Mis compras ── */}
+          <View style={s.section}>
+            <Text style={[s.sectionLabel, { color: C.textMuted }]}>Mis compras</Text>
+            <MenuRow
+              icon="shopping-bag"
+              label="Órdenes de compra"
+              onPress={() => router.push('/orders/purchases')}
+              C={C}
+            />
+          </View>
+
+          {/* ── Mis ventas ── */}
+          <View style={s.section}>
+            <Text style={[s.sectionLabel, { color: C.textMuted }]}>Mis ventas</Text>
+            <MenuRow
+              icon="storefront"
+              label="Órdenes de venta"
+              onPress={() => router.push('/orders/sales')}
+              C={C}
+            />
+            <MenuRow
+              icon="inventory-2"
+              label="Mis publicaciones"
+              onPress={() => router.push('/profile/publications')}
+              C={C}
+            />
+          </View>
+
+          {/* ── Otros ── */}
           <View style={s.section}>
             <Text style={[s.sectionLabel, { color: C.textMuted }]}>Actividad</Text>
-            <MenuRow icon="inventory-2"      label="Mis publicaciones" onPress={() => router.push('/profile/publications')} C={C} />
             <MenuRow icon="favorite-border"  label="Wishlist"          onPress={() => {}} C={C} />
             <MenuRow icon="notifications-none" label="Notificaciones"  onPress={() => {}} C={C} />
           </View>

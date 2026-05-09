@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
 
-export default function CheckoutProcessingScreen() {
+export default function CheckoutFailureScreen() {
   const C = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -69,7 +69,7 @@ export default function CheckoutProcessingScreen() {
               style={[
                 s.ring,
                 {
-                  borderColor: C.accent,
+                  borderColor: C.red,
                   transform: [{ scale: ringScale }],
                   opacity: ringOpacity,
                 },
@@ -79,20 +79,20 @@ export default function CheckoutProcessingScreen() {
               style={[
                 s.iconCircle,
                 {
-                  backgroundColor: C.accentGlow,
-                  borderColor: C.accent,
-                  shadowColor: C.accent,
+                  backgroundColor: C.redBg,
+                  borderColor: C.red,
+                  shadowColor: C.red,
                 },
               ]}>
-              <MaterialIcons name="check-circle" size={56} color={C.accent} />
+              <MaterialIcons name="error-outline" size={56} color={C.red} />
             </View>
           </View>
 
           <Animated.View style={{ opacity: contentOpacity, alignItems: 'center', gap: 8 }}>
-            <Text style={[s.title, { color: C.textPrimary }]}>¡Pago confirmado!</Text>
+            <Text style={[s.title, { color: C.textPrimary }]}>Pago rechazado</Text>
             <Text style={[s.subtitle, { color: C.textSecondary }]}>
-              Tu pago fue acreditado y la orden quedó confirmada.
-              Podés ver el detalle desde &quot;Mis compras&quot;.
+              Tu pago no se pudo procesar. Volvé a intentar o probá con otro método.
+              No se realizó ningún cobro.
             </Text>
           </Animated.View>
         </View>
@@ -100,11 +100,11 @@ export default function CheckoutProcessingScreen() {
 
       <View style={[s.bottom, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <TouchableOpacity
-          onPress={() => router.replace('/orders/purchases')}
+          onPress={() => router.replace('/checkout')}
           activeOpacity={0.92}
           style={[s.primaryBtn, { backgroundColor: C.accent, shadowColor: C.accent }]}>
-          <MaterialIcons name="receipt-long" size={18} color="#050508" />
-          <Text style={s.primaryBtnText}>Ver mis compras</Text>
+          <MaterialIcons name="refresh" size={18} color="#050508" />
+          <Text style={s.primaryBtnText}>Reintentar pago</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.replace('/(tabs)')}

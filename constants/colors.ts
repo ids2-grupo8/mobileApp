@@ -12,6 +12,8 @@ export type ThemeColors = {
   textMuted: string;
   red: string;
   redBg: string;
+  amber: string;
+  amberBg: string;
   inputBg: string;
   inputBorder: string;
   inputBorderError: string;
@@ -48,6 +50,8 @@ export const dark: ThemeColors = {
   // ── Feedback ──
   red:              '#FF6B6B',
   redBg:            'rgba(255,107,107,0.10)',
+  amber:            '#FBBF24',
+  amberBg:          'rgba(251,191,36,0.12)',
 
   // ── Inputs ──
   inputBg:          'rgba(255,255,255,0.04)',
@@ -91,6 +95,8 @@ export const light: ThemeColors = {
   // ── Feedback ──
   red:              '#E03E3E',
   redBg:            'rgba(224,62,62,0.08)',
+  amber:            '#D97706',
+  amberBg:          'rgba(217,119,6,0.08)',
 
   // ── Inputs ──
   inputBg:          'rgba(255,255,255,0.60)',

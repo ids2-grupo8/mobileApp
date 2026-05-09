@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
 
-export default function CheckoutProcessingScreen() {
+export default function CheckoutPendingScreen() {
   const C = useTheme();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -84,15 +84,15 @@ export default function CheckoutProcessingScreen() {
                   shadowColor: C.accent,
                 },
               ]}>
-              <MaterialIcons name="check-circle" size={56} color={C.accent} />
+              <MaterialIcons name="schedule" size={56} color={C.accent} />
             </View>
           </View>
 
           <Animated.View style={{ opacity: contentOpacity, alignItems: 'center', gap: 8 }}>
-            <Text style={[s.title, { color: C.textPrimary }]}>¡Pago confirmado!</Text>
+            <Text style={[s.title, { color: C.textPrimary }]}>Pago pendiente</Text>
             <Text style={[s.subtitle, { color: C.textSecondary }]}>
-              Tu pago fue acreditado y la orden quedó confirmada.
-              Podés ver el detalle desde &quot;Mis compras&quot;.
+              Tu pago está esperando confirmación. Esto puede tardar unos minutos.
+              Te avisaremos apenas se acredite.
             </Text>
           </Animated.View>
         </View>

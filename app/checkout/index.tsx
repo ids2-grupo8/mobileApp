@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
+import { pollOrdersUntilResolved } from '@/services/orders';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useCheckoutStore } from '@/store/checkout';
@@ -33,8 +34,11 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
-const SHIPPING_FLAT = 1500;
-const FREE_SHIPPING_THRESHOLD = 50000;
+function formatCountdown(seconds: number): string {
+  const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+  const s = (seconds % 60).toString().padStart(2, '0');
+  return `${m}:${s}`;
+}
 
 type PaymentMethod = 'mercadopago';
 
@@ -213,6 +217,17 @@ const s = StyleSheet.create({
   },
   ctaText: { color: '#050508', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
 
+  countdownBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  countdownText: { fontSize: 12, fontWeight: '700', flex: 1 },
+
   emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   emptyText: { fontSize: 14, fontWeight: '500' },
 });
@@ -363,7 +378,7 @@ export default function CheckoutScreen() {
 
   const items = useCartStore((s) => s.items);
   const subtotal = useCartStore((s) => s.subtotal());
-  const clear = useCartStore((s) => s.clear);
+  const clearLocal = useCartStore((s) => s.clearLocal);
   const syncWithBackend = useCartStore((s) => s.syncWithBackend);
   const user = useAuthStore((s) => s.user);
   const { isSubmitting: checkoutSubmitting, submitMercadoPago } = useCheckoutStore();
@@ -372,6 +387,25 @@ export default function CheckoutScreen() {
   useEffect(() => {
     syncWithBackend();
   }, [syncWithBackend]);
+
+  // Countdown de 5 minutos mientras esperamos confirmación de pago
+  useEffect(() => {
+    if (!verifyingPayment) {
+      setSecondsLeft(null);
+      return;
+    }
+    setSecondsLeft(5 * 60);
+    const interval = setInterval(() => {
+      setSecondsLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [verifyingPayment]);
 
   const [address, setAddress] = useState<Address>({
     fullName: user?.name ?? '',
@@ -382,9 +416,15 @@ export default function CheckoutScreen() {
   });
   const [errors, setErrors] = useState<Errors>({});
   const [payment, setPayment] = useState<PaymentMethod>('mercadopago');
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  // Idempotency key estable por mount: si el usuario reintenta sin abandonar
+  // la pantalla, el backend reusa las órdenes en PAYMENT_PENDING.
+  const [idempotencyKey] = useState(
+    () => `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  );
 
-  const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
-  const total = subtotal + shipping;
+  const total = subtotal;
   const itemCount = useMemo(() => items.reduce((acc, i) => acc + i.quantity, 0), [items]);
 
   const setField = <K extends keyof Address>(key: K, value: string) => {
@@ -426,19 +466,41 @@ export default function CheckoutScreen() {
 
     try {
       if (payment === 'mercadopago') {
-        const checkoutUrl = await submitMercadoPago();
+        const { checkoutUrl, orderIds } = await submitMercadoPago(idempotencyKey, address);
         await openBrowserAsync(checkoutUrl);
 
-        const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-        await clear();
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
+        // MP no respeta back_urls con deep links, así que polleamos el estado
+        // de las órdenes hasta que el webhook las resuelva (o timeout).
+        setVerifyingPayment(true);
+        try {
+          const resolution = await pollOrdersUntilResolved(orderIds);
+          await syncWithBackend();
+
+          if (resolution === 'confirmed') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            router.replace('/checkout/success');
+          } else if (resolution === 'rejected') {
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+            router.replace('/checkout/failure');
+          } else {
+            // Timeout sin resolución: probablemente el usuario cerró el browser
+            // sin pagar. Lo dejamos en /checkout para que pueda reintentar:
+            // como conserva el mismo idempotencyKey, el backend reusa las
+            // órdenes pendientes en vez de crear nuevas.
+            Alert.alert(
+              'Pago no completado',
+              'No detectamos confirmación del pago. Si querés reintentar, tocá "Pagar" de nuevo.',
+            );
+          }
+        } finally {
+          setVerifyingPayment(false);
+        }
       } else {
         // Stripe — gateway call goes here
         await new Promise((r) => setTimeout(r, 1500));
 
         const orderId = `ORD-${Date.now().toString(36).toUpperCase()}`;
-        await clear();
+        await clearLocal();
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         router.replace({ pathname: '/checkout/success', params: { orderId, total: String(total) } });
       }
@@ -582,6 +644,13 @@ export default function CheckoutScreen() {
                 Pago procesado de forma segura. Tu información no se almacena en este dispositivo.
               </Text>
             </View>
+
+            <View style={[s.notice, { backgroundColor: C.amberBg, borderColor: C.amber, marginTop: 0 }]}>
+              <MaterialIcons name="schedule" size={14} color={C.amber} />
+              <Text style={[s.noticeText, { color: C.amber }]}>
+                Una vez que iniciés el pago, tenés <Text style={{ fontWeight: '800' }}>5 minutos</Text> para completarlo. Si no pagás en ese tiempo, la orden se cancelará y el stock se liberará.
+              </Text>
+            </View>
           </Section>
 
           <Section title="Resumen" step={3} C={C}>
@@ -616,16 +685,6 @@ export default function CheckoutScreen() {
                   {formatPrice(subtotal)}
                 </Text>
               </View>
-              <View style={s.totalsRow}>
-                <Text style={[s.totalsLabel, { color: C.textSecondary }]}>Envío</Text>
-                <Text
-                  style={[
-                    s.totalsValue,
-                    { color: shipping === 0 ? C.accent : C.textPrimary },
-                  ]}>
-                  {shipping === 0 ? 'Gratis' : formatPrice(shipping)}
-                </Text>
-              </View>
               <View style={[s.summaryDivider, { backgroundColor: C.glassBorder }]} />
               <View style={s.totalsRow}>
                 <Text style={[s.totalsLabelLg, { color: C.textPrimary }]}>Total a pagar</Text>
@@ -649,22 +708,43 @@ export default function CheckoutScreen() {
             <Text style={[s.stickyLabel, { color: C.textSecondary }]}>Total</Text>
             <Text style={[s.stickyTotal, { color: C.textPrimary }]}>{formatPrice(total)}</Text>
           </View>
+
+          {verifyingPayment && secondsLeft !== null && (
+            <View style={[s.countdownBanner, {
+              backgroundColor: secondsLeft <= 60 ? C.redBg : C.amberBg,
+              borderColor: secondsLeft <= 60 ? C.red : C.amber,
+            }]}>
+              <MaterialIcons
+                name="schedule"
+                size={14}
+                color={secondsLeft <= 60 ? C.red : C.amber}
+              />
+              <Text style={[s.countdownText, { color: secondsLeft <= 60 ? C.red : C.amber }]}>
+                {secondsLeft > 0
+                  ? `Tiempo para pagar: ${formatCountdown(secondsLeft)}`
+                  : 'Tiempo agotado — la orden fue cancelada'}
+              </Text>
+            </View>
+          )}
+
           <TouchableOpacity
             onPress={handleSubmit}
-            disabled={checkoutSubmitting}
+            disabled={checkoutSubmitting || verifyingPayment}
             activeOpacity={0.92}
             style={[
               s.cta,
               {
-                backgroundColor: checkoutSubmitting ? C.accentDim : C.accent,
+                backgroundColor: checkoutSubmitting || verifyingPayment ? C.accentDim : C.accent,
                 shadowColor: C.accent,
-                opacity: checkoutSubmitting ? 0.85 : 1,
+                opacity: checkoutSubmitting || verifyingPayment ? 0.85 : 1,
               },
             ]}>
-            {checkoutSubmitting ? (
+            {checkoutSubmitting || verifyingPayment ? (
               <>
                 <ActivityIndicator color="#050508" size="small" />
-                <Text style={s.ctaText}>Procesando pago...</Text>
+                <Text style={s.ctaText}>
+                  {verifyingPayment ? 'Verificando pago...' : 'Procesando pago...'}
+                </Text>
               </>
             ) : (
               <>
