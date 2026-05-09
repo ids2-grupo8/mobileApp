@@ -26,9 +26,6 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
-const SHIPPING_FLAT = 1500;
-const FREE_SHIPPING_THRESHOLD = 50000;
-
 function CartRow({
   item,
   C,
@@ -144,10 +141,7 @@ export default function CartScreen() {
   const hasUnavailableItems = unavailableItems.length > 0;
   const canCheckout = items.length > 0 && !hasUnavailableItems;
 
-  const shipping = subtotal === 0 || subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_FLAT;
-  const total = subtotal + shipping;
-  const remainingForFreeShipping = Math.max(0, FREE_SHIPPING_THRESHOLD - subtotal);
-  const freeShippingProgress = Math.min(1, subtotal / FREE_SHIPPING_THRESHOLD);
+  const total = subtotal;
 
   // Sincronizar carrito con backend al entrar a la pantalla
   useEffect(() => {
@@ -265,47 +259,6 @@ export default function CartScreen() {
           <ScrollView
             contentContainerStyle={[s.scrollContent, { paddingBottom: 280 + insets.bottom }]}
             showsVerticalScrollIndicator={false}>
-            {/* Free shipping progress */}
-            {subtotal < FREE_SHIPPING_THRESHOLD ? (
-              <View
-                style={[
-                  s.shippingHint,
-                  { backgroundColor: C.glass, borderColor: C.glassBorder },
-                ]}>
-                <View style={s.shippingHintTop}>
-                  <MaterialIcons name="local-shipping" size={18} color={C.accent} />
-                  <Text style={[s.shippingHintText, { color: C.textSecondary }]}>
-                    Te faltan{' '}
-                    <Text style={{ color: C.accent, fontWeight: '700' }}>
-                      {formatPrice(remainingForFreeShipping)}
-                    </Text>{' '}
-                    para envío gratis
-                  </Text>
-                </View>
-                <View style={[s.progressTrack, { backgroundColor: C.glassBorder }]}>
-                  <View
-                    style={[
-                      s.progressFill,
-                      { backgroundColor: C.accent, width: `${freeShippingProgress * 100}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-            ) : (
-              <View
-                style={[
-                  s.shippingHint,
-                  { backgroundColor: C.accentGlow, borderColor: C.accent },
-                ]}>
-                <View style={s.shippingHintTop}>
-                  <MaterialIcons name="check-circle" size={18} color={C.accent} />
-                  <Text style={[s.shippingHintText, { color: C.accent, fontWeight: '700' }]}>
-                    ¡Tenés envío gratis!
-                  </Text>
-                </View>
-              </View>
-            )}
-
             <View style={s.list}>
               {items.map((item) => (
                 <CartRow
@@ -336,16 +289,6 @@ export default function CartScreen() {
                 <Text style={[s.totalsLabel, { color: C.textSecondary }]}>Subtotal</Text>
                 <Text style={[s.totalsValue, { color: C.textPrimary }]}>
                   {formatPrice(subtotal)}
-                </Text>
-              </View>
-              <View style={s.totalsRow}>
-                <Text style={[s.totalsLabel, { color: C.textSecondary }]}>Envío</Text>
-                <Text
-                  style={[
-                    s.totalsValue,
-                    { color: shipping === 0 ? C.accent : C.textPrimary },
-                  ]}>
-                  {shipping === 0 ? 'Gratis' : formatPrice(shipping)}
                 </Text>
               </View>
               <View style={[s.totalsDivider, { backgroundColor: C.glassBorder }]} />
@@ -447,18 +390,6 @@ const s = StyleSheet.create({
   // ── List ──
   scrollContent: { paddingHorizontal: 20 },
   list: { gap: 12, marginTop: 16 },
-
-  // ── Free shipping ──
-  shippingHint: {
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 14,
-    gap: 10,
-  },
-  shippingHintTop: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  shippingHintText: { fontSize: 13, flex: 1 },
-  progressTrack: { height: 4, borderRadius: 2, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 2 },
 
   // ── Row ──
   row: {

@@ -371,12 +371,23 @@ export default function HomeScreen() {
     const available = Math.max(0, product.stock - currentQty);
 
     if (available <= 0) {
-      Alert.alert('Stock insuficiente', `No podés agregar más. Stock máximo: ${product.stock}`);
+      Alert.alert(
+        'Sin stock',
+        product.stock <= 0
+          ? 'Este producto no tiene unidades disponibles. No se puede agregar al carrito.'
+          : `Ya tenés en el carrito la cantidad máxima (${product.stock} ${product.stock === 1 ? 'unidad' : 'unidades'}). No hay más stock para agregar.`,
+      );
       return;
     }
 
     try {
       await addItem(product, 1);
+      const err = useCartStore.getState().error;
+      if (err) {
+        Alert.alert('No se pudo agregar al carrito', err);
+        useCartStore.setState({ error: null });
+        return;
+      }
       Alert.alert('Agregado', 'Producto agregado al carrito');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'No se pudo agregar el producto';

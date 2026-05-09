@@ -249,7 +249,6 @@ export default function ProductDetailScreen() {
   const C = useTheme();
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
-  const cartError = useCartStore((s) => s.error);
 
   const [product, setProduct] = useState<CatalogProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -312,12 +311,6 @@ export default function ProductDetailScreen() {
       mounted = false;
     };
   }, [productId, viewerEmail]);
-
-  useEffect(() => {
-    if (cartError) {
-      Alert.alert('Error', cartError);
-    }
-  }, [cartError]);
 
   if (loading) {
     return <ProductDetailSkeleton bg={C.bg} base={C.skeletonBase} />;
@@ -523,7 +516,12 @@ export default function ProductDetailScreen() {
               const available = Math.max(0, product.stock - currentQty);
 
               if (available <= 0) {
-                Alert.alert('Stock insuficiente', `No podés agregar más. Stock máximo: ${product.stock}`);
+                Alert.alert(
+                  'Sin stock',
+                  product.stock <= 0
+                    ? 'Este producto no tiene unidades disponibles. No se puede agregar al carrito.'
+                    : `Ya tenés en el carrito la cantidad máxima (${product.stock} ${product.stock === 1 ? 'unidad' : 'unidades'}). No hay más stock para agregar.`,
+                );
                 return;
               }
 
@@ -532,6 +530,12 @@ export default function ProductDetailScreen() {
               setAdding(true);
               try {
                 await addItem(product, qtyToAdd);
+                const err = useCartStore.getState().error;
+                if (err) {
+                  Alert.alert('No se pudo agregar al carrito', err);
+                  useCartStore.setState({ error: null });
+                  return;
+                }
                 setShowToast(true);
                 setTimeout(() => {
                   setShowToast(false);
