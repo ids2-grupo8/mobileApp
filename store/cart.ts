@@ -4,6 +4,26 @@ import { create } from 'zustand';
 import type { CatalogProduct } from '@/services/catalog';
 import { addToCart, getCartItems, removeFromCart, updateCartItem } from '@/services/cart';
 
+/** Mensaje en español para fallos de stock al agregar al carrito (API checkout en inglés). */
+function userMessageForAddToCartFailure(raw: string): string {
+  const t = raw.trim();
+  const lower = t.toLowerCase();
+  if (lower.includes('product out of stock')) {
+    return 'Este producto ya no tiene stock. Elegí otro producto o probá más tarde.';
+  }
+  if (lower.includes('insufficient stock')) {
+    const avail = t.match(/available:\s*(\d+)/i);
+    if (avail) {
+      return `No hay stock suficiente: solo quedan ${avail[1]} unidad(es). Bajá la cantidad o actualizá la pantalla por si el inventario cambió.`;
+    }
+    return 'No hay stock suficiente para la cantidad que pediste. Revisá la cantidad o actualizá el producto.';
+  }
+  if (lower.includes('out of stock')) {
+    return 'Este producto está sin stock. No se puede agregar al carrito.';
+  }
+  return t;
+}
+
 const CART_KEY = 'cart_items_v1';
 
 export type CartItem = {
@@ -93,7 +113,22 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
       if (qtyToAdd <= 0) {
         console.log('[Cart] Stock insuficiente');
-        set({ error: 'Stock insuficiente' });
+        const stockAvail = Math.max(
+          0,
+          typeof product.stock === 'number' ? product.stock : 0,
+        );
+        let msg: string;
+        if (stockAvail <= 0) {
+          msg =
+            'Este producto no tiene stock disponible. No se puede agregar al carrito.';
+        } else if (exists && exists.quantity >= stockAvail) {
+          const unit = stockAvail === 1 ? 'unidad' : 'unidades';
+          msg = `Ya tenés en el carrito el máximo que se puede comprar (${stockAvail} ${unit}). No hay más stock para agregar.`;
+        } else {
+          msg =
+            'No podés agregar más unidades: el stock disponible no alcanza. Actualizá la pantalla por si cambió el inventario.';
+        }
+        set({ error: msg });
         return;
       }
 
@@ -138,8 +173,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       console.log('[Cart] addItem complete');
     } catch (err) {
       console.error('[Cart] addItem error', err);
-      const msg = err instanceof Error ? err.message : 'Error al agregar al carrito';
-      set({ error: msg });
+      const raw = err instanceof Error ? err.message : 'Error al agregar al carrito';
+      set({ error: userMessageForAddToCartFailure(raw) });
     }
   },
 
