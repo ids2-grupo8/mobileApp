@@ -50,6 +50,28 @@ export type CreateProductData =
       size: string;
       color: string;
       material: string;
+    })
+  | (BaseCreateProductData & {
+      category: 'Books';
+      author: string;
+      publisher: string;
+      isbn: string;
+      genre: string;
+      language: string;
+    })
+  | (BaseCreateProductData & {
+      category: 'Home';
+      brand: string;
+      material: string;
+      room_type: string;
+      dimensions: string;
+    })
+  | (BaseCreateProductData & {
+      category: 'Sports';
+      brand: string;
+      sport: string;
+      size: string;
+      material: string;
     });
 
 export type CatalogProduct = {
@@ -392,6 +414,14 @@ export async function fetchProductsBySellerEmail(email: string): Promise<Catalog
     .filter((item): item is CatalogProduct => item !== null);
 }
 
+function getCategoryAttrs(data: CreateProductData): Record<string, unknown> {
+  if (data.category === 'Electronics') return { brand: data.brand, model: data.model, warranty_months: data.warranty_months };
+  if (data.category === 'Books') return { author: data.author, publisher: data.publisher, isbn: data.isbn, genre: data.genre, language: data.language };
+  if (data.category === 'Home') return { brand: data.brand, material: data.material, room_type: data.room_type, dimensions: data.dimensions };
+  if (data.category === 'Sports') return { brand: data.brand, sport: data.sport, size: data.size, material: data.material };
+  return { size: data.size, color: data.color, material: data.material };
+}
+
 export async function createProductRequest(data: CreateProductData): Promise<void> {
   // POST /products  — multipart/form-data: product_data (JSON string) + images (files)
   const productData = JSON.stringify({
@@ -400,17 +430,7 @@ export async function createProductRequest(data: CreateProductData): Promise<voi
     price: data.price,
     actual_stock: data.actual_stock,
     category: data.category,
-    ...(data.category === 'Electronics'
-      ? {
-          brand: data.brand,
-          model: data.model,
-          warranty_months: data.warranty_months,
-        }
-      : {
-          size: data.size,
-          color: data.color,
-          material: data.material,
-        }),
+    ...getCategoryAttrs(data),
   });
 
   await requestFormData(CATALOG('/products'), {
@@ -432,17 +452,7 @@ export async function updateProductRequest(
     price: data.price,
     actual_stock: data.actual_stock,
     category: data.category,
-    ...(data.category === 'Electronics'
-      ? {
-          brand: data.brand,
-          model: data.model,
-          warranty_months: data.warranty_months,
-        }
-      : {
-          size: data.size,
-          color: data.color,
-          material: data.material,
-        }),
+    ...getCategoryAttrs(data),
   });
 
   await requestFormData(CATALOG(`/products/${encodeURIComponent(productId)}`), {

@@ -37,6 +37,34 @@ const HERO_H = SCREEN_W * 1.1;
 const CATEGORY_LABELS: Record<string, string> = {
   Electronics: 'Electrónica',
   Clothing: 'Ropa',
+  Books: 'Libros',
+  Home: 'Hogar',
+  Sports: 'Deportes',
+};
+
+const ATTRIBUTE_LABELS: Record<string, string> = {
+  brand: 'Marca',
+  model: 'Modelo',
+  warranty_months: 'Garantía (meses)',
+  size: 'Talle',
+  color: 'Color',
+  material: 'Material',
+  author: 'Autor',
+  publisher: 'Editorial',
+  isbn: 'ISBN',
+  genre: 'Género',
+  language: 'Idioma',
+  room_type: 'Ambiente',
+  dimensions: 'Dimensiones',
+  sport: 'Deporte',
+};
+
+const CATEGORY_ATTR_ORDER: Record<string, string[]> = {
+  Electronics: ['brand', 'model', 'warranty_months'],
+  Clothing: ['size', 'color', 'material'],
+  Books: ['author', 'publisher', 'isbn', 'genre', 'language'],
+  Home: ['brand', 'material', 'room_type', 'dimensions'],
+  Sports: ['brand', 'sport', 'size', 'material'],
 };
 
 function formatPrice(value: number) {
@@ -363,6 +391,15 @@ export default function ProductDetailScreen() {
   const isOwnProduct = !!sellerEmailNorm && !!viewerEmailNorm && sellerEmailNorm === viewerEmailNorm;
   const cannotBuy = outOfStock || isOwnProduct;
 
+  const attrRows: { label: string; value: string }[] = (() => {
+    const attrs = product.attributes;
+    if (!attrs) return [];
+    const order = CATEGORY_ATTR_ORDER[product.category] ?? Object.keys(attrs);
+    return order
+      .filter((key) => attrs[key] != null && String(attrs[key]).trim() !== '')
+      .map((key) => ({ label: ATTRIBUTE_LABELS[key] ?? key, value: String(attrs[key]) }));
+  })();
+
   return (
     <View style={[s.root, { backgroundColor: C.bg }]}>
       <ScrollView
@@ -422,6 +459,23 @@ export default function ProductDetailScreen() {
             />
           </View>
         </View>
+
+        {/* ── Especificaciones ── */}
+        {attrRows.length > 0 && (
+          <View style={s.attrsSection}>
+            <View style={[s.attrsCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
+              <Text style={[s.attrsTitle, { color: C.textPrimary }]}>Especificaciones</Text>
+              {attrRows.map(({ label, value }, i) => (
+                <View
+                  key={label}
+                  style={[s.attrRow, i < attrRows.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.glassBorder }]}>
+                  <Text style={[s.attrLabel, { color: C.textSecondary }]}>{label}</Text>
+                  <Text style={[s.attrValue, { color: C.textPrimary }]}>{value}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
         <View style={s.sellerSection}>
           <TouchableOpacity
@@ -801,6 +855,41 @@ const s = StyleSheet.create({
     height: 40,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+  },
+
+  // ── Attributes ──
+  attrsSection: {
+    paddingHorizontal: 20,
+    marginTop: 18,
+  },
+  attrsCard: {
+    borderWidth: 1,
+    borderRadius: 20,
+    padding: 18,
+    gap: 0,
+  },
+  attrsTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    letterSpacing: -0.2,
+  },
+  attrRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  attrLabel: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
+  attrValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'right',
   },
 
   // ── Seller ──

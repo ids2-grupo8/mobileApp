@@ -32,16 +32,20 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
 import {
+  type CreateProductData,
   createProductRequest,
   fetchCatalogProductById,
   updateProductRequest,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 
-const CATEGORIES = ['Electronics', 'Clothing'] as const;
+const CATEGORIES = ['Electronics', 'Clothing', 'Books', 'Home', 'Sports'] as const;
 const CATEGORY_LABELS: Record<(typeof CATEGORIES)[number], string> = {
   Electronics: 'Electrónica',
   Clothing: 'Ropa',
+  Books: 'Libros',
+  Home: 'Hogar',
+  Sports: 'Deportes',
 };
 
 const THUMB_SIZE = 90;
@@ -50,7 +54,7 @@ const SLOT_W = THUMB_SIZE + THUMB_GAP;
 const MAX_IMAGES = 8;
 
 type ManagedImage = { uri: string; isRemote: boolean };
-type Errors = Partial<Record<'images' | 'title' | 'description' | 'price' | 'stock' | 'category' | 'brand' | 'model' | 'warranty_months' | 'size' | 'color' | 'material', string>>;
+type Errors = Partial<Record<'images' | 'title' | 'description' | 'price' | 'stock' | 'category' | 'brand' | 'model' | 'warranty_months' | 'size' | 'color' | 'material' | 'author' | 'publisher' | 'isbn' | 'genre' | 'language' | 'room_type' | 'dimensions' | 'sport', string>>;
 
 const triggerHapticMedium = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 const triggerHapticLight = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -346,12 +350,7 @@ function validate(
   price: string,
   stock: string,
   category: string,
-  electronicsBrand: string,
-  electronicsModel: string,
-  electronicsWarrantyMonths: string,
-  clothingSize: string,
-  clothingColor: string,
-  clothingMaterial: string,
+  attrs: Record<string, string>,
 ): Errors {
   const e: Errors = {};
   if (images.length === 0) e.images = 'Agregá al menos una imagen.';
@@ -366,17 +365,35 @@ function validate(
   if (!category) e.category = 'Seleccioná una categoría.';
 
   if (category === 'Electronics') {
-    if (!electronicsBrand.trim()) e.brand = 'La marca es obligatoria.';
-    if (!electronicsModel.trim()) e.model = 'El modelo es obligatorio.';
-    const warranty = parseInt(electronicsWarrantyMonths, 10);
-    if (!electronicsWarrantyMonths.trim()) e.warranty_months = 'La garantía es obligatoria.';
+    if (!attrs.brand?.trim()) e.brand = 'La marca es obligatoria.';
+    if (!attrs.model?.trim()) e.model = 'El modelo es obligatorio.';
+    const warranty = parseInt(attrs.warranty_months ?? '', 10);
+    if (!attrs.warranty_months?.trim()) e.warranty_months = 'La garantía es obligatoria.';
     else if (Number.isNaN(warranty) || warranty < 0) e.warranty_months = 'La garantía debe ser un número válido.';
   }
-
   if (category === 'Clothing') {
-    if (!clothingSize.trim()) e.size = 'El talle es obligatorio.';
-    if (!clothingColor.trim()) e.color = 'El color es obligatorio.';
-    if (!clothingMaterial.trim()) e.material = 'El material es obligatorio.';
+    if (!attrs.size?.trim()) e.size = 'El talle es obligatorio.';
+    if (!attrs.color?.trim()) e.color = 'El color es obligatorio.';
+    if (!attrs.material?.trim()) e.material = 'El material es obligatorio.';
+  }
+  if (category === 'Books') {
+    if (!attrs.author?.trim()) e.author = 'El autor es obligatorio.';
+    if (!attrs.publisher?.trim()) e.publisher = 'La editorial es obligatoria.';
+    if (!attrs.isbn?.trim()) e.isbn = 'El ISBN es obligatorio.';
+    if (!attrs.genre?.trim()) e.genre = 'El género es obligatorio.';
+    if (!attrs.language?.trim()) e.language = 'El idioma es obligatorio.';
+  }
+  if (category === 'Home') {
+    if (!attrs.brand?.trim()) e.brand = 'La marca es obligatoria.';
+    if (!attrs.material?.trim()) e.material = 'El material es obligatorio.';
+    if (!attrs.room_type?.trim()) e.room_type = 'El tipo de ambiente es obligatorio.';
+    if (!attrs.dimensions?.trim()) e.dimensions = 'Las dimensiones son obligatorias.';
+  }
+  if (category === 'Sports') {
+    if (!attrs.brand?.trim()) e.brand = 'La marca es obligatoria.';
+    if (!attrs.sport?.trim()) e.sport = 'El deporte es obligatorio.';
+    if (!attrs.size?.trim()) e.size = 'El talle/medida es obligatorio.';
+    if (!attrs.material?.trim()) e.material = 'El material es obligatorio.';
   }
 
   return e;
@@ -402,6 +419,19 @@ export default function PublishProductScreen() {
   const [clothingSize, setClothingSize] = useState('');
   const [clothingColor, setClothingColor] = useState('');
   const [clothingMaterial, setClothingMaterial] = useState('');
+  const [booksAuthor, setBooksAuthor] = useState('');
+  const [booksPublisher, setBooksPublisher] = useState('');
+  const [booksIsbn, setBooksIsbn] = useState('');
+  const [booksGenre, setBooksGenre] = useState('');
+  const [booksLanguage, setBooksLanguage] = useState('');
+  const [homeBrand, setHomeBrand] = useState('');
+  const [homeMaterial, setHomeMaterial] = useState('');
+  const [homeRoomType, setHomeRoomType] = useState('');
+  const [homeDimensions, setHomeDimensions] = useState('');
+  const [sportsBrand, setSportsBrand] = useState('');
+  const [sportsSport, setSportsSport] = useState('');
+  const [sportsSize, setSportsSize] = useState('');
+  const [sportsMaterial, setSportsMaterial] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
@@ -410,20 +440,19 @@ export default function PublishProductScreen() {
 
   const touch = (field: string) => setTouched((t) => ({ ...t, [field]: true }));
   const revalidate = (field?: string) => {
-    const e = validate(
-      images,
-      title,
-      description,
-      price,
-      stock,
-      category,
-      electronicsBrand,
-      electronicsModel,
-      electronicsWarrantyMonths,
-      clothingSize,
-      clothingColor,
-      clothingMaterial,
-    );
+    let attrs: Record<string, string> = {};
+    if (category === 'Electronics') {
+      attrs = { brand: electronicsBrand, model: electronicsModel, warranty_months: electronicsWarrantyMonths };
+    } else if (category === 'Clothing') {
+      attrs = { size: clothingSize, color: clothingColor, material: clothingMaterial };
+    } else if (category === 'Books') {
+      attrs = { author: booksAuthor, publisher: booksPublisher, isbn: booksIsbn, genre: booksGenre, language: booksLanguage };
+    } else if (category === 'Home') {
+      attrs = { brand: homeBrand, material: homeMaterial, room_type: homeRoomType, dimensions: homeDimensions };
+    } else if (category === 'Sports') {
+      attrs = { brand: sportsBrand, sport: sportsSport, size: sportsSize, material: sportsMaterial };
+    }
+    const e = validate(images, title, description, price, stock, category, attrs);
     if (field) setErrors((prev) => ({ ...prev, [field]: e[field as keyof Errors] }));
     else setErrors(e);
     return e;
@@ -459,24 +488,41 @@ export default function PublishProductScreen() {
         setDescription(existing.description ?? '');
         setPrice(String(existing.price ?? ''));
         setStock(String(existing.stock ?? ''));
-        setCategory(existing.category === 'Electronics' || existing.category === 'Clothing' ? existing.category : '');
+        const validCats = new Set(['Electronics', 'Clothing', 'Books', 'Home', 'Sports']);
+        setCategory(validCats.has(existing.category) ? existing.category : '');
         setImages((existing.images?.length > 0 ? existing.images : [existing.imageUrl].filter(Boolean)).map((uri) => ({ uri, isRemote: true })));
+
+        setElectronicsBrand(''); setElectronicsModel(''); setElectronicsWarrantyMonths('');
+        setClothingSize(''); setClothingColor(''); setClothingMaterial('');
+        setBooksAuthor(''); setBooksPublisher(''); setBooksIsbn(''); setBooksGenre(''); setBooksLanguage('');
+        setHomeBrand(''); setHomeMaterial(''); setHomeRoomType(''); setHomeDimensions('');
+        setSportsBrand(''); setSportsSport(''); setSportsSize(''); setSportsMaterial('');
 
         const attrs = existing.attributes ?? {};
         if (existing.category === 'Electronics') {
           setElectronicsBrand(String(attrs.brand ?? ''));
           setElectronicsModel(String(attrs.model ?? ''));
           setElectronicsWarrantyMonths(String(attrs.warranty_months ?? ''));
-          setClothingSize('');
-          setClothingColor('');
-          setClothingMaterial('');
         } else if (existing.category === 'Clothing') {
           setClothingSize(String(attrs.size ?? ''));
           setClothingColor(String(attrs.color ?? ''));
           setClothingMaterial(String(attrs.material ?? ''));
-          setElectronicsBrand('');
-          setElectronicsModel('');
-          setElectronicsWarrantyMonths('');
+        } else if (existing.category === 'Books') {
+          setBooksAuthor(String(attrs.author ?? ''));
+          setBooksPublisher(String(attrs.publisher ?? ''));
+          setBooksIsbn(String(attrs.isbn ?? ''));
+          setBooksGenre(String(attrs.genre ?? ''));
+          setBooksLanguage(String(attrs.language ?? ''));
+        } else if (existing.category === 'Home') {
+          setHomeBrand(String(attrs.brand ?? ''));
+          setHomeMaterial(String(attrs.material ?? ''));
+          setHomeRoomType(String(attrs.room_type ?? ''));
+          setHomeDimensions(String(attrs.dimensions ?? ''));
+        } else if (existing.category === 'Sports') {
+          setSportsBrand(String(attrs.brand ?? ''));
+          setSportsSport(String(attrs.sport ?? ''));
+          setSportsSize(String(attrs.size ?? ''));
+          setSportsMaterial(String(attrs.material ?? ''));
         }
 
         setErrors({});
@@ -551,48 +597,26 @@ export default function PublishProductScreen() {
         description: description.trim(),
         price: parseFloat(price),
         actual_stock: parseInt(stock, 10),
-        category: category as 'Electronics' | 'Clothing',
         images: newImageFiles,
       };
 
-      if (isEditing && productId) {
-        await updateProductRequest(
-          productId,
-          category === 'Electronics'
-            ? {
-                ...basePayload,
-                category: 'Electronics',
-                brand: electronicsBrand.trim(),
-                model: electronicsModel.trim(),
-                warranty_months: parseInt(electronicsWarrantyMonths, 10),
-              }
-            : {
-                ...basePayload,
-                category: 'Clothing',
-                size: clothingSize.trim(),
-                color: clothingColor.trim(),
-                material: clothingMaterial.trim(),
-              },
-          existingImageUrls,
-        );
+      let fullPayload: CreateProductData;
+      if (category === 'Electronics') {
+        fullPayload = { ...basePayload, category: 'Electronics' as const, brand: electronicsBrand.trim(), model: electronicsModel.trim(), warranty_months: parseInt(electronicsWarrantyMonths, 10) };
+      } else if (category === 'Books') {
+        fullPayload = { ...basePayload, category: 'Books' as const, author: booksAuthor.trim(), publisher: booksPublisher.trim(), isbn: booksIsbn.trim(), genre: booksGenre.trim(), language: booksLanguage.trim() };
+      } else if (category === 'Home') {
+        fullPayload = { ...basePayload, category: 'Home' as const, brand: homeBrand.trim(), material: homeMaterial.trim(), room_type: homeRoomType.trim(), dimensions: homeDimensions.trim() };
+      } else if (category === 'Sports') {
+        fullPayload = { ...basePayload, category: 'Sports' as const, brand: sportsBrand.trim(), sport: sportsSport.trim(), size: sportsSize.trim(), material: sportsMaterial.trim() };
       } else {
-        await createProductRequest(
-          category === 'Electronics'
-            ? {
-                ...basePayload,
-                category: 'Electronics',
-                brand: electronicsBrand.trim(),
-                model: electronicsModel.trim(),
-                warranty_months: parseInt(electronicsWarrantyMonths, 10),
-              }
-            : {
-                ...basePayload,
-                category: 'Clothing',
-                size: clothingSize.trim(),
-                color: clothingColor.trim(),
-                material: clothingMaterial.trim(),
-              },
-        );
+        fullPayload = { ...basePayload, category: 'Clothing' as const, size: clothingSize.trim(), color: clothingColor.trim(), material: clothingMaterial.trim() };
+      }
+
+      if (isEditing && productId) {
+        await updateProductRequest(productId, fullPayload, existingImageUrls);
+      } else {
+        await createProductRequest(fullPayload);
       }
 
       Keyboard.dismiss();
@@ -722,6 +746,73 @@ export default function PublishProductScreen() {
                 onChangeText={(v) => { setClothingMaterial(v); if (touched.material) revalidate('material'); }}
                 onBlur={() => { touch('material'); revalidate('material'); }}
                 placeholder="Ej: Algodón" error={touched.material ? errors.material : undefined} C={C} />
+            </>
+          )}
+
+          {category === 'Books' && (
+            <>
+              <Field label="Autor" required value={booksAuthor}
+                onChangeText={(v) => { setBooksAuthor(v); if (touched.author) revalidate('author'); }}
+                onBlur={() => { touch('author'); revalidate('author'); }}
+                placeholder="Ej: Gabriel García Márquez" error={touched.author ? errors.author : undefined} C={C} />
+              <Field label="Editorial" required value={booksPublisher}
+                onChangeText={(v) => { setBooksPublisher(v); if (touched.publisher) revalidate('publisher'); }}
+                onBlur={() => { touch('publisher'); revalidate('publisher'); }}
+                placeholder="Ej: Sudamericana" error={touched.publisher ? errors.publisher : undefined} C={C} />
+              <Field label="ISBN" required value={booksIsbn}
+                onChangeText={(v) => { setBooksIsbn(v); if (touched.isbn) revalidate('isbn'); }}
+                onBlur={() => { touch('isbn'); revalidate('isbn'); }}
+                placeholder="Ej: 978-950-07-0399-7" error={touched.isbn ? errors.isbn : undefined} C={C} />
+              <Field label="Género" required value={booksGenre}
+                onChangeText={(v) => { setBooksGenre(v); if (touched.genre) revalidate('genre'); }}
+                onBlur={() => { touch('genre'); revalidate('genre'); }}
+                placeholder="Ej: Novela" error={touched.genre ? errors.genre : undefined} C={C} />
+              <Field label="Idioma" required value={booksLanguage}
+                onChangeText={(v) => { setBooksLanguage(v); if (touched.language) revalidate('language'); }}
+                onBlur={() => { touch('language'); revalidate('language'); }}
+                placeholder="Ej: Español" error={touched.language ? errors.language : undefined} C={C} />
+            </>
+          )}
+
+          {category === 'Home' && (
+            <>
+              <Field label="Marca" required value={homeBrand}
+                onChangeText={(v) => { setHomeBrand(v); if (touched.brand) revalidate('brand'); }}
+                onBlur={() => { touch('brand'); revalidate('brand'); }}
+                placeholder="Ej: IKEA" error={touched.brand ? errors.brand : undefined} C={C} />
+              <Field label="Material" required value={homeMaterial}
+                onChangeText={(v) => { setHomeMaterial(v); if (touched.material) revalidate('material'); }}
+                onBlur={() => { touch('material'); revalidate('material'); }}
+                placeholder="Ej: Madera" error={touched.material ? errors.material : undefined} C={C} />
+              <Field label="Ambiente" required value={homeRoomType}
+                onChangeText={(v) => { setHomeRoomType(v); if (touched.room_type) revalidate('room_type'); }}
+                onBlur={() => { touch('room_type'); revalidate('room_type'); }}
+                placeholder="Ej: Dormitorio" error={touched.room_type ? errors.room_type : undefined} C={C} />
+              <Field label="Dimensiones" required value={homeDimensions}
+                onChangeText={(v) => { setHomeDimensions(v); if (touched.dimensions) revalidate('dimensions'); }}
+                onBlur={() => { touch('dimensions'); revalidate('dimensions'); }}
+                placeholder="Ej: 120cm x 60cm x 75cm" error={touched.dimensions ? errors.dimensions : undefined} C={C} />
+            </>
+          )}
+
+          {category === 'Sports' && (
+            <>
+              <Field label="Marca" required value={sportsBrand}
+                onChangeText={(v) => { setSportsBrand(v); if (touched.brand) revalidate('brand'); }}
+                onBlur={() => { touch('brand'); revalidate('brand'); }}
+                placeholder="Ej: Nike" error={touched.brand ? errors.brand : undefined} C={C} />
+              <Field label="Deporte" required value={sportsSport}
+                onChangeText={(v) => { setSportsSport(v); if (touched.sport) revalidate('sport'); }}
+                onBlur={() => { touch('sport'); revalidate('sport'); }}
+                placeholder="Ej: Fútbol" error={touched.sport ? errors.sport : undefined} C={C} />
+              <Field label="Talle / Medida" required value={sportsSize}
+                onChangeText={(v) => { setSportsSize(v); if (touched.size) revalidate('size'); }}
+                onBlur={() => { touch('size'); revalidate('size'); }}
+                placeholder="Ej: 42" error={touched.size ? errors.size : undefined} C={C} />
+              <Field label="Material" required value={sportsMaterial}
+                onChangeText={(v) => { setSportsMaterial(v); if (touched.material) revalidate('material'); }}
+                onBlur={() => { touch('material'); revalidate('material'); }}
+                placeholder="Ej: Cuero sintético" error={touched.material ? errors.material : undefined} C={C} />
             </>
           )}
 

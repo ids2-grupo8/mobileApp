@@ -43,6 +43,9 @@ function formatPrice(value: number) {
 const CATEGORY_TRANSLATIONS: Record<string, string> = {
   'Electronics': 'Electrónica',
   'Clothing':    'Ropa',
+  'Books':       'Libros',
+  'Home':        'Hogar',
+  'Sports':      'Deportes',
 };
 
 // Reverse mapping: translated label → backend category code
