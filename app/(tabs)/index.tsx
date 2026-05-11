@@ -586,22 +586,28 @@ export default function HomeScreen() {
     [recommendedSectionProducts]
   );
 
-  const orderedProducts = useMemo(
-    () =>
-      [...filteredProducts].sort((a, b) => {
-        // Mantener recomendados en el listado pero mas abajo para
-        // evitar repeticion visual inmediata entre secciones.
-        const aRecommended = recommendedIds.has(a.id);
-        const bRecommended = recommendedIds.has(b.id);
-        if (aRecommended && !bRecommended) return 1;
-        if (!aRecommended && bRecommended) return -1;
+  const orderedProducts = useMemo(() => {
+    if (sortBy === 'price_asc') {
+      return [...filteredProducts].sort((a, b) => a.price - b.price);
+    }
+    if (sortBy === 'price_desc') {
+      return [...filteredProducts].sort((a, b) => b.price - a.price);
+    }
+    if (sortBy === 'newest') {
+      return filteredProducts;
+    }
 
-        if (a.isRecent && !b.isRecent) return -1;
-        if (!a.isRecent && b.isRecent) return 1;
-        return a.title.localeCompare(b.title, 'es');
-      }),
-    [filteredProducts, recommendedIds]
-  );
+    return [...filteredProducts].sort((a, b) => {
+      const aRecommended = recommendedIds.has(a.id);
+      const bRecommended = recommendedIds.has(b.id);
+      if (aRecommended && !bRecommended) return 1;
+      if (!aRecommended && bRecommended) return -1;
+
+      if (a.isRecent && !b.isRecent) return -1;
+      if (!a.isRecent && b.isRecent) return 1;
+      return a.title.localeCompare(b.title, 'es');
+    });
+  }, [filteredProducts, recommendedIds, sortBy]);
 
   const leftCol = useMemo(
     () => orderedProducts.filter((_, i) => i % 2 === 0),
