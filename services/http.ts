@@ -49,11 +49,19 @@ type RequestOptions = {
   body?: unknown;
   auth?: boolean; // include Bearer token (default true)
   headers?: Record<string, string>;
+  /** When true, failed responses do not log to console.error (caller handles UX). */
+  silent?: boolean;
 };
 
 export async function request<T = unknown>(
   url: string,
-  { method = "GET", body, auth = true, headers: customHeaders = {} }: RequestOptions = {},
+  {
+    method = "GET",
+    body,
+    auth = true,
+    headers: customHeaders = {},
+    silent = false,
+  }: RequestOptions = {},
 ): Promise<T> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -84,10 +92,12 @@ export async function request<T = unknown>(
   }
 
   if (!res.ok) {
-    console.error(
-      `[API] ${method} ${url} → ${res.status}`,
-      JSON.stringify(json),
-    );
+    if (!silent) {
+      console.error(
+        `[API] ${method} ${url} → ${res.status}`,
+        JSON.stringify(json),
+      );
+    }
     const j = json as {
       message?: string;
       error?: string;

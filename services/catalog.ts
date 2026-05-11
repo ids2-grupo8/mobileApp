@@ -258,10 +258,26 @@ export async function fetchCatalogProducts(
   perPage?: number,
   sortBy?: string,
 ): Promise<CatalogProduct[]> {
+  const normalizedQuery = (searchQuery ?? '').trim();
+  // Backend textScore path is for q length >= 3; shorter queries we filter client-side
+  // to avoid 500s on older servers and to reduce noisy error logs.
+  const useServerTextSearch = normalizedQuery.length >= 5;
+
+  const priceMin = options?.priceMin;
+  const priceMax = options?.priceMax;
+  if (
+    priceMin != null &&
+    priceMax != null &&
+    Number.isFinite(priceMin) &&
+    Number.isFinite(priceMax) &&
+    priceMin > priceMax
+  ) {
+    return [];
+  }
+
   const params = new URLSearchParams();
 
-  const normalizedQuery = searchQuery?.trim();
-  if (normalizedQuery && normalizedQuery.length > 0) {
+  if (useServerTextSearch) {
     params.set('q', normalizedQuery);
   }
 
@@ -270,11 +286,11 @@ export async function fetchCatalogProducts(
       params.append('category', cat);
     }
   }
-  if (options?.priceMin != null) {
-    params.set('price_min', String(options.priceMin));
+  if (priceMin != null && Number.isFinite(priceMin)) {
+    params.set('price_min', String(priceMin));
   }
-  if (options?.priceMax != null) {
-    params.set('price_max', String(options.priceMax));
+  if (priceMax != null && Number.isFinite(priceMax)) {
+    params.set('price_max', String(priceMax));
   }
 
   if (page !== undefined && page !== null) params.set('page', String(page));
@@ -283,28 +299,46 @@ export async function fetchCatalogProducts(
 
   const qs = params.toString();
   const endpoint = CATALOG(`/products${qs ? `?${qs}` : ''}`);
-  const payload = await request<unknown>(endpoint, { method: 'GET', auth: false });
 
-  // Support paginated response shape: { items: [...], total, page, per_page }
-  if (payload && typeof payload === 'object' && Array.isArray((payload as any).items)) {
-    const items = (payload as any).items as unknown[];
-    const normalized = items
-      .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
-      .filter((item): item is CatalogProduct => item !== null);
-    return filterVisible(normalized);
+  try {
+    const payload = await request<unknown>(endpoint, {
+      method: 'GET',
+      auth: false,
+      silent: true,
+    });
+
+    // Support paginated response shape: { items: [...], total, page, per_page }
+    let normalized: CatalogProduct[];
+    if (payload && typeof payload === 'object' && Array.isArray((payload as any).items)) {
+      const items = (payload as any).items as unknown[];
+      normalized = items
+        .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+        .filter((item): item is CatalogProduct => item !== null);
+    } else {
+      const collection = extractCollection(payload);
+      if (!collection) {
+        return [];
+      }
+      normalized = collection
+        .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
+        .filter((item): item is CatalogProduct => item !== null);
+    }
+
+    let visible = filterVisible(normalized);
+
+    if (!useServerTextSearch && normalizedQuery.length > 0) {
+      const q = normalizedQuery.toLowerCase();
+      visible = visible.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          (p.description?.toLowerCase().includes(q) ?? false),
+      );
+    }
+
+    return visible;
+  } catch {
+    return [];
   }
-
-  const collection = extractCollection(payload);
-
-  if (!collection) {
-    throw new Error('Respuesta de catalogo invalida.');
-  }
-
-  const normalized = collection
-    .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
-    .filter((item): item is CatalogProduct => item !== null);
-
-  return filterVisible(normalized);
 }
 
 /**
@@ -332,7 +366,7 @@ export async function fetchRecommendedProducts(limit = 10): Promise<Recommendati
   try {
     const payload = await request<unknown>(
       CATALOG(`/products/recommendations/context?limit=${limit}`),
-      { method: 'GET', auth: true },
+      { method: 'GET', auth: true, silent: true },
     );
     if (!payload || typeof payload !== 'object') {
       return { items: [], source: 'global', isPersonalized: false };
