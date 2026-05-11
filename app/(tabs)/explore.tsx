@@ -17,12 +17,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
+import { getTopBrowsedCategories, getViewedProductIds } from '@/services/browse-history';
 import {
   type CatalogProduct,
   type SellerInfo,
   fetchCatalogCategories,
   fetchCatalogProducts,
-  fetchRecommendedProducts,
   getSellerDisplayName,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
@@ -137,10 +137,31 @@ export default function ExploreScreen() {
   const [recents, setRecents] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [sellers, setSellers] = useState<FeaturedSeller[]>([]);
-  const [recommended, setRecommended] = useState<CatalogProduct[]>([]);
-  const [recommendedPersonalized, setRecommendedPersonalized] = useState(false);
+  const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [topBrowsedCategories, setTopBrowsedCategories] = useState<string[]>([]);
+  const [viewedProductIds, setViewedProductIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const viewerEmail = user?.email?.trim().toLowerCase();
+
+  const recommended = useMemo<CatalogProduct[]>(() => {
+    if (!user || topBrowsedCategories.length === 0) return [];
+    const categoryRank = new Map(topBrowsedCategories.map((c, i) => [c, i]));
+    return products
+      .filter((p) => {
+        if (!categoryRank.has(p.category)) return false;
+        if (viewedProductIds.has(p.id)) return false;
+        if (p.stock <= 0) return false;
+        const sellerEmail = p.sellerInfo?.email?.trim().toLowerCase();
+        if (sellerEmail && viewerEmail && sellerEmail === viewerEmail) return false;
+        return true;
+      })
+      .sort(
+        (a, b) =>
+          (categoryRank.get(a.category) ?? Infinity) - (categoryRank.get(b.category) ?? Infinity),
+      );
+  }, [products, topBrowsedCategories, viewedProductIds, user, viewerEmail]);
 
   const pulse = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -155,19 +176,19 @@ export default function ExploreScreen() {
   }, [pulse]);
 
   const refreshAll = useCallback(async () => {
-    const [recentList, cats, products, recs] = await Promise.all([
+    const [recentList, cats, productList, topCats, viewedIds] = await Promise.all([
       loadRecent(),
       fetchCatalogCategories().catch(() => []),
       fetchCatalogProducts().catch(() => []),
-      user
-        ? fetchRecommendedProducts(10).catch(() => ({ items: [], source: 'global' as const, isPersonalized: false }))
-        : Promise.resolve({ items: [], source: 'global' as const, isPersonalized: false }),
+      user ? getTopBrowsedCategories() : Promise.resolve<string[]>([]),
+      user ? getViewedProductIds() : Promise.resolve<Set<string>>(new Set()),
     ]);
     setRecents(recentList);
     setCategories(cats);
-    setSellers(deriveFeaturedSellers(products));
-    setRecommended(recs.items);
-    setRecommendedPersonalized(recs.isPersonalized);
+    setSellers(deriveFeaturedSellers(productList));
+    setProducts(productList);
+    setTopBrowsedCategories(topCats);
+    setViewedProductIds(viewedIds);
   }, [user]);
 
   useEffect(() => {
@@ -295,14 +316,13 @@ export default function ExploreScreen() {
               </View>
             )}
 
-            {/* Recomendaciones — siempre visible. Si no hay recs reales,
-                mostramos un placeholder "Próximamente" en vez de un skeleton
-                (que se confundiría con loading). */}
-            <View style={s.section}>
-              <Text style={[s.sectionTitle, { color: C.textPrimary, marginBottom: 14 }]}>
-                Recomendado para vos
-              </Text>
-              {user && recommendedPersonalized && recommended.length > 0 ? (
+            {/* Para vos — derivado del historial local de navegación.
+                Solo se muestra cuando hay productos recomendados reales. */}
+            {recommended.length > 0 && (
+              <View style={s.section}>
+                <Text style={[s.sectionTitle, { color: C.textPrimary, marginBottom: 14 }]}>
+                  Para vos
+                </Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.recRow}>
                   {recommended.map((p) => (
                     <TouchableOpacity
@@ -323,47 +343,8 @@ export default function ExploreScreen() {
                     </TouchableOpacity>
                   ))}
                 </ScrollView>
-              ) : (
-                <View style={s.recSkeletonWrap}>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.recRow}>
-                    {[0, 1, 2, 3, 4].map((i) => (
-                      <SkeletonCard
-                        key={i}
-                        pulse={pulse}
-                        glass={C.glass}
-                        glassBorder={C.glassBorder}
-                        skeleton={C.glassBorder}
-                      />
-                    ))}
-                    <TouchableOpacity
-                      onPress={() => router.push('/(tabs)')}
-                      style={[
-                        s.recMoreCard,
-                        { backgroundColor: C.accentGlow, borderColor: C.accent, shadowColor: C.accent },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityLabel="Ver más productos">
-                      <View style={[s.recMoreIconWrap, { backgroundColor: C.accent }]}>
-                        <MaterialIcons name="arrow-forward" size={22} color="#0B0B0F" />
-                      </View>
-                      <Text style={[s.recMoreText, { color: C.accent }]}>Ver más</Text>
-                      <Text style={[s.recMoreHint, { color: C.textSecondary }]}>
-                        Próximamente personalizado
-                      </Text>
-                    </TouchableOpacity>
-                  </ScrollView>
-
-                  {/* Overlay gris con badge "Próximamente". pointerEvents="none" para
-                      no bloquear el scroll del carrusel ni el tap en "Ver más". */}
-                  <View pointerEvents="none" style={s.recOverlay}>
-                    <View style={[s.recOverlayBadge, { backgroundColor: C.accent, shadowColor: C.accent }]}>
-                      <MaterialIcons name="schedule" size={14} color="#0B0B0F" />
-                      <Text style={s.recOverlayBadgeText}>Próximamente</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-            </View>
+              </View>
+            )}
 
 
             {/* Categorías */}
