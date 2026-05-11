@@ -855,13 +855,12 @@ export default function HomeScreen() {
                   ))}
                 </View>
 
-                {/* Right column — offset for staggered look */}
-                <View style={[s.gridCol, { marginTop: 32 }]}>
-                  {rightCol.map((product, i) => (
+                {/* Right column */}
+                <View style={s.gridCol}>
+                  {rightCol.map((product) => (
                     <ProductCard
                       key={product.id}
                       product={product}
-                      tall={i % 2 === 0}
                       onPress={() => openProduct(product)}
                       onAddToCart={() => handleQuickAdd(product)}
                       isRecent={product.isRecent}

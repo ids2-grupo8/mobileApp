@@ -5,6 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Animated,
     Dimensions,
     NativeScrollEvent,
@@ -470,7 +471,13 @@ export default function ProductDetailScreen() {
         <View style={[s.actionBarInner, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
           <View style={s.actionBarLeft}>
             <Text style={[s.actionBarLabel, { color: C.textSecondary }]}>Precio</Text>
-            <Text style={[s.actionBarPrice, { color: C.textPrimary }]}>{formatPrice(product.price * qty)}</Text>
+            <Text
+              style={[s.actionBarPrice, { color: C.textPrimary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}>
+              {formatPrice(product.price * qty)}
+            </Text>
           </View>
 
           {!outOfStock && (
@@ -553,8 +560,12 @@ export default function ProductDetailScreen() {
               </>
             ) : (
               <>
-                <MaterialIcons name="add-shopping-cart" size={18} color="#050508" />
-                <Text style={s.actionBtnText}>{adding ? 'Agregando...' : 'Agregar'}</Text>
+                {adding ? (
+                  <ActivityIndicator size="small" color="#050508" style={s.actionBtnSpinner} />
+                ) : (
+                  <MaterialIcons name="add-shopping-cart" size={18} color="#050508" />
+                )}
+                <Text style={s.actionBtnText}>Agregar</Text>
               </>
             )}
           </TouchableOpacity>
@@ -868,9 +879,12 @@ const s = StyleSheet.create({
     paddingLeft: 20,
     paddingRight: 6,
     paddingVertical: 6,
+    gap: 10,
   },
   actionBarLeft: {
     gap: 2,
+    flexShrink: 1,
+    minWidth: 0,
   },
   actionBarLabel: {
     fontSize: 11,
@@ -910,6 +924,10 @@ const s = StyleSheet.create({
   },
   actionBtnDisabled: {
     opacity: 0.6,
+  },
+  actionBtnSpinner: {
+    width: 18,
+    height: 18,
   },
   actionBtnText: {
     color: '#050508',
