@@ -22,6 +22,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
+import { recordBrowseView } from '@/services/browse-history';
 import {
     type CatalogProduct,
   getSellerDisplayName,
@@ -317,10 +318,15 @@ export default function ProductDetailScreen() {
       try {
         const fromApi = await fetchCatalogProductById(productId);
         if (mounted) setProduct(fromApi);
-        if (mounted && fromApi && viewerEmail) {
-          void recordProductDetailView(productId, viewerEmail).catch(() => {
-            /* no UI impact */
-          });
+        if (mounted && fromApi) {
+          if (fromApi.category) {
+            void recordBrowseView(productId, fromApi.category);
+          }
+          if (viewerEmail) {
+            void recordProductDetailView(productId, viewerEmail).catch(() => {
+              /* no UI impact */
+            });
+          }
         }
       } catch {
         if (mounted) setNetworkError(true);

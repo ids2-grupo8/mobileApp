@@ -33,11 +33,17 @@ const RECENT_MAX  = 8;
 const CATEGORY_TRANSLATIONS: Record<string, string> = {
   Electronics: 'Electrónica',
   Clothing: 'Ropa',
+  Books: 'Libros',
+  Home: 'Hogar',
+  Sports: 'Deportes',
 };
 
 const CATEGORY_ICONS: Record<string, string> = {
   Electronics: 'devices',
   Clothing: 'checkroom',
+  Books: 'menu-book',
+  Home: 'home',
+  Sports: 'sports-soccer',
 };
 
 type FeaturedSeller = {

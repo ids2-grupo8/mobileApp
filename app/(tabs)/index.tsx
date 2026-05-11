@@ -20,12 +20,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
+import { getTopBrowsedCategories, getViewedProductIds } from '@/services/browse-history';
 import {
   type CatalogFetchOptions,
   type CatalogProduct,
   fetchCatalogCategories,
   fetchCatalogProducts,
-  fetchRecommendedProducts,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -533,28 +533,47 @@ export default function HomeScreen() {
     [filteredProducts]
   );
 
-  // CA4: Recomendaciones personalizadas cargadas desde el backend.
-  // Se cargan asincrónicamente. Si no hay datos o falla, la sección no se muestra.
-  const [recommendedProducts, setRecommendedProducts] = useState<CatalogProduct[]>([]);
-  const [hasPersonalizedRecommendations, setHasPersonalizedRecommendations] = useState(false);
+  // Recomendaciones derivadas del historial local de navegación.
+  // Tomamos las categorías más vistas y filtramos el catálogo (excluyendo
+  // los productos propios y los que el usuario ya vio).
+  const [topBrowsedCategories, setTopBrowsedCategories] = useState<string[]>([]);
+  const [viewedProductIds, setViewedProductIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // No mostramos recomendaciones cuando hay filtros activos
-    // ni cuando el usuario no esta autenticado.
     if (hasActiveFilters || !user) {
-      setRecommendedProducts([]);
-      setHasPersonalizedRecommendations(false);
+      setTopBrowsedCategories([]);
+      setViewedProductIds(new Set());
       return;
     }
     let cancelled = false;
-    fetchRecommendedProducts(12).then((result) => {
+    (async () => {
+      const [cats, viewed] = await Promise.all([getTopBrowsedCategories(), getViewedProductIds()]);
       if (!cancelled) {
-        setRecommendedProducts(result.items);
-        setHasPersonalizedRecommendations(result.isPersonalized);
+        setTopBrowsedCategories(cats);
+        setViewedProductIds(viewed);
       }
-    });
+    })();
     return () => { cancelled = true; };
   }, [products, hasActiveFilters, user]);
+
+  const recommendedProducts = useMemo<CatalogProduct[]>(() => {
+    if (topBrowsedCategories.length === 0) return [];
+    const categoryRank = new Map(topBrowsedCategories.map((c, i) => [c, i]));
+    return products
+      .filter(
+        (p) =>
+          categoryRank.has(p.category) &&
+          !viewedProductIds.has(p.id) &&
+          !isOwnProduct(p) &&
+          p.stock > 0,
+      )
+      .sort(
+        (a, b) =>
+          (categoryRank.get(a.category) ?? Infinity) - (categoryRank.get(b.category) ?? Infinity),
+      );
+  }, [products, topBrowsedCategories, viewedProductIds, user]);
+
+  const hasPersonalizedRecommendations = recommendedProducts.length > 0;
 
   // Fetch categories from backend so all are always visible regardless of current filter
   const [backendCategories, setBackendCategories] = useState<string[]>([]);
