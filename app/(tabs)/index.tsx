@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -344,10 +344,10 @@ function SortModal({
 
 export default function HomeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string; category?: string }>();
   const insets = useSafeAreaInsets();
   const theme = useTheme();
   const user = useAuthStore((s) => s.user);
-  const cartCount = useCartStore((s) => s.totalItems());
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
 
@@ -428,23 +428,6 @@ export default function HomeScreen() {
     router.push('/seller/publish');
   };
 
-  // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
-  // en vez de dejarlo acceder al carrito.
-  const openCart = () => {
-    if (!user) {
-      Alert.alert(
-        'Iniciar sesión',
-        'Necesitás iniciar sesión para ver tu carrito.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
-        ],
-      );
-      return;
-    }
-    router.push('/cart');
-  };
-
   const loadProducts = async (searchTerm = query, sort = sortBy) => {
     setError(null);
     try {
@@ -473,6 +456,19 @@ export default function HomeScreen() {
       setRefreshing(false);
     }
   };
+
+  // Aceptamos ?q= y ?category= desde otras pantallas (p.ej. Explorar) para
+  // precargar la búsqueda. La categoría llega como código backend (ej.
+  // 'Electronics') y se traduce a label antes de meterla en el filtro.
+  useEffect(() => {
+    if (typeof params.q === 'string') {
+      setQuery(params.q);
+    }
+    if (typeof params.category === 'string' && params.category.length > 0) {
+      const label = CATEGORY_TRANSLATIONS[params.category] ?? params.category;
+      setCategory(new Set([label]));
+    }
+  }, [params.q, params.category]);
 
   useEffect(() => {
     const debounce = setTimeout(() => {
@@ -637,18 +633,6 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={s.headerRight}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Abrir carrito"
-              style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
-              onPress={openCart}>
-              <MaterialIcons name="shopping-bag" size={20} color={theme.textPrimary} />
-              {cartCount > 0 && (
-                <View style={[s.cartBadge, { backgroundColor: theme.accent, borderColor: theme.bg }]}>
-                  <Text style={s.cartBadgeText}>{cartCount > 9 ? '9+' : cartCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
             <TouchableOpacity
               accessibilityRole="button"
               style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}

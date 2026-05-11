@@ -1,17 +1,21 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Animated, LayoutChangeEvent, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Alert, Animated, LayoutChangeEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
+import { useAuthStore } from '@/store/auth';
+import { useCartStore } from '@/store/cart';
 
 type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
 
 const ICONS: Record<string, IconName> = {
   index:   'home',
   explore: 'search',
+  cart:    'shopping-bag',
   profile: 'person',
 };
 
@@ -23,6 +27,9 @@ const SEL_HEIGHT = 48;
 export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
   const insets  = useSafeAreaInsets();
   const C       = useTheme();
+  const router  = useRouter();
+  const user      = useAuthStore((s) => s.user);
+  const cartCount = useCartStore((s) => s.totalItems());
   const numTabs = state.routes.length;
   const [tabW, setTabW] = useState(0);
 
@@ -95,6 +102,17 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
           const icon    = ICONS[route.name] ?? 'circle';
 
           const onPress = () => {
+            if (route.name === 'cart' && !user) {
+              Alert.alert(
+                'Iniciar sesión',
+                'Necesitás iniciar sesión para ver tu carrito.',
+                [
+                  { text: 'Cancelar', style: 'cancel' },
+                  { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
+                ],
+              );
+              return;
+            }
             const event = navigation.emit({
               type: 'tabPress',
               target: route.key,
@@ -105,6 +123,8 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
             }
           };
 
+          const showBadge = route.name === 'cart' && cartCount > 0;
+
           return (
             <TouchableOpacity
               key={route.key}
@@ -112,11 +132,27 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               style={s.tab}
               accessibilityRole="button"
               accessibilityState={{ selected: focused }}>
-              <MaterialIcons
-                name={icon}
-                size={22}
-                color={focused ? '#050508' : C.textMuted}
-              />
+              <View>
+                <MaterialIcons
+                  name={icon}
+                  size={22}
+                  color={focused ? '#050508' : C.textMuted}
+                />
+                {showBadge && (
+                  <View
+                    style={[
+                      s.badge,
+                      {
+                        backgroundColor: focused ? '#050508' : C.accent,
+                        borderColor: focused ? C.accent : C.tabBg,
+                      },
+                    ]}>
+                    <Text style={[s.badgeText, { color: focused ? C.accent : '#050508' }]}>
+                      {cartCount > 9 ? '9+' : cartCount}
+                    </Text>
+                  </View>
+                )}
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -178,5 +214,22 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 1,
+  },
+  badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
 });

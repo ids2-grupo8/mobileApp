@@ -19,6 +19,7 @@ export default function RootLayout() {
   const { mode } = useThemeStore();
   const { isLoggedIn } = useAuthStore();
   const hydrateCart = useCartStore((s) => s.hydrate);
+  const clearLocalCart = useCartStore((s) => s.clearLocal);
   const segments    = useSegments();
   const router      = useRouter();
 
@@ -42,19 +43,24 @@ export default function RootLayout() {
   const [isReady, setIsReady] = useState(false);
   useEffect(() => { setIsReady(true); }, []);
   useEffect(() => {
-    // Hydrate local cart; if user is logged in, also sync with backend
+    // El carrito persiste localmente, pero solo debe restaurarse si hay
+    // sesión activa. Si la app se mató sin logout explícito, la sesión se
+    // pierde pero los items quedaron en SecureStore — limpiarlos acá evita
+    // que el badge muestre productos sin usuario.
     (async () => {
+      if (!isLoggedIn) {
+        await clearLocalCart();
+        return;
+      }
       await hydrateCart();
       try {
-        if (isLoggedIn) {
-          const email = useAuthStore.getState().user?.email;
-          if (email) await useCartStore.getState().syncWithBackend();
-        }
+        const email = useAuthStore.getState().user?.email;
+        if (email) await useCartStore.getState().syncWithBackend();
       } catch (e) {
         // ignore sync errors on startup
       }
     })();
-  }, [hydrateCart]);
+  }, [hydrateCart, clearLocalCart, isLoggedIn]);
 
   // Redirect guard: push unauthenticated users to landing, authenticated to tabs
   useEffect(() => {

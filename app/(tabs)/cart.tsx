@@ -207,12 +207,7 @@ export default function CartScreen() {
   return (
     <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
       <View style={s.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          hitSlop={10}
-          style={[s.iconBtn, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-          <MaterialIcons name="arrow-back" size={20} color={C.textPrimary} />
-        </TouchableOpacity>
+        <View style={s.iconBtn} />
 
         <View style={s.headerCenter}>
           <Text style={[s.headerTitle, { color: C.textPrimary }]}>Tu carrito</Text>
@@ -280,7 +275,7 @@ export default function CartScreen() {
               {
                 backgroundColor: C.elevated,
                 borderColor: C.glassBorder,
-                paddingBottom: Math.max(insets.bottom, 16) + 12,
+                paddingBottom: Math.max(insets.bottom, 16) + 8 + 56 + 16,
                 shadowColor: C.shadowDark,
               },
             ]}>
