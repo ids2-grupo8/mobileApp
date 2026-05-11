@@ -351,6 +351,12 @@ export default function HomeScreen() {
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
 
+  const isOwnProduct = (product: CatalogProduct) => {
+    const sellerEmail = product.sellerInfo?.email?.trim().toLowerCase();
+    const userEmail = user?.email?.trim().toLowerCase();
+    return !!sellerEmail && !!userEmail && sellerEmail === userEmail;
+  };
+
   // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
   // en vez de permitirle agregar al carrito.
   const handleQuickAdd = async (product: CatalogProduct) => {
@@ -363,6 +369,11 @@ export default function HomeScreen() {
           { text: 'Iniciar sesión', onPress: () => router.push('/(auth)/login') },
         ],
       );
+      return;
+    }
+
+    if (isOwnProduct(product)) {
+      Alert.alert('Producto propio', 'No podés agregar al carrito un producto que vos mismo publicaste.');
       return;
     }
 
@@ -780,7 +791,7 @@ export default function HomeScreen() {
                       compact
                       isRecent
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => handleQuickAdd(product)}
+                      onAddToCart={isOwnProduct(product) ? undefined : () => handleQuickAdd(product)}
                       {...cardThemeProps}
                     />
                   ))}
@@ -805,7 +816,7 @@ export default function HomeScreen() {
                       product={product}
                       compact
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => handleQuickAdd(product)}
+                      onAddToCart={isOwnProduct(product) ? undefined : () => handleQuickAdd(product)}
                       {...cardThemeProps}
                     />
                   ))}
@@ -848,7 +859,7 @@ export default function HomeScreen() {
                       key={product.id}
                       product={product}
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => handleQuickAdd(product)}
+                      onAddToCart={isOwnProduct(product) ? undefined : () => handleQuickAdd(product)}
                       isRecent={product.isRecent}
                       {...cardThemeProps}
                     />
@@ -862,7 +873,7 @@ export default function HomeScreen() {
                       key={product.id}
                       product={product}
                       onPress={() => openProduct(product)}
-                      onAddToCart={() => handleQuickAdd(product)}
+                      onAddToCart={isOwnProduct(product) ? undefined : () => handleQuickAdd(product)}
                       isRecent={product.isRecent}
                       {...cardThemeProps}
                     />

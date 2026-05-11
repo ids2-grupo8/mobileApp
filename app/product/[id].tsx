@@ -358,6 +358,10 @@ export default function ProductDetailScreen() {
 
   const outOfStock = product.stock === 0;
   const images = product.images?.length > 0 ? product.images : [product.imageUrl].filter(Boolean);
+  const sellerEmailNorm = product.sellerInfo?.email?.trim().toLowerCase();
+  const viewerEmailNorm = authUser?.email?.trim().toLowerCase();
+  const isOwnProduct = !!sellerEmailNorm && !!viewerEmailNorm && sellerEmailNorm === viewerEmailNorm;
+  const cannotBuy = outOfStock || isOwnProduct;
 
   return (
     <View style={[s.root, { backgroundColor: C.bg }]}>
@@ -480,7 +484,7 @@ export default function ProductDetailScreen() {
             </Text>
           </View>
 
-          {!outOfStock && (
+          {!cannotBuy && (
             <View style={[s.qtySelector, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
               <TouchableOpacity
                 onPress={() => setQty((q) => Math.max(1, q - 1))}
@@ -501,11 +505,11 @@ export default function ProductDetailScreen() {
           <TouchableOpacity
             style={[
               s.actionBtn,
-              { backgroundColor: outOfStock ? C.glass : C.accent },
-              (outOfStock || adding) && s.actionBtnDisabled,
+              { backgroundColor: cannotBuy ? C.glass : C.accent },
+              (cannotBuy || adding) && s.actionBtnDisabled,
             ]}
             onPress={async () => {
-              if (!product || adding || outOfStock) return;
+              if (!product || adding || cannotBuy) return;
               if (!authUser?.email) {
                 Alert.alert(
                   'Iniciar sesión',
@@ -551,9 +555,14 @@ export default function ProductDetailScreen() {
                 setAdding(false);
               }
             }}
-            disabled={outOfStock || adding}
+            disabled={cannotBuy || adding}
             accessibilityRole="button">
-            {outOfStock ? (
+            {isOwnProduct ? (
+              <>
+                <MaterialIcons name="storefront" size={18} color={C.textMuted} />
+                <Text style={[s.actionBtnText, { color: C.textMuted }]}>Es tu producto</Text>
+              </>
+            ) : outOfStock ? (
               <>
                 <MaterialIcons name="remove-shopping-cart" size={18} color={C.textMuted} />
                 <Text style={[s.actionBtnText, { color: C.textMuted }]}>Sin stock</Text>
