@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { StatusPill } from '@/components/order-card';
+import ReviewSection from '@/components/review-section';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchCatalogProductById, type CatalogProduct } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
@@ -227,6 +228,10 @@ export default function OrderDetailScreen() {
                 })}
               </View>
             </View>
+
+            {order.status === 'delivered' && role === 'buyer' && (
+              <ReviewSection order={order} productMap={productMap} C={C} />
+            )}
           </View>
         )}
       </ScrollView>
