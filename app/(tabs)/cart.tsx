@@ -2,8 +2,9 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   ScrollView,
@@ -137,9 +138,11 @@ export default function CartScreen() {
   const cartError = useCartStore((s) => s.error);
   const syncWithBackend = useCartStore((s) => s.syncWithBackend);
 
+  const [verifyingStock, setVerifyingStock] = useState(false);
+
   const unavailableItems = items.filter((item) => item.available === false);
   const hasUnavailableItems = unavailableItems.length > 0;
-  const canCheckout = items.length > 0 && !hasUnavailableItems;
+  const canCheckout = items.length > 0 && !hasUnavailableItems && !verifyingStock;
 
   const total = subtotal;
 
@@ -186,20 +189,28 @@ export default function CartScreen() {
     ]);
   };
 
-  const handleCheckout = () => {
-    if (!canCheckout) {
-      if (hasUnavailableItems) {
+  const handleCheckout = async () => {
+    if (items.length === 0) return;
+    setVerifyingStock(true);
+    try {
+      await syncWithBackend();
+      const freshItems = useCartStore.getState().items;
+      const unavailable = freshItems.filter((i) => i.available === false);
+      if (unavailable.length > 0) {
         Alert.alert(
-          'Productos no disponibles',
-          `${unavailableItems.length} producto(s) en tu carrito no están disponibles. Elimínalos para continuar.`,
-          [{ text: 'OK' }]
+          'Stock actualizado',
+          `${unavailable.length} producto(s) ya no están disponibles. Elimínalos para continuar.`,
+          [{ text: 'Entendido' }]
         );
         return;
       }
-      if (items.length === 0) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      router.push('/checkout');
+    } catch {
+      Alert.alert('Error', 'No se pudo verificar el stock. Intentá de nuevo.');
+    } finally {
+      setVerifyingStock(false);
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    router.push('/checkout');
   };
 
   const isEmpty = items.length === 0;
@@ -316,8 +327,17 @@ export default function CartScreen() {
                   opacity: canCheckout ? 1 : 0.5,
                 },
               ]}>
-              <Text style={s.ctaText}>Continuar al pago</Text>
-              <MaterialIcons name="arrow-forward" size={20} color="#050508" />
+              {verifyingStock ? (
+                <>
+                  <ActivityIndicator color="#050508" size="small" />
+                  <Text style={s.ctaText}>Verificando stock...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={s.ctaText}>Continuar al pago</Text>
+                  <MaterialIcons name="arrow-forward" size={20} color="#050508" />
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </>

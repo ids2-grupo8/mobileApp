@@ -16,6 +16,7 @@ type CheckoutStore = {
   submitMercadoPago: (
     idempotencyKey: string,
     address: CheckoutAddress,
+    couponCode?: string,
   ) => Promise<CheckoutSubmitResult>;
   clearError: () => void;
 };
@@ -29,6 +30,7 @@ export const useCheckoutStore = create<CheckoutStore>((set) => ({
   submitMercadoPago: async (
     idempotencyKey: string,
     address: CheckoutAddress,
+    couponCode?: string,
   ): Promise<CheckoutSubmitResult> => {
     set({ isSubmitting: true, error: null });
     try {
@@ -38,6 +40,7 @@ export const useCheckoutStore = create<CheckoutStore>((set) => ({
         idempotencyKey,
         backUrl,
         address,
+        couponCode,
       );
 
       const checkoutUrl = response.init_point;
