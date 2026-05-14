@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
 import { pollOrdersUntilResolved } from '@/services/orders';
+import { validateCoupon } from '@/services/checkout';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useCheckoutStore } from '@/store/checkout';
@@ -34,6 +35,17 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
+function translateCouponError(raw: string): string {
+  switch (raw) {
+    case 'Coupon not found':               return 'El código no existe. Verificá que esté bien escrito.';
+    case 'Coupon is not active':           return 'Este cupón ya no está activo.';
+    case 'Coupon is expired or not yet active': return 'El cupón está vencido o todavía no está vigente.';
+    case 'Coupon usage limit exceeded':    return 'El cupón alcanzó su límite de usos.';
+    case 'You have already used this coupon': return 'Ya usaste este cupón anteriormente.';
+    default: return raw;
+  }
+}
+
 function formatCountdown(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
   const s = (seconds % 60).toString().padStart(2, '0');
@@ -41,6 +53,7 @@ function formatCountdown(seconds: number): string {
 }
 
 type PaymentMethod = 'mercadopago';
+type CouponStatus = 'idle' | 'loading' | 'valid' | 'invalid';
 
 type Address = {
   fullName: string;
@@ -163,6 +176,37 @@ const s = StyleSheet.create({
     marginTop: 12,
   },
   noticeText: { fontSize: 11, lineHeight: 16, flex: 1 },
+
+  // ── Coupon ──
+  couponRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  couponInputWrap: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    height: 48,
+    justifyContent: 'center',
+  },
+  couponInputText: { fontSize: 15, fontWeight: '600', letterSpacing: 1 },
+  couponApplyBtn: {
+    height: 48,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  couponApplyText: { fontSize: 14, fontWeight: '800', color: '#050508' },
+  couponBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+  },
+  couponBadgeText: { flex: 1, fontSize: 13, fontWeight: '600' },
+  couponRemoveBtn: { padding: 4 },
+  couponErrorText: { fontSize: 12, fontWeight: '600', marginTop: 4 },
 
   // ── Summary ──
   summaryList: { gap: 8 },
@@ -418,13 +462,62 @@ export default function CheckoutScreen() {
   const [payment, setPayment] = useState<PaymentMethod>('mercadopago');
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-  // Idempotency key estable por mount: si el usuario reintenta sin abandonar
-  // la pantalla, el backend reusa las órdenes en PAYMENT_PENDING.
   const [idempotencyKey] = useState(
     () => `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
   );
 
-  const total = subtotal;
+  const [couponInput, setCouponInput] = useState('');
+  const [couponStatus, setCouponStatus] = useState<CouponStatus>('idle');
+  const [couponCode, setCouponCode] = useState('');
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState('');
+
+  const discountAmount = couponStatus === 'valid'
+    ? Math.min(subtotal, Math.round(subtotal * couponDiscount / 100))
+    : 0;
+  const total = Math.max(0, subtotal - discountAmount);
+
+  const handleApplyCoupon = async () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) return;
+    if (!user?.email) {
+      Alert.alert('Iniciar sesión requerido', 'Debés iniciar sesión para usar cupones.');
+      return;
+    }
+    setCouponStatus('loading');
+    setCouponError('');
+    try {
+      const result = await validateCoupon(code, user.email);
+      console.log('[Coupon] validate response:', JSON.stringify(result));
+      if (result.valid) {
+        setCouponCode(code);
+        setCouponDiscount(result.discount_percentage ?? 0);
+        setCouponStatus('valid');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setCouponStatus('invalid');
+        setCouponCode('');
+        setCouponDiscount(0);
+        setCouponError(translateCouponError(result.error ?? 'Cupón inválido'));
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch (e) {
+      const raw = e instanceof Error ? e.message : 'Error al validar el cupón';
+      console.log('[Coupon] validate error:', raw);
+      setCouponStatus('invalid');
+      setCouponCode('');
+      setCouponDiscount(0);
+      setCouponError(translateCouponError(raw));
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponInput('');
+    setCouponCode('');
+    setCouponDiscount(0);
+    setCouponError('');
+    setCouponStatus('idle');
+  };
   const itemCount = useMemo(() => items.reduce((acc, i) => acc + i.quantity, 0), [items]);
 
   const setField = <K extends keyof Address>(key: K, value: string) => {
@@ -466,7 +559,11 @@ export default function CheckoutScreen() {
 
     try {
       if (payment === 'mercadopago') {
-        const { checkoutUrl, orderIds } = await submitMercadoPago(idempotencyKey, address);
+        const { checkoutUrl, orderIds } = await submitMercadoPago(
+          idempotencyKey,
+          address,
+          couponCode || undefined,
+        );
         await openBrowserAsync(checkoutUrl);
 
         // MP no respeta back_urls con deep links, así que polleamos el estado
@@ -626,7 +723,88 @@ export default function CheckoutScreen() {
             </View>
           </Section>
 
-          <Section title="Método de pago" step={2} C={C}>
+          <Section title="Cupón de descuento" step={2} C={C}>
+            <View
+              style={[
+                s.card,
+                { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
+              ]}>
+              {couponStatus === 'valid' ? (
+                <View style={[s.couponBadge, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
+                  <MaterialIcons name="local-offer" size={18} color={C.accent} />
+                  <Text style={[s.couponBadgeText, { color: C.accent }]}>
+                    {couponCode} — {couponDiscount}% de descuento
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleRemoveCoupon}
+                    hitSlop={8}
+                    style={s.couponRemoveBtn}
+                    accessibilityLabel="Quitar cupón">
+                    <MaterialIcons name="close" size={16} color={C.accent} />
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <>
+                  <View style={s.couponRow}>
+                    <View
+                      style={[
+                        s.couponInputWrap,
+                        {
+                          backgroundColor: C.inputBg,
+                          borderColor: couponStatus === 'invalid' ? C.inputBorderError : C.inputBorder,
+                        },
+                      ]}>
+                      <TextInput
+                        value={couponInput}
+                        onChangeText={(v) => {
+                          setCouponInput(v.toUpperCase());
+                          if (couponStatus === 'invalid') {
+                            setCouponStatus('idle');
+                            setCouponError('');
+                          }
+                        }}
+                        placeholder="Código de cupón"
+                        placeholderTextColor={C.textMuted}
+                        style={[s.couponInputText, { color: C.textPrimary }]}
+                        selectionColor={C.accent}
+                        autoCapitalize="characters"
+                        autoCorrect={false}
+                        returnKeyType="done"
+                        onSubmitEditing={handleApplyCoupon}
+                      />
+                    </View>
+                    <TouchableOpacity
+                      onPress={handleApplyCoupon}
+                      disabled={!couponInput.trim() || couponStatus === 'loading'}
+                      style={[
+                        s.couponApplyBtn,
+                        {
+                          backgroundColor:
+                            !couponInput.trim() || couponStatus === 'loading'
+                              ? C.textMuted
+                              : C.accent,
+                          opacity: !couponInput.trim() || couponStatus === 'loading' ? 0.5 : 1,
+                        },
+                      ]}>
+                      {couponStatus === 'loading' ? (
+                        <ActivityIndicator color="#050508" size="small" />
+                      ) : (
+                        <Text style={s.couponApplyText}>Aplicar</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                  {couponStatus === 'invalid' && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <MaterialIcons name="error-outline" size={13} color={C.red} />
+                      <Text style={[s.couponErrorText, { color: C.red }]}>{couponError}</Text>
+                    </View>
+                  )}
+                </>
+              )}
+            </View>
+          </Section>
+
+          <Section title="Método de pago" step={3} C={C}>
             <View style={s.payList}>
               <PaymentOption
                 selected={true}
@@ -653,7 +831,7 @@ export default function CheckoutScreen() {
             </View>
           </Section>
 
-          <Section title="Resumen" step={3} C={C}>
+          <Section title="Resumen" step={4} C={C}>
             <View
               style={[
                 s.card,
@@ -685,6 +863,18 @@ export default function CheckoutScreen() {
                   {formatPrice(subtotal)}
                 </Text>
               </View>
+
+              {couponStatus === 'valid' && (
+                <View style={s.totalsRow}>
+                  <Text style={[s.totalsLabel, { color: C.accent }]}>
+                    Cupón {couponCode} ({couponDiscount}%)
+                  </Text>
+                  <Text style={[s.totalsValue, { color: C.accent }]}>
+                    -{formatPrice(discountAmount)}
+                  </Text>
+                </View>
+              )}
+
               <View style={[s.summaryDivider, { backgroundColor: C.glassBorder }]} />
               <View style={s.totalsRow}>
                 <Text style={[s.totalsLabelLg, { color: C.textPrimary }]}>Total a pagar</Text>

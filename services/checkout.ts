@@ -17,18 +17,19 @@ export type CheckoutMercadopagoResponse = {
   order_ids: number[];
 };
 
+export type CouponValidationResponse = {
+  valid: boolean;
+  discount_percentage: number | null;
+  error: string | null;
+};
+
 // ─── Requests ────────────────────────────────────────────────────────────────
 
-/**
- * Create a MercadoPago checkout session.
- * @param idempotencyKey Unique key to prevent duplicate orders
- * @param backUrl URL to redirect to after payment (from Linking.createURL(''))
- * @param address Shipping address (field names must match backend AddressDTO)
- */
 export async function createCheckoutMercadopago(
   idempotencyKey: string,
   backUrl: string,
   address: CheckoutAddress,
+  couponCode?: string,
 ): Promise<CheckoutMercadopagoResponse> {
   return request<CheckoutMercadopagoResponse>(CHECKOUT("//"), {
     method: "POST",
@@ -37,7 +38,19 @@ export async function createCheckoutMercadopago(
       back_url: backUrl,
       address,
       payment: "mercadopago",
+      ...(couponCode ? { coupon_code: couponCode } : {}),
     },
     auth: true,
   });
+}
+
+export async function validateCoupon(
+  code: string,
+  userEmail: string,
+): Promise<CouponValidationResponse> {
+  const params = `code=${encodeURIComponent(code)}&user_email=${encodeURIComponent(userEmail)}`;
+  return request<CouponValidationResponse>(
+    `${CHECKOUT('/coupons/validate')}?${params}`,
+    { method: 'POST', auth: true },
+  );
 }
