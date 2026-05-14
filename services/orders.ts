@@ -24,6 +24,11 @@ export type OrderStatus =
   | 'shipped'
   | 'delivered';
 
+export type OrderStatusHistoryEntry = {
+  status: OrderStatus;
+  timestamp: string;
+};
+
 export type OrderSummary = {
   id: number;
   total_amount: number;
@@ -32,21 +37,28 @@ export type OrderSummary = {
   seller: string;
   address: OrderAddress | null;
   items: OrderItem[];
+  history: OrderStatusHistoryEntry[];
 };
 
 type OrderListResponse = { data: OrderSummary[] };
 type OrderDetailResponse = { data: OrderSummary };
 
-export async function fetchPurchases(): Promise<OrderSummary[]> {
-  const res = await request<OrderListResponse>(CHECKOUT('/order/purchases'), {
+export async function fetchPurchases(status?: OrderStatus): Promise<OrderSummary[]> {
+  const path = status
+    ? `/order/purchases?status=${encodeURIComponent(status)}`
+    : '/order/purchases';
+  const res = await request<OrderListResponse>(CHECKOUT(path), {
     method: 'GET',
     auth: true,
   });
   return res.data ?? [];
 }
 
-export async function fetchSales(): Promise<OrderSummary[]> {
-  const res = await request<OrderListResponse>(CHECKOUT('/order/sales'), {
+export async function fetchSales(status?: OrderStatus): Promise<OrderSummary[]> {
+  const path = status
+    ? `/order/sales?status=${encodeURIComponent(status)}`
+    : '/order/sales';
+  const res = await request<OrderListResponse>(CHECKOUT(path), {
     method: 'GET',
     auth: true,
   });

@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -14,8 +14,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderCard from '@/components/order-card';
 import { useTheme } from '@/hooks/use-theme';
+import type { OrderStatus } from '@/services/orders';
 import { useAuthStore } from '@/store/auth';
 import { useOrdersStore } from '@/store/orders';
+
+type FilterOption = { label: string; value: OrderStatus | undefined };
+
+const FILTERS: FilterOption[] = [
+  { label: 'Todos', value: undefined },
+  { label: 'Pago pendiente', value: 'payment pending' },
+  { label: 'Pago confirmado', value: 'payment confirmed' },
+  { label: 'Preparándose', value: 'processing' },
+  { label: 'Enviada', value: 'shipped' },
+  { label: 'Entregada', value: 'delivered' },
+  { label: 'Pago rechazado', value: 'payment rejected' },
+  { label: 'Cancelada', value: 'canceled' },
+];
 
 export default function SalesScreen() {
   const C = useTheme();
@@ -24,12 +38,19 @@ export default function SalesScreen() {
   const { isLoggedIn } = useAuthStore();
   const { sales, salesState, salesError, loadSales } = useOrdersStore();
 
+  const [selectedStatus, setSelectedStatus] = useState<OrderStatus | undefined>(undefined);
+
   useFocusEffect(
     useCallback(() => {
       if (!isLoggedIn) return;
-      void loadSales();
-    }, [isLoggedIn, loadSales]),
+      void loadSales(selectedStatus);
+    }, [isLoggedIn, loadSales, selectedStatus]),
   );
+
+  const handleSelectFilter = (status: OrderStatus | undefined) => {
+    setSelectedStatus(status);
+    void loadSales(status);
+  };
 
   const refreshing = salesState === 'loading';
 
@@ -51,10 +72,34 @@ export default function SalesScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => loadSales()}
+            onRefresh={() => loadSales(selectedStatus)}
             tintColor={C.accent}
           />
         }>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={s.filterRow}>
+          {FILTERS.map((f) => {
+            const active = selectedStatus === f.value;
+            return (
+              <TouchableOpacity
+                key={f.label}
+                onPress={() => handleSelectFilter(f.value)}
+                style={[
+                  s.filterChip,
+                  active
+                    ? { backgroundColor: C.accent, borderColor: C.accent }
+                    : { backgroundColor: C.glass, borderColor: C.glassBorder },
+                ]}>
+                <Text style={[s.filterChipText, { color: active ? '#050508' : C.textSecondary }]}>
+                  {f.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+
         {salesState === 'loading' && sales.length === 0 ? (
           <View style={s.emptyWrap}>
             <ActivityIndicator color={C.accent} />
@@ -66,7 +111,7 @@ export default function SalesScreen() {
               {salesError ?? 'No se pudieron cargar las ventas.'}
             </Text>
             <TouchableOpacity
-              onPress={() => loadSales()}
+              onPress={() => loadSales(selectedStatus)}
               style={[s.retryBtn, { backgroundColor: C.accent }]}>
               <Text style={s.retryBtnText}>Reintentar</Text>
             </TouchableOpacity>
@@ -75,10 +120,12 @@ export default function SalesScreen() {
           <View style={s.emptyWrap}>
             <MaterialIcons name="storefront" size={48} color={C.textMuted} />
             <Text style={[s.emptyTitle, { color: C.textPrimary }]}>
-              Todavía no tenés ventas
+              {selectedStatus ? 'Sin ventas con ese estado' : 'Todavía no tenés ventas'}
             </Text>
             <Text style={[s.emptyText, { color: C.textSecondary }]}>
-              Las órdenes en las que aparezcas como vendedor se mostrarán acá.
+              {selectedStatus
+                ? 'Probá seleccionando otro filtro.'
+                : 'Las órdenes en las que aparezcas como vendedor se mostrarán acá.'}
             </Text>
           </View>
         ) : (
@@ -120,8 +167,21 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   headerTitle: { flex: 1, fontSize: 20, fontWeight: '800', letterSpacing: -0.3, textAlign: 'center' },
-  scroll: { paddingHorizontal: 20, paddingTop: 4 },
-  list: { gap: 12 },
+  scroll: { paddingTop: 4 },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  filterChip: {
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  filterChipText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.1 },
+  list: { gap: 12, paddingHorizontal: 20 },
   emptyWrap: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
   emptyTitle: { fontSize: 16, fontWeight: '700' },
   emptyText: { fontSize: 13, textAlign: 'center', paddingHorizontal: 24 },

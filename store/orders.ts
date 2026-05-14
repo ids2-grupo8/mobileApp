@@ -4,6 +4,7 @@ import {
   fetchOrderById,
   fetchPurchases,
   fetchSales,
+  type OrderStatus,
   type OrderSummary,
 } from '@/services/orders';
 
@@ -22,8 +23,8 @@ type OrdersStore = {
   detailLoading: Record<number, boolean>;
   detailError: Record<number, string | null>;
 
-  loadPurchases: () => Promise<void>;
-  loadSales: () => Promise<void>;
+  loadPurchases: (status?: OrderStatus) => Promise<void>;
+  loadSales: (status?: OrderStatus) => Promise<void>;
   loadOrderDetail: (orderId: number) => Promise<OrderSummary | null>;
   reset: () => void;
 };
@@ -46,20 +47,20 @@ export const useOrdersStore = create<OrdersStore>((set, get) => ({
   detailLoading: {},
   detailError: {},
 
-  loadPurchases: async () => {
+  loadPurchases: async (status?: OrderStatus) => {
     set({ purchasesState: 'loading', purchasesError: null });
     try {
-      const data = await fetchPurchases();
+      const data = await fetchPurchases(status);
       set({ purchases: data, purchasesState: 'ready' });
     } catch (e) {
       set({ purchasesState: 'error', purchasesError: getErrorMessage(e) });
     }
   },
 
-  loadSales: async () => {
+  loadSales: async (status?: OrderStatus) => {
     set({ salesState: 'loading', salesError: null });
     try {
-      const data = await fetchSales();
+      const data = await fetchSales(status);
       set({ sales: data, salesState: 'ready' });
     } catch (e) {
       set({ salesState: 'error', salesError: getErrorMessage(e) });

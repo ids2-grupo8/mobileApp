@@ -28,6 +28,17 @@ function formatPrice(value: number) {
   }).format(value);
 }
 
+function formatTimestamp(ts: string): string {
+  const d = new Date(ts);
+  return d.toLocaleString('es-AR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function OrderDetailScreen() {
   const C = useTheme();
   const router = useRouter();
@@ -229,6 +240,28 @@ export default function OrderDetailScreen() {
               </View>
             </View>
 
+            {order.history && order.history.length > 0 && (
+              <View
+                style={[
+                  s.section,
+                  { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
+                ]}>
+                <Text style={[s.sectionTitle, { color: C.textPrimary }]}>
+                  Historial de estado
+                </Text>
+                <View style={{ gap: 10 }}>
+                  {[...order.history].reverse().map((entry, idx) => (
+                    <View key={idx} style={s.historyRow}>
+                      <StatusPill status={entry.status} C={C} />
+                      <Text style={[s.historyDate, { color: C.textMuted }]}>
+                        {formatTimestamp(entry.timestamp)}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
             {order.status === 'delivered' && role === 'buyer' && (
               <ReviewSection order={order} productMap={productMap} C={C} />
             )}
@@ -317,6 +350,14 @@ const s = StyleSheet.create({
     elevation: 4,
   },
   sectionTitle: { fontSize: 14, fontWeight: '700', marginBottom: 4 },
+
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  historyDate: { fontSize: 12, fontWeight: '500' },
 
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   itemThumbWrap: {
