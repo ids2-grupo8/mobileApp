@@ -14,11 +14,13 @@ import type { ThemeColors } from '@/constants/colors';
 import type { CatalogProduct } from '@/services/catalog';
 import type { OrderSummary } from '@/services/orders';
 import {
+  cacheSubmittedReview,
   fetchOrderReviews,
   submitProductReview,
   submitSellerReview,
   type ReviewRecord,
 } from '@/services/reviews';
+import { ApiError } from '@/services/http';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -82,8 +84,19 @@ export default function ReviewSection({ order, productMap, C }: Props) {
     try {
       const score = Math.round(sellerForm.stars * 2); // 0.5★ → 1, 5★ → 10
       await submitSellerReview(order.id, score, sellerForm.comment || undefined);
-      setSellerReview({ order_id: order.id, score, comment: sellerForm.comment || undefined, type: 'seller' });
+      const review: ReviewRecord = { order_id: order.id, score, comment: sellerForm.comment || undefined, type: 'seller' };
+      setSellerReview(review);
+      void cacheSubmittedReview(review);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 400) {
+        // Server says review already exists — mark as reviewed using current form values
+        // and cache it so future navigations don't show the form again.
+        const score = Math.round(sellerForm.stars * 2);
+        const review: ReviewRecord = { order_id: order.id, score, comment: sellerForm.comment || undefined, type: 'seller' };
+        setSellerReview(review);
+        void cacheSubmittedReview(review);
+        return;
+      }
       setSellerForm((f) => ({
         ...f,
         submitting: false,
@@ -108,11 +121,18 @@ export default function ReviewSection({ order, productMap, C }: Props) {
     try {
       const score = Math.round(form.stars * 2);
       await submitProductReview(order.id, productId, score, form.comment || undefined);
-      setProductReviews((prev) => ({
-        ...prev,
-        [productId]: { order_id: order.id, score, comment: form.comment || undefined, type: 'product', product_id: productId },
-      }));
+      const review: ReviewRecord = { order_id: order.id, score, comment: form.comment || undefined, type: 'product', product_id: productId };
+      setProductReviews((prev) => ({ ...prev, [productId]: review }));
+      void cacheSubmittedReview(review);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 400) {
+        // Server says review already exists — mark as reviewed and cache it.
+        const score = Math.round(form.stars * 2);
+        const review: ReviewRecord = { order_id: order.id, score, comment: form.comment || undefined, type: 'product', product_id: productId };
+        setProductReviews((prev) => ({ ...prev, [productId]: review }));
+        void cacheSubmittedReview(review);
+        return;
+      }
       setProductForms((prev) => ({
         ...prev,
         [productId]: {
