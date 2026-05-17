@@ -38,6 +38,7 @@ export type OrderSummary = {
   address: OrderAddress | null;
   items: OrderItem[];
   history: OrderStatusHistoryEntry[];
+  tracking_code?: string | null;
 };
 
 type OrderListResponse = { data: OrderSummary[] };
@@ -69,6 +70,37 @@ export async function fetchOrderById(orderId: number | string): Promise<OrderSum
   const res = await request<OrderDetailResponse>(
     CHECKOUT(`/order/${encodeURIComponent(String(orderId))}`),
     { method: 'GET', auth: true },
+  );
+  return res.data;
+}
+
+export async function processOrder(orderId: number): Promise<OrderSummary> {
+  const res = await request<OrderDetailResponse>(
+    CHECKOUT(`/order/${encodeURIComponent(String(orderId))}/process`),
+    { method: 'POST', auth: true },
+  );
+  return res.data;
+}
+
+export async function shipOrder(
+  orderId: number,
+  trackingCode?: string,
+): Promise<OrderSummary> {
+  const res = await request<OrderDetailResponse>(
+    CHECKOUT(`/order/${encodeURIComponent(String(orderId))}/ship`),
+    {
+      method: 'POST',
+      auth: true,
+      body: { tracking_code: trackingCode ?? null },
+    },
+  );
+  return res.data;
+}
+
+export async function confirmDelivery(orderId: number): Promise<OrderSummary> {
+  const res = await request<OrderDetailResponse>(
+    CHECKOUT(`/order/${encodeURIComponent(String(orderId))}/deliver`),
+    { method: 'POST', auth: true },
   );
   return res.data;
 }

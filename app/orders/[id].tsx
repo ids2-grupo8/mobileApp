@@ -4,10 +4,13 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Modal,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -47,12 +50,30 @@ export default function OrderDetailScreen() {
   const orderId = Number(id);
 
   const { user } = useAuthStore();
-  const { details, detailLoading, detailError, loadOrderDetail } = useOrdersStore();
+  const {
+    details,
+    detailLoading,
+    detailError,
+    loadOrderDetail,
+    actionLoading,
+    actionError,
+    markAsProcessing,
+    markAsShipped,
+    confirmDelivery,
+  } = useOrdersStore();
   const order = Number.isFinite(orderId) ? details[orderId] : undefined;
   const loading = Number.isFinite(orderId) ? Boolean(detailLoading[orderId]) : false;
   const error = Number.isFinite(orderId) ? detailError[orderId] : null;
+  const acting = Number.isFinite(orderId) ? Boolean(actionLoading[orderId]) : false;
+  const actError = Number.isFinite(orderId) ? actionError[orderId] : null;
 
   const [productMap, setProductMap] = useState<Record<string, CatalogProduct | null>>({});
+  const [shipModalOpen, setShipModalOpen] = useState(false);
+  const [trackingInput, setTrackingInput] = useState('');
+
+  useEffect(() => {
+    if (actError) Alert.alert('No se pudo actualizar la orden', actError);
+  }, [actError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -240,6 +261,97 @@ export default function OrderDetailScreen() {
               </View>
             </View>
 
+            {order.status === 'shipped' && order.tracking_code ? (
+              <View
+                style={[
+                  s.section,
+                  { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark },
+                ]}>
+                <Text style={[s.sectionTitle, { color: C.textPrimary }]}>
+                  Código de seguimiento
+                </Text>
+                <TouchableOpacity
+                  onPress={() =>
+                    Alert.alert('Código de seguimiento', order.tracking_code ?? '')
+                  }
+                  activeOpacity={0.7}>
+                  <Text
+                    style={[s.trackingCode, { color: C.accent }]}
+                    selectable
+                    numberOfLines={1}>
+                    {order.tracking_code}
+                  </Text>
+                  <Text style={[s.subValue, { color: C.textMuted }]}>
+                    Informado por el vendedor
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {role === 'seller' && order.status === 'payment confirmed' && (
+              <TouchableOpacity
+                disabled={acting}
+                onPress={() => markAsProcessing(orderId)}
+                style={[
+                  s.actionBtn,
+                  { backgroundColor: C.accent, opacity: acting ? 0.6 : 1 },
+                ]}>
+                {acting ? (
+                  <ActivityIndicator color="#050508" />
+                ) : (
+                  <Text style={s.actionBtnText}>Marcar en preparación</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {role === 'seller' && order.status === 'processing' && (
+              <TouchableOpacity
+                disabled={acting}
+                onPress={() => {
+                  setTrackingInput('');
+                  setShipModalOpen(true);
+                }}
+                style={[
+                  s.actionBtn,
+                  { backgroundColor: C.accent, opacity: acting ? 0.6 : 1 },
+                ]}>
+                {acting ? (
+                  <ActivityIndicator color="#050508" />
+                ) : (
+                  <Text style={s.actionBtnText}>Marcar como enviada</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
+            {role === 'buyer' && order.status === 'shipped' && (
+              <TouchableOpacity
+                disabled={acting}
+                onPress={() =>
+                  Alert.alert(
+                    'Confirmar entrega',
+                    '¿Recibiste el pedido? Esta acción no se puede deshacer.',
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      {
+                        text: 'Confirmar',
+                        style: 'default',
+                        onPress: () => confirmDelivery(orderId),
+                      },
+                    ],
+                  )
+                }
+                style={[
+                  s.actionBtn,
+                  { backgroundColor: C.accent, opacity: acting ? 0.6 : 1 },
+                ]}>
+                {acting ? (
+                  <ActivityIndicator color="#050508" />
+                ) : (
+                  <Text style={s.actionBtnText}>Confirmar entrega</Text>
+                )}
+              </TouchableOpacity>
+            )}
+
             {order.history && order.history.length > 0 && (
               <View
                 style={[
@@ -268,6 +380,75 @@ export default function OrderDetailScreen() {
           </View>
         )}
       </ScrollView>
+
+      <Modal
+        visible={shipModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShipModalOpen(false)}>
+        <View style={s.modalBackdrop}>
+          <View
+            style={[
+              s.modalCard,
+              { backgroundColor: C.bg, borderColor: C.glassBorder },
+            ]}>
+            <Text style={[s.sectionTitle, { color: C.textPrimary }]}>
+              Marcar como enviada
+            </Text>
+            <Text style={[s.subValue, { color: C.textSecondary, marginBottom: 12 }]}>
+              Podés agregar un código de seguimiento para que el comprador haga el
+              tracking del envío. Este campo es opcional.
+            </Text>
+            <TextInput
+              value={trackingInput}
+              onChangeText={setTrackingInput}
+              placeholder="Código de seguimiento (opcional)"
+              placeholderTextColor={C.textMuted}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={64}
+              style={[
+                s.input,
+                {
+                  color: C.textPrimary,
+                  borderColor: C.glassBorder,
+                  backgroundColor: C.glass,
+                },
+              ]}
+            />
+            <View style={s.modalActions}>
+              <TouchableOpacity
+                onPress={() => setShipModalOpen(false)}
+                disabled={acting}
+                style={[s.modalBtnGhost, { borderColor: C.glassBorder }]}>
+                <Text style={[s.modalBtnGhostText, { color: C.textPrimary }]}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={acting}
+                onPress={async () => {
+                  const code = trackingInput.trim();
+                  const result = await markAsShipped(
+                    orderId,
+                    code.length > 0 ? code : undefined,
+                  );
+                  if (result) setShipModalOpen(false);
+                }}
+                style={[
+                  s.modalBtn,
+                  { backgroundColor: C.accent, opacity: acting ? 0.6 : 1 },
+                ]}>
+                {acting ? (
+                  <ActivityIndicator color="#050508" />
+                ) : (
+                  <Text style={s.actionBtnText}>Confirmar envío</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -383,4 +564,63 @@ const s = StyleSheet.create({
     borderRadius: 12,
   },
   retryBtnText: { color: '#050508', fontWeight: '700' },
+
+  trackingCode: {
+    fontSize: 18,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    fontFamily: 'FiraCode-Regular',
+    marginBottom: 4,
+  },
+
+  actionBtn: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionBtnText: { color: '#050508', fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
+
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 20,
+    gap: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+    marginTop: 16,
+  },
+  modalBtn: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    minWidth: 140,
+    alignItems: 'center',
+  },
+  modalBtnGhost: {
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  modalBtnGhostText: { fontWeight: '700', fontSize: 14 },
 });
