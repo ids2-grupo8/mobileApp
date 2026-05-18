@@ -2,7 +2,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import {
-  ActivityIndicator,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import OrderCard from '@/components/order-card';
+import OrderCardSkeleton from '@/components/order-card-skeleton';
 import StatusFilterModal from '@/components/status-filter-modal';
 import { useTheme } from '@/hooks/use-theme';
 import type { OrderStatus } from '@/services/orders';
@@ -80,8 +80,10 @@ export default function PurchasesScreen() {
           />
         }>
         {purchasesState === 'loading' && purchases.length === 0 ? (
-          <View style={s.emptyWrap}>
-            <ActivityIndicator color={C.accent} />
+          <View style={s.list}>
+            {Array.from({ length: 4 }).map((_, i) => (
+              <OrderCardSkeleton key={i} C={C} />
+            ))}
           </View>
         ) : purchasesState === 'error' ? (
           <View style={s.emptyWrap}>

@@ -20,7 +20,6 @@ import { StatusPill } from '@/components/order-card';
 import ReviewSection from '@/components/review-section';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchCatalogProductById, type CatalogProduct } from '@/services/catalog';
-import { SELLER_NEXT_STATUS, type OrderStatus } from '@/services/orders';
 import { useAuthStore } from '@/store/auth';
 import { useOrdersStore } from '@/store/orders';
 
@@ -31,16 +30,6 @@ function formatPrice(value: number) {
     maximumFractionDigits: 0,
   }).format(value);
 }
-
-const ADVANCE_ACTION_LABEL: Record<OrderStatus, string> = {
-  'payment pending': 'pago pendiente',
-  'payment confirmed': 'pago confirmado',
-  'payment rejected': 'pago rechazado',
-  canceled: 'cancelada',
-  processing: 'en preparación',
-  shipped: 'enviada',
-  delivered: 'entregada',
-};
 
 function formatTimestamp(ts: string): string {
   const d = new Date(ts);
@@ -141,38 +130,6 @@ export default function OrderDetailScreen() {
         ? 'seller'
         : null
     : null;
-  const nextStatus =
-    order && role === 'seller'
-      ? SELLER_NEXT_STATUS[order.status as OrderStatus]
-      : undefined;
-
-  const handleAdvance = useCallback(() => {
-    if (!order || !nextStatus) return;
-    const label = ADVANCE_ACTION_LABEL[nextStatus];
-    Alert.alert(
-      'Actualizar estado',
-      `¿Confirmás marcar la orden como "${label}"?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar',
-          style: 'default',
-          onPress: async () => {
-            setAdvancing(true);
-            try {
-              await advanceOrderStatus(order.id, nextStatus);
-            } catch (e) {
-              const msg = e instanceof Error ? e.message : 'No se pudo actualizar el estado.';
-              Alert.alert('Error', msg);
-            } finally {
-              setAdvancing(false);
-            }
-          },
-        },
-      ],
-    );
-  }, [order, nextStatus, advanceOrderStatus]);
-
   const counterpartyLabel = role === 'seller' ? 'Comprador' : 'Vendedor';
   const counterparty = order
     ? role === 'seller'
@@ -236,25 +193,6 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
             </View>
-
-            {role === 'seller' && nextStatus && (
-              <TouchableOpacity
-                onPress={handleAdvance}
-                disabled={advancing}
-                activeOpacity={0.85}
-                style={[
-                  s.advanceBtn,
-                  { backgroundColor: C.accent, opacity: advancing ? 0.6 : 1 },
-                ]}>
-                {advancing ? (
-                  <ActivityIndicator color="#050508" />
-                ) : (
-                  <Text style={s.advanceBtnText}>
-                    Marcar como {ADVANCE_ACTION_LABEL[nextStatus]}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            )}
 
             {order.address && (
               <View
