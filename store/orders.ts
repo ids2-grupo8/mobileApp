@@ -7,6 +7,7 @@ import {
   fetchSales,
   processOrder as processOrderRequest,
   shipOrder as shipOrderRequest,
+  updateOrderStatus,
   type OrderStatus,
   type OrderSummary,
 } from '@/services/orders';
@@ -35,6 +36,7 @@ type OrdersStore = {
   markAsProcessing: (orderId: number) => Promise<OrderSummary | null>;
   markAsShipped: (orderId: number, trackingCode?: string) => Promise<OrderSummary | null>;
   confirmDelivery: (orderId: number) => Promise<OrderSummary | null>;
+  advanceOrderStatus: (orderId: number, nextStatus: OrderStatus) => Promise<OrderSummary>;
   reset: () => void;
 };
 
@@ -110,6 +112,16 @@ export const useOrdersStore = create<OrdersStore>((set, get) => ({
 
   confirmDelivery: async (orderId: number) => {
     return runTransition(set, get, orderId, () => confirmDeliveryRequest(orderId));
+  },
+
+  advanceOrderStatus: async (orderId: number, nextStatus: OrderStatus) => {
+    const updated = await updateOrderStatus(orderId, nextStatus);
+    set((state) => ({
+      details: { ...state.details, [orderId]: updated },
+      sales: state.sales.map((o) => (o.id === orderId ? updated : o)),
+      purchases: state.purchases.map((o) => (o.id === orderId ? updated : o)),
+    }));
+    return updated;
   },
 
   reset: () =>

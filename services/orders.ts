@@ -66,6 +66,23 @@ export async function fetchSales(status?: OrderStatus): Promise<OrderSummary[]> 
   return res.data ?? [];
 }
 
+export async function updateOrderStatus(
+  orderId: number | string,
+  status: OrderStatus,
+): Promise<OrderSummary> {
+  const res = await request<OrderDetailResponse>(
+    CHECKOUT(`/order/${encodeURIComponent(String(orderId))}/status`),
+    { method: 'PATCH', auth: true, body: { status } },
+  );
+  return res.data;
+}
+
+export const SELLER_NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
+  'payment confirmed': 'processing',
+  processing: 'shipped',
+  shipped: 'delivered',
+};
+
 export async function fetchOrderById(orderId: number | string): Promise<OrderSummary> {
   const res = await request<OrderDetailResponse>(
     CHECKOUT(`/order/${encodeURIComponent(String(orderId))}`),
