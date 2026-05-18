@@ -4,6 +4,7 @@ import { useCartStore } from '@/store/cart';
 import { ENABLE_PIN_LOGIN } from "@/constants/features";
 import { getOrCreateDeviceId, setPinEnabled } from "@/services/device";
 import { clearTokens } from "@/services/http";
+import { registerPushToken } from "@/services/pushNotifications";
 import {
   type AuthUser,
   type PinAccount,
@@ -71,6 +72,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           useCartStore.getState().syncWithBackend().catch(() => { });
         }
       } catch { }
+      registerPushToken(user.id).catch(() => { });
       if (ENABLE_PIN_LOGIN) {
         try {
           const deviceId = await getOrCreateDeviceId();
@@ -106,6 +108,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           useCartStore.getState().syncWithBackend().catch(() => { });
         }
       } catch { }
+      registerPushToken(user.id).catch(() => { });
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
     }
@@ -129,6 +132,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           useCartStore.getState().syncWithBackend().catch(() => { });
         }
       } catch { }
+      registerPushToken(user.id).catch(() => { });
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
     }
@@ -184,6 +188,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
           useCartStore.getState().syncWithBackend().catch(() => { });
         }
       } catch { }
+      registerPushToken(user.id).catch(() => { });
     } catch (err) {
       set({ isLoading: false, error: toUserMessage(err) });
     }

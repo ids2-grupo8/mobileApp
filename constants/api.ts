@@ -21,3 +21,4 @@ export function apiUrl(service: string, path: string) {
 export const USERS = (path: string) => apiUrl('users', path);
 export const CATALOG = (path: string) => apiUrl('products', path);
 export const CHECKOUT = (path: string) => apiUrl('checkout', path);
+export const NOTIFICATIONS = (path: string) => apiUrl('notifications', path);
