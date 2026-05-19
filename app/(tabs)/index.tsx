@@ -26,6 +26,7 @@ import {
   type CatalogProduct,
   fetchCatalogCategories,
   fetchCatalogProducts,
+  fetchMyProducts,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -353,11 +354,27 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
+  const [ownProductIds, setOwnProductIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!user) {
+      setOwnProductIds(new Set());
+      return;
+    }
+    fetchMyProducts()
+      .then((mine) => setOwnProductIds(new Set(mine.map((p) => p.id))))
+      .catch(() => {});
+  }, [user]);
 
   const isOwnProduct = (product: CatalogProduct) => {
+    if (ownProductIds.has(product.id)) return true;
     const sellerEmail = product.sellerInfo?.email?.trim().toLowerCase();
     const userEmail = user?.email?.trim().toLowerCase();
-    return !!sellerEmail && !!userEmail && sellerEmail === userEmail;
+    if (sellerEmail && userEmail && sellerEmail === userEmail) return true;
+    const sellerId = product.sellerId;
+    const userId = user?.id;
+    if (sellerId && userId && sellerId === userId) return true;
+    return false;
   };
 
   // CA5: Si el usuario no está logueado, le pedimos que inicie sesión
@@ -571,7 +588,7 @@ export default function HomeScreen() {
         (a, b) =>
           (categoryRank.get(a.category) ?? Infinity) - (categoryRank.get(b.category) ?? Infinity),
       );
-  }, [products, topBrowsedCategories, viewedProductIds, user]);
+  }, [products, topBrowsedCategories, viewedProductIds, user, ownProductIds]);
 
   const hasPersonalizedRecommendations = recommendedProducts.length > 0;
 

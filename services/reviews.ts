@@ -105,3 +105,17 @@ export async function fetchOrderReviews(orderId: number): Promise<ReviewRecord[]
 export async function cacheSubmittedReview(review: ReviewRecord): Promise<void> {
   await writeToCache(review.order_id, review);
 }
+
+// Fetches all reviews for a given product (shown on the product detail screen).
+export async function fetchProductReviews(productId: string): Promise<ReviewRecord[]> {
+  try {
+    const res = await request<ReviewsResponse>(
+      CHECKOUT(`/review/product/${encodeURIComponent(productId)}`),
+      { method: 'GET', auth: false, silent: true },
+    );
+    return res.data ?? [];
+  } catch (e) {
+    if (e instanceof ApiError && e.status >= 400 && e.status < 500) return [];
+    return [];
+  }
+}
