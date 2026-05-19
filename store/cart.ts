@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/services/secure-storage';
 import { create } from 'zustand';
 
 import type { CatalogProduct } from '@/services/catalog';
@@ -54,7 +54,7 @@ type CartStore = {
 };
 
 async function persist(items: CartItem[]) {
-  await SecureStore.setItemAsync(CART_KEY, JSON.stringify(items));
+  await SecureStore.setItem(CART_KEY, JSON.stringify(items));
 }
 
 export const useCartStore = create<CartStore>((set, get) => ({
@@ -65,7 +65,7 @@ export const useCartStore = create<CartStore>((set, get) => ({
 
   hydrate: async () => {
     try {
-      const raw = await SecureStore.getItemAsync(CART_KEY);
+      const raw = await SecureStore.getItem(CART_KEY);
       if (!raw) {
         set({ items: [], hydrated: true });
         return;

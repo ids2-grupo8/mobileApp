@@ -9,7 +9,7 @@
  *     (excluyendo los productos ya vistos y los propios).
  */
 
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secure-storage';
 
 const STORAGE_KEY = 'browse_history_v1';
 const MAX_ENTRIES = 50;
@@ -22,7 +22,7 @@ export type BrowseEntry = {
 
 async function readEntries(): Promise<BrowseEntry[]> {
   try {
-    const raw = await SecureStore.getItemAsync(STORAGE_KEY);
+    const raw = await SecureStore.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -41,7 +41,7 @@ async function readEntries(): Promise<BrowseEntry[]> {
 
 async function writeEntries(entries: BrowseEntry[]): Promise<void> {
   try {
-    await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
+    await SecureStore.setItem(STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_ENTRIES)));
   } catch {
     // historial es nice-to-have
   }
@@ -95,7 +95,7 @@ export async function getViewedProductIds(): Promise<Set<string>> {
 
 export async function clearBrowseHistory(): Promise<void> {
   try {
-    await SecureStore.deleteItemAsync(STORAGE_KEY);
+    await SecureStore.deleteItem(STORAGE_KEY);
   } catch {
     // ignore
   }

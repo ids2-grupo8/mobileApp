@@ -6,6 +6,8 @@ import { Linking, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
+import { PushOptInBanner } from '@/components/push-opt-in-banner';
+import { setupNotificationClickListener } from '@/services/push';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useThemeStore } from '@/store/theme';
@@ -146,6 +148,19 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, [isReady, router]);
 
+  // Web Push: cuando el usuario toca una notificación, el SW nos envía el
+  // path destino. Lo navegamos con el router para abrir directo en el detalle.
+  useEffect(() => {
+    if (!isReady) return;
+    return setupNotificationClickListener((url) => {
+      try {
+        router.push(url as any);
+      } catch (e) {
+        console.warn('[push] navigate from notification failed', e);
+      }
+    });
+  }, [isReady, router]);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
     <ThemeProvider value={navTheme}>
@@ -167,6 +182,7 @@ export default function RootLayout() {
         <Stack.Screen name="modal"       options={{ presentation: 'modal', title: 'Modal' }} />
         <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
       </Stack>
+      <PushOptInBanner />
       <StatusBar style={effective === "dark" ? "light" : "dark"} />
     </ThemeProvider>
     </GestureHandlerRootView>

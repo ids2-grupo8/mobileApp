@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/services/secure-storage';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -55,7 +55,7 @@ type FeaturedSeller = {
 
 async function loadRecent(): Promise<string[]> {
   try {
-    const raw = await SecureStore.getItemAsync(RECENT_KEY);
+    const raw = await SecureStore.getItem(RECENT_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
@@ -67,7 +67,7 @@ async function loadRecent(): Promise<string[]> {
 
 async function saveRecent(items: string[]) {
   try {
-    await SecureStore.setItemAsync(RECENT_KEY, JSON.stringify(items.slice(0, RECENT_MAX)));
+    await SecureStore.setItem(RECENT_KEY, JSON.stringify(items.slice(0, RECENT_MAX)));
   } catch {
     // ignoramos: el historial es nice-to-have
   }
