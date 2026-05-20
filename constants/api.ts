@@ -1,5 +1,5 @@
 const API_GATEWAY =
-  process.env.EXPO_PUBLIC_API_GATEWAY ?? 'http://35.247.221.39';
+  process.env.EXPO_PUBLIC_API_GATEWAY ?? 'https://35.247.221.39.nip.io';
 
 /**
  * Construye la URL del API Gateway dado el servicio y el path local.
