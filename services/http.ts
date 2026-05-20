@@ -1,4 +1,4 @@
-import * as SecureStore from "expo-secure-store";
+import * as Storage from "./secure-storage";
 
 const TOKEN_KEY = "access_token";
 const REFRESH_KEY = "refresh_token";
@@ -8,21 +8,21 @@ const REFRESH_KEY = "refresh_token";
 // ---------------------------------------------------------------------------
 
 export async function getAccessToken() {
-  return SecureStore.getItemAsync(TOKEN_KEY);
+  return Storage.getItem(TOKEN_KEY);
 }
 
 export async function getRefreshToken() {
-  return SecureStore.getItemAsync(REFRESH_KEY);
+  return Storage.getItem(REFRESH_KEY);
 }
 
 export async function saveTokens(accessToken: string, refreshToken?: string) {
-  await SecureStore.setItemAsync(TOKEN_KEY, accessToken);
-  if (refreshToken) await SecureStore.setItemAsync(REFRESH_KEY, refreshToken);
+  await Storage.setItem(TOKEN_KEY, accessToken);
+  if (refreshToken) await Storage.setItem(REFRESH_KEY, refreshToken);
 }
 
 export async function clearTokens() {
-  await SecureStore.deleteItemAsync(TOKEN_KEY);
-  await SecureStore.deleteItemAsync(REFRESH_KEY);
+  await Storage.deleteItem(TOKEN_KEY);
+  await Storage.deleteItem(REFRESH_KEY);
 }
 
 // ---------------------------------------------------------------------------

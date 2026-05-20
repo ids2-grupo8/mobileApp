@@ -1,4 +1,5 @@
-const API_GATEWAY = 'http://35.247.221.39';
+const API_GATEWAY =
+  process.env.EXPO_PUBLIC_API_GATEWAY ?? 'http://35.247.221.39';
 
 /**
  * Construye la URL del API Gateway dado el servicio y el path local.
@@ -21,3 +22,4 @@ export function apiUrl(service: string, path: string) {
 export const USERS = (path: string) => apiUrl('users', path);
 export const CATALOG = (path: string) => apiUrl('products', path);
 export const CHECKOUT = (path: string) => apiUrl('checkout', path);
+export const NOTIFICATIONS = (path: string) => apiUrl('notifications', path);

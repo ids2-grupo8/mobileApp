@@ -1,4 +1,4 @@
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '@/services/secure-storage';
 
 import { CHECKOUT } from '@/constants/api';
 import { ApiError, request } from './http';
@@ -22,7 +22,7 @@ const cacheKey = (orderId: number) => `reviews_v1_order_${orderId}`;
 
 async function readCache(orderId: number): Promise<ReviewRecord[]> {
   try {
-    const raw = await SecureStore.getItemAsync(cacheKey(orderId));
+    const raw = await SecureStore.getItem(cacheKey(orderId));
     if (!raw) return [];
     return JSON.parse(raw) as ReviewRecord[];
   } catch {
@@ -37,7 +37,7 @@ async function writeToCache(orderId: number, review: ReviewRecord): Promise<void
       (r) => !(r.type === review.type && r.product_id === review.product_id),
     );
     deduped.push(review);
-    await SecureStore.setItemAsync(cacheKey(orderId), JSON.stringify(deduped));
+    await SecureStore.setItem(cacheKey(orderId), JSON.stringify(deduped));
   } catch {
     // cache is best-effort — never break the main flow
   }
