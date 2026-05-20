@@ -13,10 +13,11 @@ import { useCartStore } from '@/store/cart';
 type IconName = React.ComponentProps<typeof MaterialIcons>['name'];
 
 const ICONS: Record<string, IconName> = {
-  index:   'home',
-  explore: 'search',
-  cart:    'shopping-bag',
-  profile: 'person',
+  index:         'home',
+  explore:       'search',
+  cart:          'shopping-bag',
+  notifications: 'notifications',
+  profile:       'person',
 };
 
 const GAP        = 4;
