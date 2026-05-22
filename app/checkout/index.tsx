@@ -432,6 +432,21 @@ export default function CheckoutScreen() {
     syncWithBackend();
   }, [syncWithBackend]);
 
+  const [address, setAddress] = useState<Address>({
+    fullName: user?.name ?? '',
+    street: '',
+    city: '',
+    zip: '',
+    phone: '',
+  });
+  const [errors, setErrors] = useState<Errors>({});
+  const [payment, setPayment] = useState<PaymentMethod>('mercadopago');
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [idempotencyKey] = useState(
+    () => `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+  );
+
   // Countdown de 5 minutos mientras esperamos confirmación de pago
   useEffect(() => {
     if (!verifyingPayment) {
@@ -451,20 +466,6 @@ export default function CheckoutScreen() {
     return () => clearInterval(interval);
   }, [verifyingPayment]);
 
-  const [address, setAddress] = useState<Address>({
-    fullName: user?.name ?? '',
-    street: '',
-    city: '',
-    zip: '',
-    phone: '',
-  });
-  const [errors, setErrors] = useState<Errors>({});
-  const [payment, setPayment] = useState<PaymentMethod>('mercadopago');
-  const [verifyingPayment, setVerifyingPayment] = useState(false);
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
-  const [idempotencyKey] = useState(
-    () => `order-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-  );
 
   const [couponInput, setCouponInput] = useState('');
   const [couponStatus, setCouponStatus] = useState<CouponStatus>('idle');
