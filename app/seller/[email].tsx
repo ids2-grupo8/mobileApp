@@ -2,7 +2,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import SellerReputationSection from '@/components/seller-reputation-section';
 import { useTheme } from '@/hooks/use-theme';
 import { getPublicUserProfile } from '@/services/user';
 import type { ThemeColors } from '@/constants/colors';
@@ -151,12 +152,17 @@ export default function SellerPublicProfileScreen() {
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [reputationSummary, setReputationSummary] = useState<{
+    average_score: number | null;
+    count: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!email) return;
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setReputationSummary(null);
     getPublicUserProfile(email)
       .then((res) => {
         if (!cancelled) {
@@ -175,6 +181,13 @@ export default function SellerPublicProfileScreen() {
       });
     return () => { cancelled = true; };
   }, [email]);
+
+  const handleReputationSummary = useCallback(
+    (summary: { average_score: number | null; count: number }) => {
+      setReputationSummary(summary);
+    },
+    [],
+  );
 
   if (loading) {
     return (
@@ -272,8 +285,23 @@ export default function SellerPublicProfileScreen() {
             </View>
             <View style={[s.statDivider, { backgroundColor: C.glassBorder }]} />
             <View style={s.statItem}>
-              <Text style={[s.statValue, { color: C.textPrimary }]}>—</Text>
-              <Text style={[s.statLabel, { color: C.textMuted }]}>Rating</Text>
+              {reputationSummary && reputationSummary.count > 0 && reputationSummary.average_score !== null ? (
+                <>
+                  <Text style={[s.statValue, { color: C.textPrimary }]}>
+                    {reputationSummary.average_score.toFixed(1)}
+                  </Text>
+                  <Text style={[s.statLabel, { color: C.textMuted }]}>
+                    {reputationSummary.count === 1
+                      ? '1 reseña'
+                      : `${reputationSummary.count} reseñas`}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={[s.statValue, { color: C.textPrimary }]}>—</Text>
+                  <Text style={[s.statLabel, { color: C.textMuted }]}>Reputación</Text>
+                </>
+              )}
             </View>
             <LinearGradient
               colors={['rgba(255,255,255,0.08)', 'transparent']}
@@ -282,6 +310,9 @@ export default function SellerPublicProfileScreen() {
               pointerEvents="none"
             />
           </View>
+
+          {/* ── Reputación ── */}
+          <SellerReputationSection email={email} C={C} onSummary={handleReputationSummary} />
 
           {/* ── Products ── */}
           <Text style={[s.sectionLabel, { color: C.textMuted }]}>Publicaciones</Text>
