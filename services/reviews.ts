@@ -14,6 +14,26 @@ export type ReviewRecord = {
 
 type ReviewsResponse = { data: ReviewRecord[] };
 
+// ─── Seller reputation (public profile) ──────────────────────────────────────
+
+export type SellerReviewDetail = {
+  id: number;
+  order_id: number;
+  score: number; // 1..10
+  comment: string | null;
+  reviewer_email: string;
+  created_at: string | null; // ISO; null for legacy rows without timestamp
+};
+
+export type SellerReputation = {
+  seller_email: string;
+  average_score: number | null; // null when count === 0
+  count: number;
+  reviews: SellerReviewDetail[];
+};
+
+type SellerReputationResponse = { data: SellerReputation };
+
 // ─── Local cache ─────────────────────────────────────────────────────────────
 // Stores submitted reviews in SecureStore so the "Calificado" badge persists
 // across navigation even when the server GET endpoint is unavailable.
@@ -117,5 +137,66 @@ export async function fetchProductReviews(productId: string): Promise<ReviewReco
   } catch (e) {
     if (e instanceof ApiError && e.status >= 400 && e.status < 500) return [];
     return [];
+  }
+}
+
+// ─── Seller reputation ───────────────────────────────────────────────────────
+
+function normalizeSellerEmail(email: string): string {
+  try {
+    return decodeURIComponent(email).replace(/%40/gi, '@');
+  } catch {
+    return email.replace(/%40/gi, '@');
+  }
+}
+
+function emptyReputation(email: string): SellerReputation {
+  return { seller_email: email, average_score: null, count: 0, reviews: [] };
+}
+
+function normalizeSellerReputation(raw: SellerReputation, fallbackEmail: string): SellerReputation {
+  const reviews = Array.isArray(raw.reviews) ? raw.reviews : [];
+  const count = typeof raw.count === 'number' ? raw.count : reviews.length;
+  const average =
+    count === 0
+      ? null
+      : typeof raw.average_score === 'number'
+        ? raw.average_score
+        : null;
+
+  return {
+    seller_email: raw.seller_email ?? fallbackEmail,
+    average_score: average,
+    count,
+    reviews: reviews.map((review) => ({
+      id: review.id,
+      order_id: review.order_id,
+      score: review.score,
+      comment: review.comment ?? null,
+      reviewer_email: review.reviewer_email,
+      created_at: review.created_at ?? null,
+    })),
+  };
+}
+
+// CA 1, CA 2, CA 3: returns aggregate average + list of individual reviews for a seller.
+// CA 4 (only delivered orders) is enforced server-side in checkout-service.
+export async function fetchSellerReputation(email: string): Promise<SellerReputation> {
+  const sellerEmail = normalizeSellerEmail(email);
+
+  try {
+    const res = await request<SellerReputationResponse>(
+      CHECKOUT(`/review/seller/${encodeURIComponent(sellerEmail)}`),
+      // Sends JWT when the user is logged in; works without auth once Kong exposes
+      // GET /checkout/review/seller as a public route (see httproute-checkout.yaml).
+      { method: 'GET', auth: true, silent: true },
+    );
+    if (!res.data) return emptyReputation(sellerEmail);
+    return normalizeSellerReputation(res.data, sellerEmail);
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) {
+      return emptyReputation(sellerEmail);
+    }
+    throw e;
   }
 }
