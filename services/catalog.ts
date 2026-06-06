@@ -93,7 +93,7 @@ export type CatalogProduct = {
   enabled?: boolean;
 };
 
-type RecommendationsSource = 'profile' | 'cart' | 'browse' | 'global';
+type RecommendationsSource = 'purchases' | 'profile' | 'blended' | 'browse' | 'global';
 
 export type RecommendationsResult = {
   items: CatalogProduct[];
@@ -358,9 +358,9 @@ export async function fetchCatalogCategories(): Promise<string[]> {
 }
 
 /**
- * Fetch personalized product recommendations from the backend.
- * Returns an empty array on any error so the Home screen gracefully
- * hides the section when the service is unavailable.
+ * Fetch personalized product recommendations from product-service (CA-4).
+ * Uses GET /products/recommendations/context with JWT; Kong injects X-User-Email.
+ * Returns isPersonalized=true when source is purchases or browse.
  */
 export async function fetchRecommendedProducts(limit = 10): Promise<RecommendationsResult> {
   try {
@@ -374,7 +374,11 @@ export async function fetchRecommendedProducts(limit = 10): Promise<Recommendati
 
     const sourceRaw = (payload as Record<string, unknown>).source;
     const source: RecommendationsSource =
-      sourceRaw === 'profile' || sourceRaw === 'cart' || sourceRaw === 'browse' || sourceRaw === 'global'
+      sourceRaw === 'purchases' ||
+      sourceRaw === 'profile' ||
+      sourceRaw === 'blended' ||
+      sourceRaw === 'browse' ||
+      sourceRaw === 'global'
         ? sourceRaw
         : 'global';
     const isPersonalized = Boolean((payload as Record<string, unknown>).is_personalized);

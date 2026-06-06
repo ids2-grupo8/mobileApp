@@ -1,7 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -20,13 +20,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
-import { getTopBrowsedCategories, getViewedProductIds } from '@/services/browse-history';
 import {
   type CatalogFetchOptions,
   type CatalogProduct,
   fetchCatalogCategories,
   fetchCatalogProducts,
   fetchMyProducts,
+  fetchRecommendedProducts,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -437,6 +437,9 @@ export default function HomeScreen() {
   const [filterVisible, setFilterVisible] = useState(false);
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortVisible, setSortVisible] = useState(false);
+  const [recommendedProducts, setRecommendedProducts] = useState<CatalogProduct[]>([]);
+  const [hasPersonalizedRecommendations, setHasPersonalizedRecommendations] = useState(false);
+  const [backendCategories, setBackendCategories] = useState<string[]>([]);
 
   const openProduct = (product: CatalogProduct) => {
     router.push(`/product/${product.id}`);
@@ -459,21 +462,25 @@ export default function HomeScreen() {
     router.push('/seller/publish');
   };
 
-  const loadProducts = async (searchTerm = query, sort = sortBy) => {
+  const loadProducts = async (
+    searchTerm = query,
+    sort = sortBy,
+    options?: { keepRefreshing?: boolean },
+  ) => {
     setError(null);
     try {
-      const options: CatalogFetchOptions = {};
+      const fetchOptions: CatalogFetchOptions = {};
       if (category.size > 0) {
-        options.categories = Array.from(category).map(label => CATEGORY_CODES[label] ?? label);
+        fetchOptions.categories = Array.from(category).map((label) => CATEGORY_CODES[label] ?? label);
       }
       const parsedMin = minPrice !== '' ? parseFloat(minPrice) : undefined;
       const parsedMax = maxPrice !== '' ? parseFloat(maxPrice) : undefined;
-      if (parsedMin != null && !Number.isNaN(parsedMin)) options.priceMin = parsedMin;
-      if (parsedMax != null && !Number.isNaN(parsedMax)) options.priceMax = parsedMax;
+      if (parsedMin != null && !Number.isNaN(parsedMin)) fetchOptions.priceMin = parsedMin;
+      if (parsedMax != null && !Number.isNaN(parsedMax)) fetchOptions.priceMax = parsedMax;
 
       const fromApi = await fetchCatalogProducts(
         searchTerm,
-        options,
+        fetchOptions,
         undefined,
         undefined,
         sort ?? undefined,
@@ -484,9 +491,15 @@ export default function HomeScreen() {
       setError('No pudimos cargar productos. Intentá de nuevo.');
     } finally {
       setLoading(false);
-      setRefreshing(false);
+      if (!options?.keepRefreshing) {
+        setRefreshing(false);
+      }
     }
   };
+
+  useEffect(() => {
+    fetchCatalogCategories().then((cats) => setBackendCategories(cats));
+  }, []);
 
   // Aceptamos ?q= y ?category= desde otras pantallas (p.ej. Explorar) para
   // precargar la búsqueda. La categoría llega como código backend (ej.
@@ -519,6 +532,44 @@ export default function HomeScreen() {
   const hasPriceFilter = minPrice !== '' || maxPrice !== '';
   const hasCategoryFilter = category.size > 0;
 
+  const loadRecommendations = useCallback(async () => {
+    if (!user || hasActiveFilters) {
+      setRecommendedProducts([]);
+      setHasPersonalizedRecommendations(false);
+      return;
+    }
+    try {
+      const { items, isPersonalized } = await fetchRecommendedProducts(10);
+      setRecommendedProducts(items);
+      setHasPersonalizedRecommendations(isPersonalized && items.length > 0);
+    } catch {
+      setRecommendedProducts([]);
+      setHasPersonalizedRecommendations(false);
+    }
+  }, [user, hasActiveFilters]);
+
+  useEffect(() => {
+    void loadRecommendations();
+  }, [loadRecommendations]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadRecommendations();
+    }, [loadRecommendations]),
+  );
+
+  const refreshHome = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        loadProducts(query.trim(), sortBy, { keepRefreshing: true }),
+        loadRecommendations(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [loadRecommendations, query, sortBy]);
+
   const clearAllFilters = () => {
     setCategory(new Set());
     setQuery('');
@@ -550,57 +601,8 @@ export default function HomeScreen() {
     [filteredProducts]
   );
 
-  // Recomendaciones derivadas del historial local de navegación.
-  // Tomamos las categorías más vistas y filtramos el catálogo (excluyendo
-  // los productos propios y los que el usuario ya vio).
-  const [topBrowsedCategories, setTopBrowsedCategories] = useState<string[]>([]);
-  const [viewedProductIds, setViewedProductIds] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (hasActiveFilters || !user) {
-      setTopBrowsedCategories([]);
-      setViewedProductIds(new Set());
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const [cats, viewed] = await Promise.all([getTopBrowsedCategories(), getViewedProductIds()]);
-      if (!cancelled) {
-        setTopBrowsedCategories(cats);
-        setViewedProductIds(viewed);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [products, hasActiveFilters, user]);
-
-  const recommendedProducts = useMemo<CatalogProduct[]>(() => {
-    if (topBrowsedCategories.length === 0) return [];
-    const categoryRank = new Map(topBrowsedCategories.map((c, i) => [c, i]));
-    return products
-      .filter(
-        (p) =>
-          categoryRank.has(p.category) &&
-          !viewedProductIds.has(p.id) &&
-          !isOwnProduct(p) &&
-          p.stock > 0,
-      )
-      .sort(
-        (a, b) =>
-          (categoryRank.get(a.category) ?? Infinity) - (categoryRank.get(b.category) ?? Infinity),
-      );
-  }, [products, topBrowsedCategories, viewedProductIds, user, ownProductIds]);
-
-  const hasPersonalizedRecommendations = recommendedProducts.length > 0;
-
-  // Fetch categories from backend so all are always visible regardless of current filter
-  const [backendCategories, setBackendCategories] = useState<string[]>([]);
-  useEffect(() => {
-    fetchCatalogCategories().then((cats) => setBackendCategories(cats));
-  }, []);
-
   const categories = useMemo(() => {
-    // Translate backend codes to display labels
-    const labels = backendCategories.map(code => CATEGORY_TRANSLATIONS[code] ?? code);
+    const labels = backendCategories.map((code) => CATEGORY_TRANSLATIONS[code] ?? code);
     const fromProducts = products.map((p) => CATEGORY_TRANSLATIONS[p.category] ?? p.category);
     const merged = Array.from(new Set([...labels, ...fromProducts])).sort();
     return ['Todos', ...merged];
@@ -673,7 +675,7 @@ export default function HomeScreen() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            onRefresh={() => { setRefreshing(true); loadProducts(); }}
+            onRefresh={() => { void refreshHome(); }}
             tintColor={theme.accent}
           />
         }>
@@ -844,7 +846,7 @@ export default function HomeScreen() {
               </>
             )}
 
-            {/* ── Recommendations — CA4 (solo usuarios autenticados) ── */}
+            {/* ── Recommendations — CA4: backend personalización (compras → vistas) ── */}
             {user && hasPersonalizedRecommendations && recommendedSectionProducts.length > 0 && (
               <>
                 <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>

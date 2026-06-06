@@ -17,12 +17,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/hooks/use-theme';
-import { getTopBrowsedCategories, getViewedProductIds } from '@/services/browse-history';
 import {
   type CatalogProduct,
   type SellerInfo,
   fetchCatalogCategories,
   fetchCatalogProducts,
+  fetchRecommendedProducts,
   getSellerDisplayName,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
@@ -138,30 +138,9 @@ export default function ExploreScreen() {
   const [categories, setCategories] = useState<string[]>([]);
   const [sellers, setSellers] = useState<FeaturedSeller[]>([]);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
-  const [topBrowsedCategories, setTopBrowsedCategories] = useState<string[]>([]);
-  const [viewedProductIds, setViewedProductIds] = useState<Set<string>>(new Set());
+  const [recommended, setRecommended] = useState<CatalogProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
-  const viewerEmail = user?.email?.trim().toLowerCase();
-
-  const recommended = useMemo<CatalogProduct[]>(() => {
-    if (!user || topBrowsedCategories.length === 0) return [];
-    const categoryRank = new Map(topBrowsedCategories.map((c, i) => [c, i]));
-    return products
-      .filter((p) => {
-        if (!categoryRank.has(p.category)) return false;
-        if (viewedProductIds.has(p.id)) return false;
-        if (p.stock <= 0) return false;
-        const sellerEmail = p.sellerInfo?.email?.trim().toLowerCase();
-        if (sellerEmail && viewerEmail && sellerEmail === viewerEmail) return false;
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          (categoryRank.get(a.category) ?? Infinity) - (categoryRank.get(b.category) ?? Infinity),
-      );
-  }, [products, topBrowsedCategories, viewedProductIds, user, viewerEmail]);
 
   const pulse = useRef(new Animated.Value(0.4)).current;
   useEffect(() => {
@@ -176,19 +155,17 @@ export default function ExploreScreen() {
   }, [pulse]);
 
   const refreshAll = useCallback(async () => {
-    const [recentList, cats, productList, topCats, viewedIds] = await Promise.all([
+    const [recentList, cats, productList, reco] = await Promise.all([
       loadRecent(),
       fetchCatalogCategories().catch(() => []),
       fetchCatalogProducts().catch(() => []),
-      user ? getTopBrowsedCategories() : Promise.resolve<string[]>([]),
-      user ? getViewedProductIds() : Promise.resolve<Set<string>>(new Set()),
+      user ? fetchRecommendedProducts(10).catch(() => ({ items: [], source: 'global' as const, isPersonalized: false })) : Promise.resolve({ items: [], source: 'global' as const, isPersonalized: false }),
     ]);
     setRecents(recentList);
     setCategories(cats);
     setSellers(deriveFeaturedSellers(productList));
     setProducts(productList);
-    setTopBrowsedCategories(topCats);
-    setViewedProductIds(viewedIds);
+    setRecommended(reco.isPersonalized ? reco.items.slice(0, 8) : []);
   }, [user]);
 
   useEffect(() => {
@@ -316,8 +293,7 @@ export default function ExploreScreen() {
               </View>
             )}
 
-            {/* Para vos — derivado del historial local de navegación.
-                Solo se muestra cuando hay productos recomendados reales. */}
+            {/* Para vos — personalización del backend (CA-4). */}
             {recommended.length > 0 && (
               <View style={s.section}>
                 <Text style={[s.sectionTitle, { color: C.textPrimary, marginBottom: 14 }]}>
