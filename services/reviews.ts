@@ -34,6 +34,26 @@ export type SellerReputation = {
 
 type SellerReputationResponse = { data: SellerReputation };
 
+// ─── Product reputation (product detail) ─────────────────────────────────────
+
+export type ProductReviewDetail = {
+  id: number;
+  order_id: number;
+  score: number; // 1..10
+  comment: string | null;
+  reviewer_email: string;
+  created_at: string | null; // ISO
+};
+
+export type ProductReputation = {
+  product_id: string;
+  average_score: number | null; // null when count === 0
+  count: number;
+  reviews: ProductReviewDetail[];
+};
+
+type ProductReputationResponse = { data: ProductReputation };
+
 // ─── Local cache ─────────────────────────────────────────────────────────────
 // Stores submitted reviews in SecureStore so the "Calificado" badge persists
 // across navigation even when the server GET endpoint is unavailable.
@@ -126,17 +146,53 @@ export async function cacheSubmittedReview(review: ReviewRecord): Promise<void> 
   await writeToCache(review.order_id, review);
 }
 
-// Fetches all reviews for a given product (shown on the product detail screen).
-export async function fetchProductReviews(productId: string): Promise<ReviewRecord[]> {
+function emptyProductReputation(productId: string): ProductReputation {
+  return { product_id: productId, average_score: null, count: 0, reviews: [] };
+}
+
+function normalizeProductReputation(
+  raw: ProductReputation,
+  fallbackProductId: string,
+): ProductReputation {
+  const reviews = Array.isArray(raw.reviews) ? raw.reviews : [];
+  const count = typeof raw.count === 'number' ? raw.count : reviews.length;
+  const average =
+    count === 0
+      ? null
+      : typeof raw.average_score === 'number'
+        ? raw.average_score
+        : null;
+
+  return {
+    product_id: raw.product_id ?? fallbackProductId,
+    average_score: average,
+    count,
+    reviews: reviews.map((review) => ({
+      id: review.id,
+      order_id: review.order_id,
+      score: review.score,
+      comment: review.comment ?? null,
+      reviewer_email: review.reviewer_email,
+      created_at: review.created_at ?? null,
+    })),
+  };
+}
+
+// Fetches aggregated reputation for a product (shown on the product detail screen).
+// Only reviews from DELIVERED orders are included (enforced server-side).
+export async function fetchProductReputation(productId: string): Promise<ProductReputation> {
   try {
-    const res = await request<ReviewsResponse>(
+    const res = await request<ProductReputationResponse>(
       CHECKOUT(`/review/product/${encodeURIComponent(productId)}`),
-      { method: 'GET', auth: false, silent: true },
+      { method: 'GET', auth: true, silent: true },
     );
-    return res.data ?? [];
+    if (!res.data) return emptyProductReputation(productId);
+    return normalizeProductReputation(res.data, productId);
   } catch (e) {
-    if (e instanceof ApiError && e.status >= 400 && e.status < 500) return [];
-    return [];
+    if (e instanceof ApiError && e.status === 404) {
+      return emptyProductReputation(productId);
+    }
+    throw e;
   }
 }
 
