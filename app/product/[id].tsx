@@ -21,7 +21,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import StarRating from '@/components/star-rating';
+import ProductReputationSection from '@/components/product-reputation-section';
 import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
 import {
@@ -30,7 +30,6 @@ import {
     fetchCatalogProductById,
     recordProductDetailView,
 } from '@/services/catalog';
-import { fetchProductReviews, type ReviewRecord } from '@/services/reviews';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 
@@ -269,73 +268,6 @@ function ImageGallery({
     </View>
   );
 }
-
-// ─── Product Reviews ──────────────────────────────────────────────────────────
-
-function ProductReviewsSection({ productId, C }: { productId: string; C: ThemeColors }) {
-  const [reviews, setReviews] = useState<ReviewRecord[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let mounted = true;
-    fetchProductReviews(productId)
-      .then((data) => { if (mounted) setReviews(data); })
-      .catch(() => { if (mounted) setReviews([]); })
-      .finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
-  }, [productId]);
-
-  const avg =
-    reviews.length > 0
-      ? reviews.reduce((acc, r) => acc + r.score, 0) / reviews.length
-      : 0;
-
-  return (
-    <View style={prs.wrapper}>
-      <Text style={[prs.title, { color: C.textPrimary }]}>Calificaciones</Text>
-
-      {loading ? (
-        <View style={[prs.card, { backgroundColor: C.glass, borderColor: C.glassBorder, alignItems: 'center', paddingVertical: 24 }]}>
-          <ActivityIndicator color={C.accent} size="small" />
-        </View>
-      ) : reviews.length === 0 ? (
-        <View style={[prs.card, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-          <Text style={{ color: C.textMuted, fontSize: 13 }}>
-            Aún no hay calificaciones para este producto.
-          </Text>
-        </View>
-      ) : (
-        <>
-          <View style={[prs.card, { backgroundColor: C.glass, borderColor: C.glassBorder, alignItems: 'center', gap: 8 }]}>
-            <Text style={{ color: C.textPrimary, fontSize: 40, fontWeight: '800', letterSpacing: -0.5 }}>
-              {(avg / 2).toFixed(1)}
-            </Text>
-            <StarRating value={avg / 2} size={22} />
-            <Text style={{ color: C.textMuted, fontSize: 13 }}>
-              {reviews.length} {reviews.length === 1 ? 'calificación' : 'calificaciones'}
-            </Text>
-          </View>
-          {reviews.map((r, i) => (
-            <View key={i} style={[prs.card, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-              <StarRating value={r.score / 2} size={18} />
-              {r.comment ? (
-                <Text style={{ color: C.textSecondary, fontSize: 13, fontStyle: 'italic', lineHeight: 19 }}>
-                  "{r.comment}"
-                </Text>
-              ) : null}
-            </View>
-          ))}
-        </>
-      )}
-    </View>
-  );
-}
-
-const prs = StyleSheet.create({
-  wrapper: { paddingHorizontal: 20, marginTop: 18, gap: 10 },
-  title: { fontSize: 16, fontWeight: '700', letterSpacing: -0.2, marginBottom: 2 },
-  card: { borderWidth: 1, borderRadius: 20, padding: 18, gap: 8 },
-});
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -590,7 +522,7 @@ export default function ProductDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <ProductReviewsSection productId={productId} C={C} />
+        <ProductReputationSection productId={productId} C={C} />
 
       </ScrollView>
 
