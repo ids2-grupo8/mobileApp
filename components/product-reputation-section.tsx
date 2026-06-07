@@ -26,13 +26,6 @@ function formatReviewDate(iso: string | null): string {
   });
 }
 
-function maskEmail(email: string): string {
-  const [localPart, domain] = email.split('@');
-  if (!localPart || !domain) return email;
-  if (localPart.length <= 2) return `${localPart[0] ?? ''}***@${domain}`;
-  return `${localPart.slice(0, 2)}***@${domain}`;
-}
-
 function formatAverage(avg: number | null): string {
   if (avg === null) return '—';
   return avg.toFixed(1);
@@ -90,7 +83,7 @@ function SummaryCard({
   reputation: ProductReputation;
   C: ThemeColors;
 }) {
-  const stars = reputation.average_score !== null ? reputation.average_score / 2 : 0;
+  const stars = reputation.average_score !== null ? reputation.average_score / 2 : null;
   return (
     <View
       style={[
@@ -100,9 +93,9 @@ function SummaryCard({
     >
       <View style={s.summaryLeft}>
         <Text style={[s.summaryAvg, { color: C.textPrimary }]}>
-          {formatAverage(reputation.average_score)}
+          {formatAverage(stars)}
         </Text>
-        <Text style={[s.summaryScale, { color: C.textMuted }]}>/ 10</Text>
+        <Text style={[s.summaryScale, { color: C.textMuted }]}>/ 5</Text>
       </View>
       <View style={s.summaryRight}>
         <StarRating value={stars} size={20} />
@@ -135,21 +128,13 @@ function ReviewItem({
   const dateText = formatReviewDate(review.created_at);
   return (
     <View style={[s.reviewCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-      <View style={s.reviewHeader}>
-        <StarRating value={review.score / 2} size={18} />
-        <Text style={[s.reviewScore, { color: C.textMuted }]}>{review.score}/10</Text>
-      </View>
+      <StarRating value={review.score / 2} size={18} />
       {review.comment ? (
         <Text style={[s.reviewComment, { color: C.textPrimary }]}>{review.comment}</Text>
       ) : null}
-      <View style={s.reviewFooter}>
-        <Text style={[s.reviewMeta, { color: C.textMuted }]} numberOfLines={1}>
-          {maskEmail(review.reviewer_email)}
-        </Text>
-        {dateText ? (
-          <Text style={[s.reviewMeta, { color: C.textMuted }]}>{dateText}</Text>
-        ) : null}
-      </View>
+      {dateText ? (
+        <Text style={[s.reviewMeta, { color: C.textMuted }]}>{dateText}</Text>
+      ) : null}
     </View>
   );
 }
@@ -279,19 +264,7 @@ const s = StyleSheet.create({
     padding: 14,
     gap: 8,
   },
-  reviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  reviewScore: { fontSize: 12, fontWeight: '600' },
   reviewComment: { fontSize: 14, lineHeight: 20 },
-  reviewFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 2,
-  },
   reviewMeta: { fontSize: 11, fontWeight: '500' },
   errorCard: {
     borderWidth: 1,

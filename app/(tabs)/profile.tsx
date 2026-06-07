@@ -18,7 +18,6 @@ import { useAuthStore } from "@/store/auth";
 import { useTheme } from "@/hooks/use-theme";
 import { useThemeStore, type ThemeMode } from "@/store/theme";
 import type { ThemeColors } from "@/constants/colors";
-import { fetchSellerReputation } from "@/services/reviews";
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
@@ -196,8 +195,6 @@ export default function ProfileScreen() {
   const { profile, loading, fetchProfile } = useUserStore();
   const { isLoggedIn, logout, pinEnabled, loadPinAvailability } = useAuthStore();
   const { mode, toggle } = useThemeStore();
-  const [reputationAvg, setReputationAvg] = useState<number | null>(null);
-
   useFocusEffect(
     useCallback(() => {
       if (!isLoggedIn) return;
@@ -205,13 +202,6 @@ export default function ProfileScreen() {
       void loadPinAvailability();
     }, [fetchProfile, isLoggedIn, loadPinAvailability]),
   );
-
-  useEffect(() => {
-    if (!profile?.email) return;
-    fetchSellerReputation(profile.email)
-      .then((rep) => setReputationAvg(rep.count > 0 ? rep.average_score : null))
-      .catch(() => setReputationAvg(null));
-  }, [profile?.email]);
 
   if (!isLoggedIn) {
     return (
@@ -305,12 +295,6 @@ export default function ProfileScreen() {
         <View style={s.content}>
           <View style={[s.statsCard, { backgroundColor: C.glass, borderColor: C.glassBorder, shadowColor: C.shadowDark }]}>
             <StatItem value={publicationsCount} label="Publicaciones" C={C} />
-            <View style={[s.statDivider, { backgroundColor: C.glassBorder }]} />
-            <StatItem
-              value={reputationAvg !== null ? reputationAvg.toFixed(1) : '—'}
-              label="Rating"
-              C={C}
-            />
             {/* Glass edge */}
             <LinearGradient
               colors={['rgba(255,255,255,0.08)', 'transparent']}
