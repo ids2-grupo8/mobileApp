@@ -273,7 +273,7 @@ function ReviewForm({
       <StarRating value={form.stars} onChange={onStarsChange} size={36} />
       {form.stars > 0 && (
         <Text style={[s.starsLabel, { color: C.textSecondary }]}>
-          {form.stars} {form.stars === 1 ? 'estrella' : 'estrellas'} · {Math.round(form.stars * 2)}/10
+          {form.stars} {form.stars === 1 ? 'estrella' : 'estrellas'}
         </Text>
       )}
       <TextInput

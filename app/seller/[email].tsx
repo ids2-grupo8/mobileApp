@@ -284,25 +284,6 @@ export default function SellerPublicProfileScreen() {
               <Text style={[s.statLabel, { color: C.textMuted }]}>Publicaciones</Text>
             </View>
             <View style={[s.statDivider, { backgroundColor: C.glassBorder }]} />
-            <View style={s.statItem}>
-              {reputationSummary && reputationSummary.count > 0 && reputationSummary.average_score !== null ? (
-                <>
-                  <Text style={[s.statValue, { color: C.textPrimary }]}>
-                    {reputationSummary.average_score.toFixed(1)}
-                  </Text>
-                  <Text style={[s.statLabel, { color: C.textMuted }]}>
-                    {reputationSummary.count === 1
-                      ? '1 reseña'
-                      : `${reputationSummary.count} reseñas`}
-                  </Text>
-                </>
-              ) : (
-                <>
-                  <Text style={[s.statValue, { color: C.textPrimary }]}>—</Text>
-                  <Text style={[s.statLabel, { color: C.textMuted }]}>Reputación</Text>
-                </>
-              )}
-            </View>
             <LinearGradient
               colors={['rgba(255,255,255,0.08)', 'transparent']}
               locations={[0, 1]}
