@@ -230,7 +230,7 @@ export function toUserMessage(err: unknown): string {
     }
     if (err.status >= 500)
       return "Error del servidor. Intentá de nuevo en unos minutos.";
-    return err.message;
+    return "No pudimos completar la operación. Intentá de nuevo.";
   }
   if (err instanceof TypeError) {
     console.error("[API] Network error:", err.message);

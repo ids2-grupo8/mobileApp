@@ -182,7 +182,10 @@ export default function PublicationsScreen() {
               await toggleProductStatus(product.id);
               await loadProducts();
             } catch {
-              Alert.alert('Error', `No pudimos ${action} la publicación. Intentá de nuevo.`);
+              Alert.alert(
+                `No pudimos ${action} la publicación`,
+                'Revisá tu conexión e intentá de nuevo en unos segundos.',
+              );
             } finally {
               setTogglingId(null);
             }

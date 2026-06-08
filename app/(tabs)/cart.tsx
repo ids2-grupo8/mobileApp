@@ -163,7 +163,7 @@ export default function CartScreen() {
 
   useEffect(() => {
     if (cartError) {
-      Alert.alert('Error', cartError);
+      Alert.alert('Carrito', cartError);
     }
   }, [cartError]);
 
@@ -207,7 +207,7 @@ export default function CartScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
       router.push('/checkout');
     } catch {
-      Alert.alert('Error', 'No se pudo verificar el stock. Intentá de nuevo.');
+      Alert.alert('Stock no verificado', 'No pudimos confirmar la disponibilidad de los productos. Revisá tu conexión e intentá de nuevo.');
     } finally {
       setVerifyingStock(false);
     }

@@ -100,7 +100,7 @@ export default function ReviewSection({ order, productMap, C }: Props) {
       setSellerForm((f) => ({
         ...f,
         submitting: false,
-        error: e instanceof Error ? e.message : 'Error al enviar la calificación.',
+        error: 'No pudimos enviar tu calificación. Intentá de nuevo en unos segundos.',
       }));
     }
   }
@@ -138,7 +138,7 @@ export default function ReviewSection({ order, productMap, C }: Props) {
         [productId]: {
           ...(prev[productId] ?? emptyForm()),
           submitting: false,
-          error: e instanceof Error ? e.message : 'Error al enviar la calificación.',
+          error: 'No pudimos enviar tu calificación. Intentá de nuevo en unos segundos.',
         },
       }));
     }
@@ -273,7 +273,7 @@ function ReviewForm({
       <StarRating value={form.stars} onChange={onStarsChange} size={36} />
       {form.stars > 0 && (
         <Text style={[s.starsLabel, { color: C.textSecondary }]}>
-          {form.stars} {form.stars === 1 ? 'estrella' : 'estrellas'} · {Math.round(form.stars * 2)}/10
+          {form.stars} {form.stars === 1 ? 'estrella' : 'estrellas'}
         </Text>
       )}
       <TextInput

@@ -528,7 +528,7 @@ export default function PublishProductScreen() {
         setErrors({});
         setTouched({});
       } catch {
-        Alert.alert('Error', 'No pudimos cargar el producto para editar.');
+        Alert.alert('No pudimos cargar el producto', 'Hubo un problema al traer los datos para editar. Intentá de nuevo en unos segundos.');
         router.back();
       } finally {
         if (active) setHydrating(false);
@@ -625,7 +625,10 @@ export default function PublishProductScreen() {
         setTimeout(() => { setShowToast(false); router.back(); }, 2000);
       }, 350);
     } catch {
-      Alert.alert('Error', isEditing ? 'No pudimos actualizar el producto. Intentá de nuevo.' : 'No pudimos publicar el producto. Intentá de nuevo.');
+      Alert.alert(
+        isEditing ? 'No pudimos actualizar el producto' : 'No pudimos publicar el producto',
+        'Verificá los datos y tu conexión, y volvé a intentarlo en unos segundos.',
+      );
     } finally {
       setLoading(false);
     }
