@@ -41,6 +41,7 @@ export function PushOptInBanner() {
   const [hasSubscription, setHasSubscription] = useState<boolean>(false);
   const [dismissed, setDismissedState] = useState<boolean>(false);
   const [busy, setBusy] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (Platform.OS !== 'web') return;
@@ -64,10 +65,29 @@ export function PushOptInBanner() {
 
   const handleEnable = async () => {
     setBusy(true);
+    setErrorMsg(null);
     try {
       const sub = await enablePushNotifications();
-      if (sub) setHasSubscription(true);
-      else setPermission(typeof Notification !== 'undefined' ? Notification.permission : null);
+      const currentPermission =
+        typeof Notification !== 'undefined' ? Notification.permission : null;
+      if (sub) {
+        setHasSubscription(true);
+        return;
+      }
+      setPermission(currentPermission);
+      if (currentPermission === 'denied') return;
+      if (currentPermission === 'granted') {
+        // Permiso OK pero la suscripción falló (VAPID, red, backend).
+        setErrorMsg('No pudimos completar la suscripción. Probá de nuevo en unos minutos.');
+        return;
+      }
+      // permission sigue 'default' → el prompt nativo nunca salió.
+      // En iOS pasa cuando no estás en PWA standalone, o falta VAPID/usuario.
+      setErrorMsg(
+        isIOSSafari() && !isStandalonePWA()
+          ? 'Agregá Bazaar a la pantalla de inicio y abrila desde el ícono para activar las notificaciones.'
+          : 'No pudimos activar las notificaciones. Verificá tu sesión y conexión.',
+      );
     } finally {
       setBusy(false);
     }
@@ -89,6 +109,7 @@ export function PushOptInBanner() {
             ? 'En iPhone: tocá el botón Compartir en Safari y elegí "Agregar a inicio". Después abrí Bazaar desde el ícono para activar las notificaciones.'
             : 'Te avisamos cuando cambie el estado de tu compra o cuando un producto tuyo se quede sin stock.'}
         </Text>
+        {errorMsg && <Text style={styles.error}>{errorMsg}</Text>}
         {!needsInstall && (
           <View style={styles.row}>
             <Pressable
@@ -148,4 +169,5 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   secondaryBtnText: { color: '#8B8FA8', fontSize: 13 },
+  error: { color: '#F87171', fontSize: 12, lineHeight: 16 },
 });
