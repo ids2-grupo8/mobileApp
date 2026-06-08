@@ -420,9 +420,11 @@ export default function HomeScreen() {
         return;
       }
       Alert.alert('Agregado', 'Producto agregado al carrito');
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'No se pudo agregar el producto';
-      Alert.alert('Error', msg);
+    } catch {
+      Alert.alert(
+        'No se pudo agregar al carrito',
+        'Ocurrió un problema al agregar el producto. Intentá de nuevo en unos segundos.',
+      );
     }
   };
 

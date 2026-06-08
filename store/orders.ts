@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { ApiError } from '@/services/http';
 import {
   confirmDelivery as confirmDeliveryRequest,
   fetchOrderById,
@@ -40,9 +41,27 @@ type OrdersStore = {
   reset: () => void;
 };
 
-function getErrorMessage(e: unknown): string {
-  if (e instanceof Error) return e.message;
-  return 'No se pudo cargar.';
+function getLoadErrorMessage(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.status === 401) return 'Sesión expirada. Iniciá sesión nuevamente.';
+    if (e.status === 403) return 'No tenés permiso para ver estas órdenes.';
+    if (e.status === 404) return 'No encontramos las órdenes solicitadas.';
+    if (e.status >= 500) return 'El servidor no está respondiendo. Intentá de nuevo en unos minutos.';
+  }
+  if (e instanceof TypeError) return 'Sin conexión. Revisá tu red e intentá de nuevo.';
+  return 'No pudimos cargar las órdenes. Intentá de nuevo.';
+}
+
+function getActionErrorMessage(e: unknown): string {
+  if (e instanceof ApiError) {
+    if (e.status === 401) return 'Sesión expirada. Iniciá sesión nuevamente.';
+    if (e.status === 403) return 'No tenés permiso para realizar esta acción.';
+    if (e.status === 404) return 'No encontramos esta orden. Puede que haya sido eliminada.';
+    if (e.status === 409) return 'El estado de la orden cambió. Recargá para ver los datos actualizados.';
+    if (e.status >= 500) return 'El servidor no está respondiendo. Intentá de nuevo en unos minutos.';
+  }
+  if (e instanceof TypeError) return 'Sin conexión. Revisá tu red e intentá de nuevo.';
+  return 'No pudimos actualizar la orden. Intentá de nuevo.';
 }
 
 export const useOrdersStore = create<OrdersStore>((set, get) => ({
@@ -67,7 +86,7 @@ export const useOrdersStore = create<OrdersStore>((set, get) => ({
       const data = await fetchPurchases(status);
       set({ purchases: data, purchasesState: 'ready' });
     } catch (e) {
-      set({ purchasesState: 'error', purchasesError: getErrorMessage(e) });
+      set({ purchasesState: 'error', purchasesError: getLoadErrorMessage(e) });
     }
   },
 
@@ -77,7 +96,7 @@ export const useOrdersStore = create<OrdersStore>((set, get) => ({
       const data = await fetchSales(status);
       set({ sales: data, salesState: 'ready' });
     } catch (e) {
-      set({ salesState: 'error', salesError: getErrorMessage(e) });
+      set({ salesState: 'error', salesError: getLoadErrorMessage(e) });
     }
   },
 
@@ -96,7 +115,7 @@ export const useOrdersStore = create<OrdersStore>((set, get) => ({
     } catch (e) {
       set((state) => ({
         detailLoading: { ...state.detailLoading, [orderId]: false },
-        detailError: { ...state.detailError, [orderId]: getErrorMessage(e) },
+        detailError: { ...state.detailError, [orderId]: getLoadErrorMessage(e) },
       }));
       return null;
     }
@@ -162,7 +181,7 @@ async function runTransition(
   } catch (e) {
     set((state) => ({
       actionLoading: { ...state.actionLoading, [orderId]: false },
-      actionError: { ...state.actionError, [orderId]: getErrorMessage(e) },
+      actionError: { ...state.actionError, [orderId]: getActionErrorMessage(e) },
     }));
     return null;
   }

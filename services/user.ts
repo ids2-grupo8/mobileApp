@@ -96,9 +96,12 @@ export function toUserMessage(err: unknown): string {
   if (err instanceof ApiError) {
     if (err.status === 404) return 'Usuario no encontrado.';
     if (err.status === 401) return 'Sesión expirada. Iniciá sesión nuevamente.';
+    if (err.status === 413) return 'La imagen es demasiado grande. Probá con una más liviana.';
+    if (err.status === 415) return 'Formato de imagen no soportado. Usá JPG, PNG o WebP.';
+    if (err.status === 422) return 'Algunos datos del perfil no son válidos. Revisalos e intentá de nuevo.';
     if (err.status >= 500) return 'Error del servidor. Intentá de nuevo en unos minutos.';
-    return err.message;
+    return 'No pudimos actualizar tu perfil. Intentá de nuevo.';
   }
   if (err instanceof TypeError) return 'Sin conexión. Verificá tu red e intentá de nuevo.';
-  return 'Ocurrió un error inesperado.';
+  return 'Ocurrió un error inesperado. Intentá de nuevo.';
 }

@@ -605,8 +605,8 @@ export default function CheckoutScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       console.error('[Checkout]', e);
       Alert.alert(
-        'Error',
-        e instanceof Error ? e.message : 'Error procesando checkout',
+        'No pudimos procesar la compra',
+        e instanceof Error && e.message ? e.message : 'Ocurrió un problema procesando tu pago. Intentá de nuevo en unos minutos.',
       );
     }
   };

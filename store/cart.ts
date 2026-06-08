@@ -21,7 +21,27 @@ function userMessageForAddToCartFailure(raw: string): string {
   if (lower.includes('out of stock')) {
     return 'Este producto está sin stock. No se puede agregar al carrito.';
   }
-  return t;
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timeout')) {
+    return 'No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo.';
+  }
+  return 'No pudimos agregar el producto al carrito. Intentá de nuevo en unos segundos.';
+}
+
+function userMessageForCartOpFailure(raw: string, op: 'remove' | 'update' | 'clear' | 'sync'): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes('network') || lower.includes('failed to fetch') || lower.includes('timeout')) {
+    return 'No pudimos conectar con el servidor. Revisá tu conexión e intentá de nuevo.';
+  }
+  switch (op) {
+    case 'remove':
+      return 'No pudimos eliminar el producto del carrito. Intentá de nuevo.';
+    case 'update':
+      return 'No pudimos actualizar la cantidad. Intentá de nuevo.';
+    case 'clear':
+      return 'No pudimos vaciar el carrito. Intentá de nuevo.';
+    case 'sync':
+      return 'No pudimos sincronizar tu carrito. Volvé a intentarlo más tarde.';
+  }
 }
 
 const CART_KEY = 'cart_items_v1';
@@ -194,8 +214,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       console.log('[Cart] removeItem complete');
     } catch (err) {
       console.error('[Cart] removeItem error', err);
-      const msg = err instanceof Error ? err.message : 'Error al eliminar del carrito';
-      set({ error: msg });
+      const raw = err instanceof Error ? err.message : '';
+      set({ error: userMessageForCartOpFailure(raw, 'remove') });
     }
   },
 
@@ -227,8 +247,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       console.log('[Cart] updateQuantity complete');
     } catch (err) {
       console.error('[Cart] updateQuantity error', err);
-      const msg = err instanceof Error ? err.message : 'Error al actualizar cantidad';
-      set({ error: msg });
+      const raw = err instanceof Error ? err.message : '';
+      set({ error: userMessageForCartOpFailure(raw, 'update') });
     }
   },
 
@@ -252,8 +272,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       console.log('[Cart] clear complete');
     } catch (err) {
       console.error('[Cart] clear error', err);
-      const msg = err instanceof Error ? err.message : 'Error al vaciar el carrito';
-      set({ error: msg });
+      const raw = err instanceof Error ? err.message : '';
+      set({ error: userMessageForCartOpFailure(raw, 'clear') });
     }
   },
 
@@ -292,8 +312,8 @@ export const useCartStore = create<CartStore>((set, get) => ({
       console.log('[Cart] syncWithBackend complete', { count: syncedItems.length });
     } catch (err) {
       console.error('[Cart] syncWithBackend error', err);
-      const message = err instanceof Error ? err.message : 'Error syncing cart';
-      set({ syncing: false, error: message });
+      const raw = err instanceof Error ? err.message : '';
+      set({ syncing: false, error: userMessageForCartOpFailure(raw, 'sync') });
     }
   },
 
