@@ -20,6 +20,7 @@ import {
   getPushSupport,
   isIOSSafari,
   isStandalonePWA,
+  prefetchVapidPublicKey,
   type PushSupport,
 } from '@/services/push';
 
@@ -51,6 +52,10 @@ export function PushOptInBanner() {
     );
     setDismissedState(isDismissed());
     getActiveSubscription().then((s) => setHasSubscription(!!s));
+    // Cacheamos la VAPID key antes del click: en iOS Safari,
+    // Notification.requestPermission() pierde el gesto del usuario si se
+    // ejecuta tras un await, así que el handler no puede hacer fetch primero.
+    prefetchVapidPublicKey();
   }, [isLoggedIn]);
 
   if (Platform.OS !== 'web') return null;
@@ -88,6 +93,10 @@ export function PushOptInBanner() {
           ? 'Agregá Bazaar a la pantalla de inicio y abrila desde el ícono para activar las notificaciones.'
           : 'No pudimos activar las notificaciones. Verificá tu sesión y conexión.',
       );
+    } catch (err) {
+      console.warn('[push] enable failed', err);
+      setPermission(typeof Notification !== 'undefined' ? Notification.permission : null);
+      setErrorMsg('Algo falló al activar notificaciones. Probá de nuevo.');
     } finally {
       setBusy(false);
     }
