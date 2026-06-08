@@ -76,6 +76,10 @@ async function getRegistration(): Promise<ServiceWorkerRegistration | null> {
 
 let cachedVapidKey: string | null = null;
 
+export async function prefetchVapidPublicKey(): Promise<void> {
+  await fetchVapidPublicKey();
+}
+
 async function fetchVapidPublicKey(): Promise<string | null> {
   if (cachedVapidKey) return cachedVapidKey;
   try {
@@ -102,20 +106,23 @@ export async function enablePushNotifications(): Promise<PushSubscription | null
     return null;
   }
 
-  const vapidKey = await fetchVapidPublicKey();
-  if (!vapidKey) {
-    console.warn('[push] VAPID public key unavailable');
-    return null;
-  }
-
   const userEmail = useAuthStore.getState().user?.email;
   if (!userEmail) {
     console.warn('[push] no logged-in user; cannot subscribe');
     return null;
   }
 
+  // iOS Safari descarta el gesto del usuario si requestPermission() se llama
+  // tras un await. Lo invocamos sincrónicamente al inicio (la VAPID key se
+  // pre-fetchea en el banner, así no hay await previo en el caso común).
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return null;
+
+  const vapidKey = await fetchVapidPublicKey();
+  if (!vapidKey) {
+    console.warn('[push] VAPID public key unavailable');
+    return null;
+  }
 
   const reg = await getRegistration();
   if (!reg) return null;
