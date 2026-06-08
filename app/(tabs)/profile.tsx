@@ -341,7 +341,6 @@ export default function ProfileScreen() {
           <View style={s.section}>
             <Text style={[s.sectionLabel, { color: C.textMuted }]}>Actividad</Text>
             <MenuRow icon="favorite-border"  label="Wishlist"          onPress={() => {}} C={C} />
-            <MenuRow icon="notifications-none" label="Notificaciones"  onPress={() => {}} C={C} />
           </View>
 
           {/* ── Preferencias ── */}

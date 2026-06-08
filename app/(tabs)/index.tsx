@@ -30,6 +30,7 @@ import {
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
+import { useNotificationsStore } from '@/store/notifications';
 
 
 
@@ -354,6 +355,9 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
+  const unreadNotifications = useNotificationsStore(
+    (st) => st.notifications.filter((n) => !n.read).length,
+  );
   const [ownProductIds, setOwnProductIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -689,6 +693,20 @@ export default function HomeScreen() {
             </Text>
           </View>
           <View style={s.headerRight}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Notificaciones"
+              style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+              onPress={() => router.push('/(tabs)/notifications')}>
+              <MaterialIcons name="notifications-none" size={20} color={theme.accent} />
+              {unreadNotifications > 0 && (
+                <View style={[s.cartBadge, { backgroundColor: theme.accent, borderColor: theme.bg }]}>
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#0B0B0F' }}>
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               accessibilityRole="button"
               style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
