@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { useCartStore } from '@/store/cart';
+import { useOrdersStore } from '@/store/orders';
 
 import { ENABLE_PIN_LOGIN } from "@/constants/features";
 import { getOrCreateDeviceId, setPinEnabled } from "@/services/device";
@@ -56,7 +57,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   login: async (email, password) => {
     set({ isLoading: true, error: null });
     try {
-      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      // Limpiar datos del usuario anterior
+      useOrdersStore.getState().reset();
       try {
         await useCartStore.getState().clearLocal();
       } catch (err) {
@@ -91,7 +93,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   register: async (name, email, password) => {
     set({ isLoading: true, error: null });
     try {
-      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      // Limpiar datos del usuario anterior
+      useOrdersStore.getState().reset();
       try {
         await useCartStore.getState().clearLocal();
       } catch (err) {
@@ -114,7 +117,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
   googleLogin: async (accessToken, refreshToken) => {
     set({ isLoading: true, error: null });
     try {
-      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      // Limpiar datos del usuario anterior
+      useOrdersStore.getState().reset();
       try {
         await useCartStore.getState().clearLocal();
       } catch (err) {
@@ -167,7 +171,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
     if (!ENABLE_PIN_LOGIN) return;
     set({ isLoading: true, error: null });
     try {
-      // Limpiar carrito local del usuario anterior (sin tocar backend)
+      // Limpiar datos del usuario anterior
+      useOrdersStore.getState().reset();
       try {
         await useCartStore.getState().clearLocal();
       } catch (err) {
@@ -210,7 +215,8 @@ export const useAuthStore = create<AuthStore>((set) => ({
     // Limpiar tokens
     await clearTokens();
 
-    // Limpiar carrito local (sin tocar backend)
+    // Limpiar datos de sesión
+    useOrdersStore.getState().reset();
     try {
       await useCartStore.getState().clearLocal();
     } catch (err) {

@@ -21,8 +21,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import ProductReputationSection from '@/components/product-reputation-section';
+import type { ThemeColors } from '@/constants/colors';
 import { useTheme } from '@/hooks/use-theme';
-import { recordBrowseView } from '@/services/browse-history';
 import {
     type CatalogProduct,
   getSellerDisplayName,
@@ -319,9 +320,6 @@ export default function ProductDetailScreen() {
         const fromApi = await fetchCatalogProductById(productId);
         if (mounted) setProduct(fromApi);
         if (mounted && fromApi) {
-          if (fromApi.category) {
-            void recordBrowseView(productId, fromApi.category);
-          }
           if (viewerEmail) {
             void recordProductDetailView(productId, viewerEmail).catch(() => {
               /* no UI impact */
@@ -394,7 +392,9 @@ export default function ProductDetailScreen() {
   const images = product.images?.length > 0 ? product.images : [product.imageUrl].filter(Boolean);
   const sellerEmailNorm = product.sellerInfo?.email?.trim().toLowerCase();
   const viewerEmailNorm = authUser?.email?.trim().toLowerCase();
-  const isOwnProduct = !!sellerEmailNorm && !!viewerEmailNorm && sellerEmailNorm === viewerEmailNorm;
+  const emailMatch = !!sellerEmailNorm && !!viewerEmailNorm && sellerEmailNorm === viewerEmailNorm;
+  const idMatch = !!product.sellerId && !!authUser?.id && product.sellerId === authUser.id;
+  const isOwnProduct = emailMatch || idMatch;
   const cannotBuy = outOfStock || isOwnProduct;
 
   const attrRows: { label: string; value: string }[] = (() => {
@@ -521,6 +521,8 @@ export default function ProductDetailScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        <ProductReputationSection productId={productId} C={C} />
 
       </ScrollView>
 

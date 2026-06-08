@@ -1,12 +1,7 @@
 /**
- * Local browse-history para recomendaciones "Para vos".
- *
- * El backend tiene un servicio de recomendaciones pero, mientras no esté
- * disponible, derivamos la lista localmente:
- *   - Guardamos en SecureStore cada vez que el usuario abre el detalle de un
- *     producto, junto con su categoría.
- *   - El Home toma las categorías más vistas y filtra el catálogo por ellas
- *     (excluyendo los productos ya vistos y los propios).
+ * @deprecated Reemplazado por el backend (product-service):
+ * POST /products/{id}/recent-detail-view + GET /products/recommendations/context.
+ * Este módulo ya no se usa en la app; se mantiene solo por referencia histórica.
  */
 
 import * as SecureStore from './secure-storage';

@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -138,11 +140,16 @@ export default function OrderDetailScreen() {
     : '';
 
   return (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
     <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
       <Header onBack={() => router.back()} title={`Orden #${orderId}`} C={C} />
 
       <ScrollView
         contentContainerStyle={[s.scroll, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}
+        keyboardShouldPersistTaps="handled"
         refreshControl={
           <RefreshControl
             refreshing={loading}
@@ -450,6 +457,7 @@ export default function OrderDetailScreen() {
         </View>
       </Modal>
     </View>
+    </KeyboardAvoidingView>
   );
 }
 
