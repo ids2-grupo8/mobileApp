@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "627333542331",
+    "project_id": "notification-3093f",
+    "storage_bucket": "notification-3093f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:627333542331:android:269c48d4c3dd7aaa97949e",
+        "android_client_info": {
+          "package_name": "com.bazaar.mobileApp1"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAEZUfmzT0mmr0P7BknpsnSsdzRkM5R85Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
