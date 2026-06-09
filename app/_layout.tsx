@@ -6,6 +6,7 @@ import { Linking, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import 'react-native-reanimated';
 
+import { usePushNotifications } from '@/hooks/use-push-notifications';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useThemeStore } from '@/store/theme';
@@ -22,6 +23,8 @@ export default function RootLayout() {
   const clearLocalCart = useCartStore((s) => s.clearLocal);
   const segments    = useSegments();
   const router      = useRouter();
+
+  usePushNotifications();
 
   // Resolve effective scheme from our store
   const effective = mode === 'system' ? (system ?? 'dark') : mode;
