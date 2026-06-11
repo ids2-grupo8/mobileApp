@@ -41,6 +41,7 @@ export async function getExpoPushToken(): Promise<string | null> {
 
   try {
     const token = await Notifications.getExpoPushTokenAsync({ projectId });
+    console.log('[Push] ExponentPushToken =', token.data);
     return token.data;
   } catch (e) {
     console.warn('[Push] getExpoPushTokenAsync failed:', e);

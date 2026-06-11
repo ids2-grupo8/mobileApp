@@ -4,7 +4,7 @@ import { useOrdersStore } from '@/store/orders';
 
 import { ENABLE_PIN_LOGIN } from "@/constants/features";
 import { getOrCreateDeviceId, setPinEnabled } from "@/services/device";
-import { clearTokens } from "@/services/http";
+import { clearTokens, setSessionExpiredHandler } from "@/services/http";
 import {
   type AuthUser,
   type PinAccount,
@@ -253,3 +253,12 @@ export const useAuthStore = create<AuthStore>((set) => ({
   clearError: () => set({ error: null }),
   dismissPinLink: () => set({ suggestPinLink: false }),
 }));
+
+// Cuando el auto-refresh de http.ts falla (refresh token vencido/ausente),
+// cerramos la sesión: el guard del root layout redirige al login.
+setSessionExpiredHandler(() => {
+  const state = useAuthStore.getState();
+  if (state.isLoggedIn) {
+    void state.logout();
+  }
+});

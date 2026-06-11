@@ -17,49 +17,54 @@ Notifications.setNotificationHandler({
 
 export function usePushNotifications() {
   const router = useRouter();
-  const userId = useAuthStore((s) => s.user?.id);
+  // El backend identifica al destinatario por email (eventos de stock y de
+  // orden viajan con el email del usuario), así que el token se registra por email.
+  const userEmail = useAuthStore((s) => s.user?.email);
   const isLoggedIn = useAuthStore((s) => s.isLoggedIn);
   const addNotification = useNotificationsStore((s) => s.addNotification);
   const registeredFor = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isLoggedIn || !userId) {
+    if (!isLoggedIn || !userEmail) {
       registeredFor.current = null;
       return;
     }
-    if (registeredFor.current === userId) return;
+    if (registeredFor.current === userEmail) return;
 
     (async () => {
       const token = await getExpoPushToken();
       if (!token) return;
       try {
-        await registerDeviceToken(userId, token);
-        registeredFor.current = userId;
+        await registerDeviceToken(userEmail, token);
+        registeredFor.current = userEmail;
       } catch (e) {
         console.warn('[Push] register device token failed:', e);
       }
     })();
-  }, [isLoggedIn, userId]);
+  }, [isLoggedIn, userEmail]);
 
   useEffect(() => {
     const receivedSub = Notifications.addNotificationReceivedListener((event) => {
       const data = event.request.content.data as
-        | { product_id?: string; product_name?: string; type?: string }
+        | { product_id?: string; product_name?: string; type?: string; order_id?: string; status?: string }
         | undefined;
       addNotification({
-        orderId: 0,
-        role: 'seller',
+        orderId: data?.order_id ? Number(data.order_id) : 0,
+        // order_status va al comprador; new_sale y alertas de stock, al vendedor.
+        role: data?.type === 'order_status' ? 'buyer' : 'seller',
         title: event.request.content.title ?? 'Notificación',
         body: event.request.content.body ?? '',
-        status: data?.type ?? 'push',
+        status: data?.status ?? data?.type ?? 'push',
       });
     });
 
     const responseSub = Notifications.addNotificationResponseReceivedListener((event) => {
       const data = event.notification.request.content.data as
-        | { product_id?: string }
+        | { product_id?: string; order_id?: string }
         | undefined;
-      if (data?.product_id) {
+      if (data?.order_id) {
+        router.push(`/orders/${data.order_id}`);
+      } else if (data?.product_id) {
         router.push(`/product/${data.product_id}`);
       }
     });
