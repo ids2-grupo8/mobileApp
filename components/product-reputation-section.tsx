@@ -1,30 +1,21 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Animated, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import ReputationReviewsPreviewPanel from '@/components/reputation-reviews-preview-panel';
 import StarRating from '@/components/star-rating';
+import { REPUTATION_REVIEWS_PREVIEW_LIMIT } from '@/constants/reviews';
 import type { ThemeColors } from '@/constants/colors';
 import {
   fetchProductReputation,
   type ProductReputation,
-  type ProductReviewDetail,
 } from '@/services/reviews';
 
 type Props = {
   productId: string;
   C: ThemeColors;
 };
-
-function formatReviewDate(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString('es-AR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function formatAverage(avg: number | null): string {
   if (avg === null) return '—';
@@ -118,27 +109,6 @@ function EmptyState({ C }: { C: ThemeColors }) {
   );
 }
 
-function ReviewItem({
-  review,
-  C,
-}: {
-  review: ProductReviewDetail;
-  C: ThemeColors;
-}) {
-  const dateText = formatReviewDate(review.created_at);
-  return (
-    <View style={[s.reviewCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-      <StarRating value={review.score / 2} size={18} />
-      {review.comment ? (
-        <Text style={[s.reviewComment, { color: C.textPrimary }]}>{review.comment}</Text>
-      ) : null}
-      {dateText ? (
-        <Text style={[s.reviewMeta, { color: C.textMuted }]}>{dateText}</Text>
-      ) : null}
-    </View>
-  );
-}
-
 function ErrorCard({
   message,
   onRetry,
@@ -163,7 +133,9 @@ function ErrorCard({
   );
 }
 
+
 export default function ProductReputationSection({ productId, C }: Props) {
+  const router = useRouter();
   const [reputation, setReputation] = useState<ProductReputation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -200,6 +172,11 @@ export default function ProductReputationSection({ productId, C }: Props) {
       .finally(() => setLoading(false));
   };
 
+  const previewReviews =
+    reputation?.reviews.slice(0, REPUTATION_REVIEWS_PREVIEW_LIMIT) ?? [];
+  const hasMore =
+    (reputation?.count ?? 0) > REPUTATION_REVIEWS_PREVIEW_LIMIT;
+
   return (
     <View style={s.root}>
       <Text style={[s.sectionLabel, { color: C.textMuted }]}>Calificaciones</Text>
@@ -213,9 +190,18 @@ export default function ProductReputationSection({ productId, C }: Props) {
       ) : (
         <View style={{ gap: 12 }}>
           <SummaryCard reputation={reputation} C={C} />
-          {reputation.reviews.map((review) => (
-            <ReviewItem key={review.id} review={review} C={C} />
-          ))}
+          <ReputationReviewsPreviewPanel
+            reviews={previewReviews}
+            totalCount={reputation.count}
+            showSeeAll={hasMore}
+            C={C}
+            onSeeAll={() =>
+              router.push({
+                pathname: '/product/reviews',
+                params: { productId },
+              })
+            }
+          />
         </View>
       )}
     </View>
@@ -258,14 +244,6 @@ const s = StyleSheet.create({
     gap: 12,
   },
   emptyText: { fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  reviewCard: {
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
-    gap: 8,
-  },
-  reviewComment: { fontSize: 14, lineHeight: 20 },
-  reviewMeta: { fontSize: 11, fontWeight: '500' },
   errorCard: {
     borderWidth: 1,
     borderRadius: 16,
