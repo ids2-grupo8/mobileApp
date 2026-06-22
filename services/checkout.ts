@@ -27,7 +27,6 @@ export type CouponValidationResponse = {
 
 export async function createCheckoutMercadopago(
   idempotencyKey: string,
-  backUrl: string,
   address: CheckoutAddress,
   couponCode?: string,
 ): Promise<CheckoutMercadopagoResponse> {
@@ -35,7 +34,7 @@ export async function createCheckoutMercadopago(
     method: "POST",
     body: {
       idempotency_key: idempotencyKey,
-      back_url: backUrl,
+      back_url: null,
       address,
       payment: "mercadopago",
       ...(couponCode ? { coupon_code: couponCode } : {}),

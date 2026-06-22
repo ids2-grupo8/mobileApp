@@ -1,5 +1,4 @@
 import { create } from "zustand";
-import * as Linking from "expo-linking";
 
 import { ApiError } from "@/services/http";
 import { createCheckoutMercadopago, type CheckoutAddress } from "@/services/checkout";
@@ -53,11 +52,11 @@ export const useCheckoutStore = create<CheckoutStore>((set) => ({
   ): Promise<CheckoutSubmitResult> => {
     set({ isSubmitting: true, error: null });
     try {
-      const backUrl = Linking.createURL("/checkout");
-
+      // No mandamos back_url: MP rechaza la preferencia si back_urls no es
+      // http(s) (deep links como mobileapp:// fallan con `auto_return invalid`).
+      // El resultado del pago se resuelve por polling + webhook.
       const response = await createCheckoutMercadopago(
         idempotencyKey,
-        backUrl,
         address,
         couponCode,
       );

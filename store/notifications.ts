@@ -41,6 +41,19 @@ export const useNotificationsStore = create<NotificationsStore>((set, get) => ({
   unreadCount: () => get().notifications.filter((n) => !n.read).length,
 
   addNotification: (n) => {
+    // El mismo cambio de estado puede llegar por push y por el poll local:
+    // si ya existe una entrada para esa orden/rol/estado, no duplicar.
+    if (
+      n.orderId !== 0 &&
+      get().notifications.some(
+        (existing) =>
+          existing.orderId === n.orderId &&
+          existing.role === n.role &&
+          existing.status === n.status,
+      )
+    ) {
+      return;
+    }
     const newNotif: AppNotification = {
       ...n,
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
