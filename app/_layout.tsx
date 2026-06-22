@@ -168,8 +168,10 @@ export default function RootLayout() {
         <Stack.Screen name="(auth)"      options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)"      options={{ headerShown: false }} />
         <Stack.Screen name="product/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="product/reviews" options={{ headerShown: false }} />
         <Stack.Screen name="seller/publish" options={{ headerShown: false }} />
         <Stack.Screen name="seller/[email]" options={{ headerShown: false }} />
+        <Stack.Screen name="seller/reviews" options={{ headerShown: false }} />
         <Stack.Screen name="profile/publications" options={{ headerShown: false }} />
         <Stack.Screen name="orders/purchases" options={{ headerShown: false }} />
         <Stack.Screen name="orders/sales" options={{ headerShown: false }} />
