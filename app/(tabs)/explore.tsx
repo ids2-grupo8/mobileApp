@@ -286,10 +286,10 @@ export default function ExploreScreen() {
           {hasActiveFilters && (
             <TouchableOpacity
               onPress={clearAllFilters}
-              style={[s.iconBtn, { backgroundColor: C.redBg, borderColor: C.red }]}
+              style={[s.iconBtn, { backgroundColor: C.red, borderColor: C.red }]}
               accessibilityRole="button"
               accessibilityLabel="Limpiar filtros">
-              <MaterialIcons name="filter-alt-off" size={20} color={C.red} />
+              <MaterialIcons name="filter-alt-off" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
