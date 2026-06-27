@@ -1,4 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useState } from 'react';
@@ -25,6 +28,11 @@ export default function RootLayout() {
   const clearLocalCart = useCartStore((s) => s.clearLocal);
   const segments    = useSegments();
   const router      = useRouter();
+
+  useFonts({
+    ...MaterialIcons.font,
+    ...MaterialCommunityIcons.font,
+  });
 
   usePushNotifications();
 

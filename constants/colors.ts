@@ -77,15 +77,15 @@ export const dark: ThemeColors = {
 export const light: ThemeColors = {
   // ── Light backgrounds ──
   bg:               '#F2F3F7',
-  elevated:         '#E8E9EF',
-  card:             'rgba(255,255,255,0.70)',
-  border:           'rgba(0,0,0,0.08)',
+  elevated:         '#FFFFFF',
+  card:             '#FFFFFF',
+  border:           'rgba(15,23,42,0.08)',
 
   // ── Emerald accent (darker for light mode legibility) ──
-  accent:           '#00C78A',
-  accentDim:        '#00A874',
-  accentBg:         'rgba(0,199,138,0.10)',
-  accentText:       '#00845C',
+  accent:           '#0F9D74',
+  accentDim:        '#0B7A5A',
+  accentBg:         'rgba(15,157,116,0.16)',
+  accentText:       '#0B6E52',
 
   // ── Text hierarchy ──
   textPrimary:      '#0A0A14',
@@ -99,22 +99,22 @@ export const light: ThemeColors = {
   amberBg:          'rgba(217,119,6,0.08)',
 
   // ── Inputs ──
-  inputBg:          'rgba(255,255,255,0.60)',
-  inputBorder:      'rgba(0,0,0,0.10)',
+  inputBg:          '#FFFFFF',
+  inputBorder:      'rgba(15,23,42,0.12)',
   inputBorderError: 'rgba(224,62,62,0.35)',
 
   // ── Skeleton ──
   skeletonBase:     'rgba(0,0,0,0.06)',
 
   // ── Tab bar ──
-  tabBg:            'rgba(242,243,247,0.88)',
-  tabBorder:        'rgba(0,0,0,0.08)',
+  tabBg:            '#FFFFFF',
+  tabBorder:        'rgba(15,23,42,0.08)',
 
-  // ── Liquid Glass ──
-  glass:            'rgba(255,255,255,0.55)',
-  glassBorder:      'rgba(255,255,255,0.80)',
-  glassHighlight:   'rgba(255,255,255,0.95)',
-  accentGlow:       'rgba(0,199,138,0.12)',
-  shadowAccent:     'rgba(0,199,138,0.06)',
-  shadowDark:       'rgba(0,0,0,0.12)',
+  // ── Liquid Glass (in light mode: solid cards, no translucency stacking) ──
+  glass:            '#FFFFFF',
+  glassBorder:      'rgba(15,23,42,0.08)',
+  glassHighlight:   'transparent',
+  accentGlow:       'rgba(15,157,116,0.18)',
+  shadowAccent:     'rgba(15,157,116,0.06)',
+  shadowDark:       'rgba(15,23,42,0.10)',
 };

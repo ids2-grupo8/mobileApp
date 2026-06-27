@@ -12,6 +12,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 import { useUserStore } from "@/store/user";
 import { useAuthStore } from "@/store/auth";
@@ -106,9 +107,9 @@ function Avatar({ name, photoUrl, size = 80, C }: { name: string; photoUrl?: str
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: C.accentGlow,
+          backgroundColor: C.accent,
         }]}>
-          <Text style={[s.avatarText, { color: C.accent, fontSize: size * 0.32 }]}>{initials}</Text>
+          <Text style={[s.avatarText, { color: '#FFFFFF', fontSize: size * 0.32 }]}>{initials}</Text>
         </View>
       )}
     </View>
@@ -137,7 +138,7 @@ function StatItem({
 // ─── Menu row ─────────────────────────────────────────────────────────────────
 
 type MenuRowProps = {
-  icon: React.ComponentProps<typeof MaterialIcons>["name"];
+  icon: React.ComponentProps<typeof MaterialIcons>["name"] | `mci:${string}`;
   label: string;
   onPress: () => void;
   danger?: boolean;
@@ -150,6 +151,8 @@ function MenuRow({ icon, label, onPress, danger = false, badge, rightLabel, C }:
   const color   = danger ? C.red : C.textPrimary;
   const iconBg  = danger ? C.redBg : C.accentGlow;
   const iconClr = danger ? C.red : C.accent;
+  const isMci = typeof icon === 'string' && icon.startsWith('mci:');
+  const iconName = isMci ? icon.slice(4) : icon;
 
   return (
     <TouchableOpacity
@@ -158,7 +161,11 @@ function MenuRow({ icon, label, onPress, danger = false, badge, rightLabel, C }:
       accessibilityRole="button"
     >
       <View style={[s.mrIconWrap, { backgroundColor: iconBg }]}>
-        <MaterialIcons name={icon} size={18} color={iconClr} />
+        {isMci ? (
+          <MaterialCommunityIcons name={iconName as React.ComponentProps<typeof MaterialCommunityIcons>['name']} size={18} color={iconClr} />
+        ) : (
+          <MaterialIcons name={iconName as React.ComponentProps<typeof MaterialIcons>['name']} size={18} color={iconClr} />
+        )}
       </View>
       <Text style={[s.mrLabel, { color }]}>{label}</Text>
       <View style={s.mrRight}>
@@ -330,12 +337,6 @@ export default function ProfileScreen() {
               onPress={() => router.push('/profile/publications')}
               C={C}
             />
-          </View>
-
-          {/* ── Otros ── */}
-          <View style={s.section}>
-            <Text style={[s.sectionLabel, { color: C.textMuted }]}>Actividad</Text>
-            <MenuRow icon="notifications-none" label="Notificaciones"  onPress={() => {}} C={C} />
           </View>
 
           {/* ── Preferencias ── */}

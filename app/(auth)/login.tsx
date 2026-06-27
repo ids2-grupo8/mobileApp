@@ -7,7 +7,6 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -141,13 +140,11 @@ export default function LoginScreen() {
         style={s.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <ScrollView
-          contentContainerStyle={[
+        <View
+          style={[
             s.content,
-            { paddingBottom: insets.bottom + 32 },
-          ]}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}>
+            { paddingBottom: insets.bottom + 16 },
+          ]}>
 
           <Text style={[s.brand, { color: C.accent }]}>Bazaar</Text>
           <Text style={[s.title, { color: C.textPrimary }]}>Iniciá sesión</Text>
@@ -310,7 +307,7 @@ export default function LoginScreen() {
               <Text style={[s.link, { color: C.accentText }]}>Registrate</Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
+        </View>
       </KeyboardAvoidingView>
     </View>
   );
@@ -319,27 +316,27 @@ export default function LoginScreen() {
 const s = StyleSheet.create({
   root:    { flex: 1 },
   flex:    { flex: 1 },
-  content: { paddingHorizontal: 28, paddingTop: 40 },
+  content: { flex: 1, paddingHorizontal: 28, paddingTop: 16, justifyContent: 'center' },
 
-  brand:    { fontSize: 28, fontWeight: '800', marginBottom: 32, letterSpacing: -0.3 },
-  title:    { fontSize: 30, fontWeight: '800', marginBottom: 6, letterSpacing: -0.5 },
-  subtitle: { fontSize: 15, marginBottom: 36, letterSpacing: 0.1 },
+  brand:    { fontSize: 24, fontWeight: '800', marginBottom: 14, letterSpacing: -0.3 },
+  title:    { fontSize: 26, fontWeight: '800', marginBottom: 4, letterSpacing: -0.5 },
+  subtitle: { fontSize: 14, marginBottom: 20, letterSpacing: 0.1 },
 
   serverError: {
     borderWidth: 1,
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
+    padding: 12,
+    marginBottom: 14,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
   },
-  serverErrorText: { fontSize: 14, lineHeight: 20, flex: 1 },
+  serverErrorText: { fontSize: 13, lineHeight: 18, flex: 1 },
   serverErrorCopy: { flex: 1 },
-  serverErrorTitle: { fontSize: 14, fontWeight: "700", marginBottom: 2 },
+  serverErrorTitle: { fontSize: 13, fontWeight: "700", marginBottom: 2 },
 
-  field:     { marginBottom: 20 },
-  label:     { fontSize: 13, fontWeight: '600', marginBottom: 8, letterSpacing: 0.1 },
+  field:     { marginBottom: 12 },
+  label:     { fontSize: 13, fontWeight: '600', marginBottom: 6, letterSpacing: 0.1 },
   inputWrap: {
     borderWidth: 1,
     borderRadius: 14,
@@ -347,23 +344,23 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 14,
     gap: 10,
-    height: 52,
+    height: 48,
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     height: '100%',
   },
-  errorText: { fontSize: 12, marginTop: 6, marginLeft: 2 },
+  errorText: { fontSize: 12, marginTop: 4, marginLeft: 2 },
 
-  forgotWrap: { alignSelf: 'flex-end', marginBottom: 32 },
+  forgotWrap: { alignSelf: 'flex-end', marginBottom: 14 },
   forgotText: { fontSize: 13, fontWeight: '600' },
 
   btn: {
-    paddingVertical: 17,
+    paddingVertical: 15,
     borderRadius: 16,
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: 14,
     // Glow
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.3,
@@ -379,8 +376,8 @@ const s = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1,
     borderRadius: 14,
-    paddingVertical: 14,
-    marginBottom: 24,
+    paddingVertical: 12,
+    marginBottom: 12,
     gap: 10,
   },
   googleIcon: {
@@ -389,7 +386,7 @@ const s = StyleSheet.create({
     color: "#4285F4",
   },
   googleText: { fontSize: 15, fontWeight: "600" },
-  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 16, gap: 10 },
+  divider: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10 },
   dividerLine: { flex: 1, height: 1 },
   dividerText: { fontSize: 13, fontWeight: '500' },
   row: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },

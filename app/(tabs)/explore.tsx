@@ -182,18 +182,32 @@ export default function ExploreScreen() {
     setRefreshing(false);
   };
 
-  const goToHomeWithQuery = async (term: string) => {
+  const [submittedQuery, setSubmittedQuery] = useState('');
+
+  const runSearch = async (term: string) => {
     const trimmed = term.trim();
     if (trimmed.length === 0) return;
     const next = [trimmed, ...recents.filter((r) => r.toLowerCase() !== trimmed.toLowerCase())].slice(0, RECENT_MAX);
     setRecents(next);
     void saveRecent(next);
-    router.push({ pathname: '/(tabs)', params: { q: trimmed } });
+    setQuery(trimmed);
+    setSubmittedQuery(trimmed);
   };
 
   const goToHomeWithCategory = (code: string) => {
     router.push({ pathname: '/(tabs)', params: { category: code } });
   };
+
+  const searchResults = useMemo(() => {
+    const q = submittedQuery.trim().toLowerCase();
+    if (q.length === 0) return [];
+    return products.filter((p) => {
+      const title = (p.title ?? '').toLowerCase();
+      const sellerName = (getSellerDisplayName(p.sellerInfo) ?? p.seller ?? '').toLowerCase();
+      const cat = (CATEGORY_TRANSLATIONS[p.category] ?? p.category ?? '').toLowerCase();
+      return title.includes(q) || sellerName.includes(q) || cat.includes(q);
+    });
+  }, [products, submittedQuery]);
 
   const removeRecent = async (term: string) => {
     const next = recents.filter((r) => r !== term);
@@ -225,27 +239,28 @@ export default function ExploreScreen() {
           <Text style={[s.title, { color: C.textPrimary }]}>Explorar</Text>
         </View>
 
-        {/* Search bar — submit lleva a Home con el query aplicado */}
+        {/* Search bar — renderiza resultados inline */}
         <View style={[s.searchWrap, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
           <MaterialIcons name="search" size={20} color={C.textMuted} />
           <TextInput
             value={query}
-            onChangeText={setQuery}
-            placeholder="¿Qué estás buscando?"
+            onChangeText={(t) => {
+              setQuery(t);
+              if (t.trim().length === 0) setSubmittedQuery('');
+            }}
+            placeholder="¿Qué buscás?"
             placeholderTextColor={C.textMuted}
             style={[s.searchInput, { color: C.textPrimary }]}
             selectionColor={C.accent}
             returnKeyType="search"
-            onSubmitEditing={() => {
-              const term = query.trim();
-              if (term.length > 0) {
-                setQuery('');
-                void goToHomeWithQuery(term);
-              }
-            }}
+            onSubmitEditing={() => void runSearch(query)}
           />
           {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
+            <TouchableOpacity
+              onPress={() => {
+                setQuery('');
+                setSubmittedQuery('');
+              }}>
               <MaterialIcons name="close" size={18} color={C.textMuted} />
             </TouchableOpacity>
           )}
@@ -254,6 +269,40 @@ export default function ExploreScreen() {
         {loading ? (
           <View style={s.loadingWrap}>
             <ActivityIndicator color={C.accent} size="large" />
+          </View>
+        ) : submittedQuery.trim().length > 0 ? (
+          <View style={s.section}>
+            <Text style={[s.sectionTitle, { color: C.textPrimary, marginBottom: 14 }]}>
+              {searchResults.length} {searchResults.length === 1 ? 'resultado' : 'resultados'} para "{submittedQuery}"
+            </Text>
+            {searchResults.length === 0 ? (
+              <View style={s.emptyWrap}>
+                <MaterialIcons name="search-off" size={40} color={C.textMuted} />
+                <Text style={[s.emptyText, { color: C.textSecondary }]}>
+                  No encontramos productos para esa búsqueda.
+                </Text>
+              </View>
+            ) : (
+              <View style={s.resultsGrid}>
+                {searchResults.map((p) => (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => router.push(`/product/${p.id}`)}
+                    style={[s.resultCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
+                    accessibilityRole="button">
+                    <Image source={{ uri: p.imageUrl }} style={s.resultImage} contentFit="cover" />
+                    <View style={s.resultBody}>
+                      <Text numberOfLines={2} style={[s.resultTitle, { color: C.textPrimary }]}>
+                        {p.title}
+                      </Text>
+                      <Text style={[s.resultPrice, { color: C.accent }]}>
+                        {formatPrice(p.price)}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </View>
         ) : (
           <>
@@ -272,7 +321,7 @@ export default function ExploreScreen() {
                       key={term}
                       style={[s.recentChip, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
                       <TouchableOpacity
-                        onPress={() => goToHomeWithQuery(term)}
+                        onPress={() => runSearch(term)}
                         style={s.recentChipMain}
                         accessibilityRole="button"
                         accessibilityLabel={`Buscar ${term}`}>
@@ -704,4 +753,21 @@ const s = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
   },
+
+  // Search results grid
+  resultsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  resultCard: {
+    width: '47.5%',
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  resultImage: { width: '100%', height: 140 },
+  resultBody: { padding: 12, gap: 6 },
+  resultTitle: { fontSize: 13, fontWeight: '700', lineHeight: 18, letterSpacing: -0.1 },
+  resultPrice: { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
 });

@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -134,11 +135,19 @@ export function FloatingTabBar({ state, navigation }: BottomTabBarProps) {
               accessibilityRole="button"
               accessibilityState={{ selected: focused }}>
               <View>
-                <MaterialIcons
-                  name={icon}
-                  size={22}
-                  color={focused ? '#050508' : C.textMuted}
-                />
+                {route.name === 'notifications' ? (
+                  <MaterialCommunityIcons
+                    name={focused ? 'bell' : 'bell-outline'}
+                    size={22}
+                    color={focused ? '#050508' : C.textMuted}
+                  />
+                ) : (
+                  <MaterialIcons
+                    name={icon}
+                    size={22}
+                    color={focused ? '#050508' : C.textMuted}
+                  />
+                )}
                 {showBadge && (
                   <View
                     style={[

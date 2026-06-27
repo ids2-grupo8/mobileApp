@@ -218,7 +218,7 @@ export default function CartScreen() {
   return (
     <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
       <View style={s.header}>
-        <View style={s.iconBtn} />
+        <View style={s.iconBtnSpacer} />
 
         <View style={s.headerCenter}>
           <Text style={[s.headerTitle, { color: C.textPrimary }]}>Tu carrito</Text>
@@ -367,6 +367,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconBtnSpacer: { width: 40, height: 40 },
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', letterSpacing: -0.2 },
   headerSubtitle: { fontSize: 12, fontWeight: '500', marginTop: 2 },

@@ -287,6 +287,8 @@ export default function ProductDetailScreen() {
   const [adding, setAdding] = useState(false);
   const [qty, setQty] = useState(1);
   const [showToast, setShowToast] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(true);
+  const [attrsExpanded, setAttrsExpanded] = useState(true);
   const authUser = useAuthStore((s) => s.user);
   const viewerEmail = useAuthStore((s) => s.user?.email)?.trim();
 
@@ -424,8 +426,8 @@ export default function ProductDetailScreen() {
         {/* ── Product Info ── */}
         <View style={s.infoSection}>
           {/* Category pill */}
-          <View style={[s.categoryPill, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
-            <Text style={[s.categoryPillText, { color: C.accent }]}>{CATEGORY_LABELS[product.category] ?? product.category}</Text>
+          <View style={[s.categoryPill, { backgroundColor: C.accent }]}>
+            <Text style={[s.categoryPillText, { color: '#FFFFFF' }]}>{CATEGORY_LABELS[product.category] ?? product.category}</Text>
           </View>
 
           <Text style={[s.productTitle, { color: C.textPrimary }]}>{product.title}</Text>
@@ -453,12 +455,26 @@ export default function ProductDetailScreen() {
         {/* ── Description card ── */}
         <View style={s.descSection}>
           <View style={[s.descCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-            <Text style={[s.descTitle, { color: C.textPrimary }]}>Descripción</Text>
-            <Text style={[s.descText, { color: C.textSecondary }]}>
-              {product.description ?? 'Este producto no tiene descripción cargada por el vendedor.'}
-            </Text>
+            <TouchableOpacity
+              style={[s.collapsibleHeader, !descExpanded && { marginBottom: 0 }]}
+              activeOpacity={0.7}
+              onPress={() => setDescExpanded((v) => !v)}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: descExpanded }}>
+              <Text style={[s.descTitle, { color: C.textPrimary }]}>Descripción</Text>
+              <MaterialIcons
+                name={descExpanded ? 'expand-less' : 'expand-more'}
+                size={22}
+                color={C.textSecondary}
+              />
+            </TouchableOpacity>
+            {descExpanded && (
+              <Text style={[s.descText, { color: C.textSecondary }]}>
+                {product.description ?? 'Este producto no tiene descripción cargada por el vendedor.'}
+              </Text>
+            )}
             <LinearGradient
-              colors={['rgba(255,255,255,0.10)', 'transparent', 'transparent']}
+              colors={[C.glassHighlight, 'transparent', 'transparent']}
               locations={[0, 0.2, 1]}
               style={s.descGlassEdge}
               pointerEvents="none"
@@ -470,8 +486,20 @@ export default function ProductDetailScreen() {
         {attrRows.length > 0 && (
           <View style={s.attrsSection}>
             <View style={[s.attrsCard, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-              <Text style={[s.attrsTitle, { color: C.textPrimary }]}>Especificaciones</Text>
-              {attrRows.map(({ label, value }, i) => (
+              <TouchableOpacity
+                style={[s.collapsibleHeader, { marginBottom: attrsExpanded ? 12 : 0 }]}
+                activeOpacity={0.7}
+                onPress={() => setAttrsExpanded((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: attrsExpanded }}>
+                <Text style={[s.attrsTitle, { color: C.textPrimary }]}>Especificaciones</Text>
+                <MaterialIcons
+                  name={attrsExpanded ? 'expand-less' : 'expand-more'}
+                  size={22}
+                  color={C.textSecondary}
+                />
+              </TouchableOpacity>
+              {attrsExpanded && attrRows.map(({ label, value }, i) => (
                 <View
                   key={label}
                   style={[s.attrRow, i < attrRows.length - 1 && { borderBottomWidth: 1, borderBottomColor: C.glassBorder }]}>
@@ -502,8 +530,8 @@ export default function ProductDetailScreen() {
               {product.sellerInfo?.photo ? (
                 <Image source={{ uri: product.sellerInfo.photo }} style={s.sellerPhoto} contentFit="cover" />
               ) : (
-                <View style={[s.sellerPhotoFallback, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
-                    <Text style={[s.sellerPhotoFallbackText, { color: C.accent }]}>{getInitials(getSellerDisplayName(product.sellerInfo))}</Text>
+                <View style={[s.sellerPhotoFallback, { backgroundColor: C.accent }]}>
+                    <Text style={[s.sellerPhotoFallbackText, { color: '#FFFFFF' }]}>{getInitials(getSellerDisplayName(product.sellerInfo))}</Text>
                 </View>
               )}
 
@@ -771,7 +799,6 @@ const s = StyleSheet.create({
   },
   categoryPill: {
     alignSelf: 'flex-start',
-    borderWidth: 1,
     borderRadius: 999,
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -848,8 +875,13 @@ const s = StyleSheet.create({
   descTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 10,
     letterSpacing: -0.2,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   descText: {
     fontSize: 14,
@@ -879,7 +911,6 @@ const s = StyleSheet.create({
   attrsTitle: {
     fontSize: 16,
     fontWeight: '700',
-    marginBottom: 12,
     letterSpacing: -0.2,
   },
   attrRow: {
@@ -935,7 +966,6 @@ const s = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },

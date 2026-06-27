@@ -1,4 +1,5 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -702,7 +703,7 @@ export default function HomeScreen() {
               accessibilityLabel="Notificaciones"
               style={[s.headerBtn, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
               onPress={() => router.push('/(tabs)/notifications')}>
-              <MaterialIcons name="notifications-none" size={20} color={theme.accent} />
+              <MaterialCommunityIcons name="bell-outline" size={20} color={theme.accent} />
               {unreadNotifications > 0 && (
                 <View style={[s.cartBadge, { backgroundColor: theme.accent, borderColor: theme.bg }]}>
                   <Text style={{ fontSize: 10, fontWeight: '800', color: '#0B0B0F' }}>
@@ -720,24 +721,22 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Search bar + filter button ── */}
+        {/* ── Search pill → routes to Explore ── */}
         <View style={s.searchRow}>
-          <View style={[s.searchWrap, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}>
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => router.push('/(tabs)/explore')}
+            style={[s.searchWrap, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+            accessibilityRole="button"
+            accessibilityLabel="Buscar productos">
             <MaterialIcons name="search" size={20} color={theme.textMuted} />
-            <TextInput
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Buscar productos, vendedores..."
-              placeholderTextColor={theme.textMuted}
-              style={[s.searchInput, { color: theme.textPrimary }]}
-              selectionColor={theme.accent}
-            />
-            {query.length > 0 && (
-              <TouchableOpacity onPress={() => setQuery('')}>
-                <MaterialIcons name="close" size={18} color={theme.textMuted} />
-              </TouchableOpacity>
-            )}
-          </View>
+            <Text
+              style={[s.searchInput, { color: theme.textMuted }]}
+              numberOfLines={1}
+              ellipsizeMode="tail">
+              Buscar en Bazaar
+            </Text>
+          </TouchableOpacity>
 
           {/* Filter button */}
           <TouchableOpacity
@@ -776,10 +775,10 @@ export default function HomeScreen() {
           {hasActiveFilters && (
             <TouchableOpacity
               onPress={clearAllFilters}
-              style={[s.filterBtn, { backgroundColor: theme.redBg, borderColor: theme.red }]}
+              style={[s.filterBtn, { backgroundColor: theme.red, borderColor: theme.red }]}
               accessibilityRole="button"
               accessibilityLabel="Limpiar filtros">
-              <MaterialIcons name="filter-alt-off" size={20} color={theme.red} />
+              <MaterialIcons name="filter-alt-off" size={20} color="#FFFFFF" />
             </TouchableOpacity>
           )}
         </View>
