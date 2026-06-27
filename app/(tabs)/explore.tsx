@@ -75,7 +75,12 @@ export default function ExploreScreen() {
   const C = useTheme();
 
   const [query, setQuery] = useState('');
-  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQuery(query.trim()), 200);
+    return () => clearTimeout(t);
+  }, [query]);
   const [recents, setRecents] = useState<string[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [products, setProducts] = useState<CatalogProduct[]>([]);
@@ -115,14 +120,21 @@ export default function ExploreScreen() {
     setRefreshing(false);
   };
 
-  const runSearch = async (term: string) => {
+  // Persistir en recientes: lo dispara el submit del teclado o el tap a una recent chip
+  const persistRecent = (term: string) => {
     const trimmed = term.trim();
     if (trimmed.length === 0) return;
     const next = [trimmed, ...recents.filter((r) => r.toLowerCase() !== trimmed.toLowerCase())].slice(0, RECENT_MAX);
     setRecents(next);
     void saveRecent(next);
+  };
+
+  const runSearch = (term: string) => {
+    const trimmed = term.trim();
+    if (trimmed.length === 0) return;
     setQuery(trimmed);
-    setSubmittedQuery(trimmed);
+    setDebouncedQuery(trimmed);
+    persistRecent(trimmed);
   };
 
   const removeRecent = async (term: string) => {
@@ -150,12 +162,12 @@ export default function ExploreScreen() {
 
   const hasPriceFilter = minPrice !== '' || maxPrice !== '';
   const hasActiveFilters = hasPriceFilter || selectedCategories.length > 0 || sortBy !== null;
-  const hasQuery = submittedQuery.trim().length > 0;
+  const hasQuery = debouncedQuery.trim().length > 0;
   const isShowingResults = hasQuery || hasActiveFilters;
 
   const searchResults = useMemo(() => {
     if (!isShowingResults) return [];
-    const q = submittedQuery.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     const min = minPrice !== '' ? parseFloat(minPrice) : null;
     const max = maxPrice !== '' ? parseFloat(maxPrice) : null;
     const catSet = new Set(selectedCategories);
@@ -178,7 +190,7 @@ export default function ExploreScreen() {
     if (sortBy === 'price_asc') return [...filtered].sort((a, b) => a.price - b.price);
     if (sortBy === 'price_desc') return [...filtered].sort((a, b) => b.price - a.price);
     return filtered;
-  }, [products, submittedQuery, selectedCategories, minPrice, maxPrice, sortBy, isShowingResults]);
+  }, [products, debouncedQuery, selectedCategories, minPrice, maxPrice, sortBy, isShowingResults]);
 
   return (
     <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
@@ -203,7 +215,7 @@ export default function ExploreScreen() {
               value={query}
               onChangeText={(t) => {
                 setQuery(t);
-                if (t.trim().length === 0) setSubmittedQuery('');
+                if (t.trim().length === 0) setDebouncedQuery('');
               }}
               placeholder="¿Qué buscás?"
               placeholderTextColor={C.textMuted}
@@ -216,7 +228,7 @@ export default function ExploreScreen() {
               <TouchableOpacity
                 onPress={() => {
                   setQuery('');
-                  setSubmittedQuery('');
+                  setDebouncedQuery('');
                 }}>
                 <MaterialIcons name="close" size={18} color={C.textMuted} />
               </TouchableOpacity>
@@ -312,7 +324,7 @@ export default function ExploreScreen() {
           <View style={s.section}>
             <Text style={[s.sectionTitle, { color: C.textPrimary, marginBottom: 14 }]}>
               {searchResults.length} {searchResults.length === 1 ? 'resultado' : 'resultados'}
-              {hasQuery ? ` para "${submittedQuery}"` : ''}
+              {hasQuery ? ` para "${debouncedQuery}"` : ''}
             </Text>
             {searchResults.length === 0 ? (
               <View style={s.emptyWrap}>
