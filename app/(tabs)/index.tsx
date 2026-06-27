@@ -7,14 +7,10 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -28,6 +24,7 @@ import {
   fetchCatalogProducts,
   fetchMyProducts,
   fetchRecommendedProducts,
+  getSellerDisplayName,
 } from '@/services/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
@@ -55,6 +52,14 @@ const CATEGORY_TRANSLATIONS: Record<string, string> = {
 const CATEGORY_CODES: Record<string, string> = Object.fromEntries(
   Object.entries(CATEGORY_TRANSLATIONS).map(([code, label]) => [label, code]),
 );
+
+const CATEGORY_ICONS: Record<string, string> = {
+  Electronics: 'devices',
+  Clothing: 'checkroom',
+  Books: 'menu-book',
+  Home: 'home',
+  Sports: 'sports-soccer',
+};
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 
@@ -153,198 +158,6 @@ function ProductCard({
   );
 }
 
-// ─── Filter Modal ─────────────────────────────────────────────────────────────
-
-function FilterModal({
-  visible,
-  categories,
-  selectedCategories,
-  minPrice,
-  maxPrice,
-  onApply,
-  onClose,
-}: {
-  visible: boolean;
-  categories: string[];
-  selectedCategories: string[];
-  minPrice: string;
-  maxPrice: string;
-  onApply: (nextCategories: string[], min: string, max: string) => void;
-  onClose: () => void;
-}) {
-  const C = useTheme();
-  const [localCategories, setLocalCategories] = useState<Set<string>>(new Set(selectedCategories));
-  const [localMin, setLocalMin] = useState(minPrice);
-  const [localMax, setLocalMax] = useState(maxPrice);
-
-  useEffect(() => {
-    if (visible) {
-      setLocalCategories(new Set(selectedCategories));
-      setLocalMin(minPrice);
-      setLocalMax(maxPrice);
-    }
-  }, [visible, selectedCategories, minPrice, maxPrice]);
-
-  const handleApply = () => {
-    onApply(Array.from(localCategories), localMin, localMax);
-    onClose();
-  };
-
-  const handleClear = () => {
-    setLocalCategories(new Set());
-    setLocalMin('');
-    setLocalMax('');
-    onApply([], '', '');
-    onClose();
-  };
-
-  return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      transparent
-      onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={s.modalOverlay}>
-        <TouchableOpacity style={s.modalBackdrop} onPress={onClose} activeOpacity={1} />
-        <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
-          <View style={[s.modalHandle, { backgroundColor: C.glassBorder }]} />
-          <Text style={[s.modalTitle, { color: C.textPrimary }]}>Filtros</Text>
-
-          <Text style={[s.filterLabel, { color: C.textSecondary }]}>Categorías</Text>
-          <View style={s.modalCategoryWrap}>
-            {categories
-              .filter((cat) => cat !== 'Todos')
-              .map((cat) => {
-                const active = localCategories.has(cat);
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    onPress={() => {
-                      setLocalCategories((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(cat)) {
-                          next.delete(cat);
-                        } else {
-                          next.add(cat);
-                        }
-                        return next;
-                      });
-                    }}
-                    style={[
-                      s.modalCategoryChip,
-                      {
-                        backgroundColor: active ? C.accentGlow : C.glass,
-                        borderColor: active ? C.accent : C.glassBorder,
-                      },
-                    ]}>
-                    <Text style={[s.modalCategoryChipText, { color: active ? C.accent : C.textSecondary }]}>
-                      {cat}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-          </View>
-
-          <Text style={[s.filterLabel, { color: C.textSecondary }]}>Rango de precio</Text>
-          <View style={s.priceRow}>
-            <View style={[s.priceInput, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-              <Text style={[s.priceCurrency, { color: C.textMuted }]}>$</Text>
-              <TextInput
-                value={localMin}
-                onChangeText={setLocalMin}
-                placeholder="Mínimo"
-                placeholderTextColor={C.textMuted}
-                style={[s.priceField, { color: C.textPrimary }]}
-                keyboardType="numeric"
-                selectionColor={C.accent}
-              />
-            </View>
-            <View style={[s.priceSep, { backgroundColor: C.glassBorder }]} />
-            <View style={[s.priceInput, { backgroundColor: C.glass, borderColor: C.glassBorder }]}>
-              <Text style={[s.priceCurrency, { color: C.textMuted }]}>$</Text>
-              <TextInput
-                value={localMax}
-                onChangeText={setLocalMax}
-                placeholder="Máximo"
-                placeholderTextColor={C.textMuted}
-                style={[s.priceField, { color: C.textPrimary }]}
-                keyboardType="numeric"
-                selectionColor={C.accent}
-              />
-            </View>
-          </View>
-
-          <View style={s.modalActions}>
-            <TouchableOpacity
-              style={[s.modalBtnSecondary, { backgroundColor: C.glass, borderColor: C.glassBorder }]}
-              onPress={handleClear}>
-              <Text style={[s.modalBtnSecondaryText, { color: C.textSecondary }]}>Limpiar</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[s.modalBtnPrimary, { backgroundColor: C.accent }]}
-              onPress={handleApply}>
-              <Text style={s.modalBtnPrimaryText}>Aplicar</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-// ─── Sort Modal ──────────────────────────────────────────────────────────────
-
-function SortModal({
-  visible,
-  selected,
-  onSelect,
-  onClose,
-}: {
-  visible: boolean;
-  selected: string | null;
-  onSelect: (s: string | null) => void;
-  onClose: () => void;
-}) {
-  const C = useTheme();
-
-  const pick = (value: string | null) => {
-    onSelect(value);
-    onClose();
-  };
-
-  return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={s.modalOverlay}>
-        <TouchableOpacity style={s.modalBackdrop} onPress={onClose} activeOpacity={1} />
-        <View style={[s.modalSheet, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
-          <View style={[s.modalHandle, { backgroundColor: C.glassBorder }]} />
-          <Text style={[s.modalTitle, { color: C.textPrimary }]}>Ordenar resultados</Text>
-
-          <TouchableOpacity onPress={() => pick(null)} style={s.sortOption}>
-            <Text style={[s.sortOptionText, { color: selected === null ? C.accent : C.textPrimary }]}>Predeterminado</Text>
-            <Text style={[s.sortOptionHint, { color: C.textSecondary }]}>Relevancia si buscás, sino más recientes</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => pick('price_asc')} style={s.sortOption}>
-            <Text style={[s.sortOptionText, { color: selected === 'price_asc' ? C.accent : C.textPrimary }]}>Precio: menor primero</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => pick('price_desc')} style={s.sortOption}>
-            <Text style={[s.sortOptionText, { color: selected === 'price_desc' ? C.accent : C.textPrimary }]}>Precio: mayor primero</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => pick('newest')} style={s.sortOption}>
-            <Text style={[s.sortOptionText, { color: selected === 'newest' ? C.accent : C.textPrimary }]}>Más recientes</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
 
 // ─── Home Screen ──────────────────────────────────────────────────────────────
 
@@ -663,6 +476,39 @@ export default function HomeScreen() {
     [orderedProducts]
   );
 
+  const categoryShortcuts = useMemo(
+    () =>
+      backendCategories.map((code) => ({
+        code,
+        label: CATEGORY_TRANSLATIONS[code] ?? code,
+        icon: CATEGORY_ICONS[code] ?? 'category',
+      })),
+    [backendCategories],
+  );
+
+  const featuredSellers = useMemo(() => {
+    const byEmail = new Map<string, { email: string; name: string; photo: string | null; productCount: number }>();
+    for (const p of products) {
+      const info = p.sellerInfo;
+      const email = info?.email?.trim();
+      if (!email) continue;
+      const existing = byEmail.get(email);
+      if (existing) {
+        existing.productCount += 1;
+      } else {
+        byEmail.set(email, {
+          email,
+          name: getSellerDisplayName(info),
+          photo: info?.photo ?? null,
+          productCount: 1,
+        });
+      }
+    }
+    return Array.from(byEmail.values())
+      .sort((a, b) => b.productCount - a.productCount)
+      .slice(0, 8);
+  }, [products]);
+
   const cardThemeProps = {
     accent: theme.accent,
     accentGlow: theme.accentGlow,
@@ -721,103 +567,74 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Search pill → routes to Explore ── */}
-        <View style={s.searchRow}>
-          <TouchableOpacity
-            activeOpacity={0.75}
-            onPress={() => router.push('/(tabs)/explore')}
-            style={[s.searchWrap, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
-            accessibilityRole="button"
-            accessibilityLabel="Buscar productos">
-            <MaterialIcons name="search" size={20} color={theme.textMuted} />
-            <Text
-              style={[s.searchInput, { color: theme.textMuted }]}
-              numberOfLines={1}
-              ellipsizeMode="tail">
-              Buscar en Bazaar
-            </Text>
-          </TouchableOpacity>
-
-          {/* Filter button */}
-          <TouchableOpacity
-            onPress={() => setFilterVisible(true)}
-            style={[
-              s.filterBtn,
-              {
-                backgroundColor: hasPriceFilter ? theme.accentGlow : theme.glass,
-                borderColor: hasPriceFilter ? theme.accent : theme.glassBorder,
-              },
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Abrir filtros">
-            <MaterialIcons
-              name="tune"
-              size={20}
-              color={hasPriceFilter ? theme.accent : theme.textSecondary}
-            />
-            {hasPriceFilter && (
-              <View style={[s.filterDot, { backgroundColor: theme.accent }]} />
-            )}
-          </TouchableOpacity>
-
-          {/* Sort button */}
-          <TouchableOpacity
-            onPress={() => setSortVisible(true)}
-            style={[s.filterBtn, { backgroundColor: sortBy ? theme.accentGlow : theme.glass, borderColor: sortBy ? theme.accent : theme.glassBorder }]}
-            accessibilityRole="button"
-            accessibilityLabel="Abrir opciones de orden">
-            <MaterialIcons name="sort" size={20} color={sortBy ? theme.accent : theme.textSecondary} />
-            {sortBy && (
-              <View style={[s.filterDot, { backgroundColor: theme.accent }]} />
-            )}
-          </TouchableOpacity>
-
-          {hasActiveFilters && (
-            <TouchableOpacity
-              onPress={clearAllFilters}
-              style={[s.filterBtn, { backgroundColor: theme.red, borderColor: theme.red }]}
-              accessibilityRole="button"
-              accessibilityLabel="Limpiar filtros">
-              <MaterialIcons name="filter-alt-off" size={20} color="#FFFFFF" />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Active filter chips ── */}
-        {(hasPriceFilter || hasCategoryFilter) && (
-          <View style={s.chipRow}>
-            {Array.from(category).map((cat) => (
-              <View key={cat} style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
-                <Text style={[s.chipText, { color: theme.accent }]}>{cat}</Text>
+        {/* ── Categorías (atajos) ── */}
+        {categoryShortcuts.length > 0 && (
+          <View style={{ marginTop: 4, marginBottom: 8 }}>
+            <View style={[s.sectionHeaderRow, { marginTop: 4 }]}>
+              <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Categorías</Text>
+              <View style={[s.sectionLine, { backgroundColor: theme.glassBorder }]} />
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingRight: 4, paddingVertical: 6 }}>
+              {categoryShortcuts.map((cat) => (
                 <TouchableOpacity
-                  onPress={() =>
-                    setCategory((prev) => {
-                      const next = new Set(prev);
-                      next.delete(cat);
-                      return next;
-                    })
-                  }
-                  hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                  <MaterialIcons name="close" size={13} color={theme.accent} />
+                  key={cat.code}
+                  onPress={() => router.push({ pathname: '/(tabs)/explore', params: { q: cat.label } })}
+                  style={[s.catShortcut, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+                  accessibilityRole="button">
+                  <View style={[s.catShortcutIcon, { backgroundColor: theme.accentGlow }]}>
+                    <MaterialIcons
+                      name={cat.icon as React.ComponentProps<typeof MaterialIcons>['name']}
+                      size={22}
+                      color={theme.accent}
+                    />
+                  </View>
+                  <Text style={[s.catShortcutLabel, { color: theme.textPrimary }]} numberOfLines={1}>
+                    {cat.label}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            ))}
-            {minPrice !== '' && (
-              <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
-                <Text style={[s.chipText, { color: theme.accent }]}>Desde ${minPrice}</Text>
-                <TouchableOpacity onPress={() => setMinPrice('')} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                  <MaterialIcons name="close" size={13} color={theme.accent} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* ── Vendedores destacados ── */}
+        {featuredSellers.length > 0 && (
+          <View style={{ marginBottom: 8 }}>
+            <View style={[s.sectionHeaderRow, { marginTop: 4 }]}>
+              <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Vendedores destacados</Text>
+              <View style={[s.sectionLine, { backgroundColor: theme.glassBorder }]} />
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingRight: 4, paddingVertical: 6 }}>
+              {featuredSellers.map((seller) => (
+                <TouchableOpacity
+                  key={seller.email}
+                  onPress={() => router.push(`/seller/${encodeURIComponent(seller.email)}`)}
+                  style={[s.sellerShortcut, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+                  accessibilityRole="button">
+                  <View style={[s.sellerShortcutAvatar, { backgroundColor: theme.accent }]}>
+                    {seller.photo ? (
+                      <Image source={{ uri: seller.photo }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+                    ) : (
+                      <Text style={s.sellerShortcutInitial}>
+                        {(seller.name || seller.email).charAt(0).toUpperCase()}
+                      </Text>
+                    )}
+                  </View>
+                  <Text style={[s.sellerShortcutName, { color: theme.textPrimary }]} numberOfLines={1}>
+                    {seller.name || seller.email}
+                  </Text>
+                  <Text style={[s.sellerShortcutMeta, { color: theme.textMuted }]} numberOfLines={1}>
+                    {seller.productCount} {seller.productCount === 1 ? 'producto' : 'productos'}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-            )}
-            {maxPrice !== '' && (
-              <View style={[s.chip, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
-                <Text style={[s.chipText, { color: theme.accent }]}>Hasta ${maxPrice}</Text>
-                <TouchableOpacity onPress={() => setMaxPrice('')} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                  <MaterialIcons name="close" size={13} color={theme.accent} />
-                </TouchableOpacity>
-              </View>
-            )}
+              ))}
+            </ScrollView>
           </View>
         )}
 
@@ -951,26 +768,6 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* ── Filter Modal ── */}
-      <FilterModal
-        visible={filterVisible}
-        categories={categories}
-        selectedCategories={Array.from(category)}
-        minPrice={minPrice}
-        maxPrice={maxPrice}
-        onApply={(nextCategories, min, max) => {
-          setCategory(new Set(nextCategories));
-          setMinPrice(min);
-          setMaxPrice(max);
-        }}
-        onClose={() => setFilterVisible(false)}
-      />
-      <SortModal
-        visible={sortVisible}
-        selected={sortBy}
-        onSelect={(s) => setSortBy(s)}
-        onClose={() => setSortVisible(false)}
-      />
     </View>
   );
 }
@@ -1083,6 +880,63 @@ const s = StyleSheet.create({
     width: 7,
     height: 7,
     borderRadius: 3.5,
+  },
+
+  // ── Category shortcuts (carousel) ──
+  catShortcut: {
+    width: 96,
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 10,
+    alignItems: 'center',
+    gap: 8,
+  },
+  catShortcutIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  catShortcutLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: -0.1,
+    textAlign: 'center',
+  },
+
+  // ── Featured sellers (carousel) ──
+  sellerShortcut: {
+    width: 130,
+    borderWidth: 1,
+    borderRadius: 16,
+    padding: 14,
+    alignItems: 'center',
+    gap: 6,
+  },
+  sellerShortcutAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sellerShortcutInitial: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#FFFFFF',
+  },
+  sellerShortcutName: {
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  sellerShortcutMeta: {
+    fontSize: 10,
+    fontWeight: '500',
+    textAlign: 'center',
   },
 
   // ── Filter chips ──
