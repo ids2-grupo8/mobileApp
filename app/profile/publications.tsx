@@ -41,15 +41,16 @@ function PublicationCard({
   toggling: boolean;
   C: ReturnType<typeof useTheme>;
 }) {
+  const adminBlocked = product.adminStatus === 'blocked';
   const isDisabled = product.status === 'disabled';
-  const outOfStock = product.stock <= 0 && !isDisabled;
+  const outOfStock = product.stock <= 0 && !isDisabled && !adminBlocked;
 
   return (
     <TouchableOpacity
       style={[
         s.card,
         { backgroundColor: C.glass, borderColor: C.glassBorder },
-        isDisabled && { opacity: 0.6 },
+        (isDisabled || adminBlocked) && { opacity: 0.6 },
       ]}
       onPress={onOpen}
       accessibilityRole="button">
@@ -60,7 +61,11 @@ function PublicationCard({
           <View style={[s.badge, { backgroundColor: C.accentGlow, borderColor: C.accent }]}>
             <Text style={[s.badgeText, { color: C.accent }]}>{product.category}</Text>
           </View>
-          {isDisabled ? (
+          {adminBlocked ? (
+            <View style={[s.statusBadge, { backgroundColor: C.redBg, borderColor: C.red }]}>
+              <Text style={[s.statusBadgeText, { color: C.red }]}>Bloqueada por admin</Text>
+            </View>
+          ) : isDisabled ? (
             <View style={[s.statusBadge, { backgroundColor: C.redBg, borderColor: C.red }]}>
               <Text style={[s.statusBadgeText, { color: C.red }]}>Deshabilitada</Text>
             </View>
@@ -76,11 +81,21 @@ function PublicationCard({
         </Text>
         <Text style={[s.price, { color: C.textPrimary }]}>{formatPrice(product.price)}</Text>
 
+        {adminBlocked && (
+          <View style={[s.adminNotice, { backgroundColor: C.redBg, borderColor: C.red }]}>
+            <MaterialIcons name="shield" size={16} color={C.red} />
+            <Text style={[s.adminNoticeText, { color: C.red }]}>
+              Un administrador bloqueó esta publicación. No aparece en el catálogo hasta que sea desbloqueada.
+            </Text>
+          </View>
+        )}
+
         <View style={s.actions}>
           <View style={s.actionRow}>
             <TouchableOpacity
-              style={[s.editBtn, { backgroundColor: C.accent, shadowColor: C.accent, flex: 1 }]}
+              style={[s.editBtn, { backgroundColor: C.accent, shadowColor: C.accent, flex: 1 }, adminBlocked && { opacity: 0.5 }]}
               onPress={onEdit}
+              disabled={adminBlocked}
               accessibilityRole="button">
               <MaterialIcons name="edit" size={16} color="#050508" />
               <Text style={s.editBtnText}>Editar</Text>
@@ -91,9 +106,10 @@ function PublicationCard({
                 isDisabled
                   ? { backgroundColor: C.accentGlow, borderColor: C.accent }
                   : { backgroundColor: C.redBg, borderColor: C.red },
+                adminBlocked && { opacity: 0.5 },
               ]}
               onPress={onToggle}
-              disabled={toggling}
+              disabled={toggling || adminBlocked}
               accessibilityRole="button">
               {toggling ? (
                 <ActivityIndicator size={16} color={isDisabled ? C.accent : C.red} />
@@ -400,6 +416,21 @@ const s = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 0.3,
+  },
+  adminNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  adminNoticeText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: '600',
   },
   emptyCard: {
     borderWidth: 1,

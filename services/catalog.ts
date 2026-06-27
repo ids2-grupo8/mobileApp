@@ -91,6 +91,7 @@ export type CatalogProduct = {
   originalStock?: number;
   status?: 'available' | 'disabled' | 'out_of_stock';
   enabled?: boolean;
+  adminStatus?: 'active' | 'blocked';
 };
 
 type RecommendationsSource = 'purchases' | 'profile' | 'blended' | 'browse' | 'global';
@@ -166,6 +167,7 @@ function isRecentFromDate(raw: RawProduct): boolean {
 function normalizeProduct(raw: RawProduct): CatalogProduct | null {
   // unwrap { data: {...} } wrapper returned by product-service list endpoint
   const product = raw.data && typeof raw.data === 'object' ? (raw.data as RawProduct) : raw;
+  const outerAdminStatus = asString(raw.admin_status) || asString(product.admin_status);
 
   const id = asString(product.id) || asString(product._id) || asString(product.product_id) || asString(product.uuid);
   const title = asString(product.title) || asString(product.name);
@@ -217,6 +219,7 @@ function normalizeProduct(raw: RawProduct): CatalogProduct | null {
     attributes: product.attributes && typeof product.attributes === 'object' ? (product.attributes as Record<string, unknown>) : undefined,
     status: statusRaw as 'available' | 'disabled' | 'out_of_stock',
     enabled,
+    adminStatus: outerAdminStatus === 'blocked' ? 'blocked' : outerAdminStatus === 'active' ? 'active' : undefined,
     originalStock: stock,
     ...(enabled ? {} : { stock: 0 }),
   };
@@ -431,12 +434,15 @@ export async function fetchCatalogProductById(id: string): Promise<CatalogProduc
 }
 
 export async function fetchMyProducts(): Promise<CatalogProduct[]> {
-  const payload = await request<PublicUserProfileResponse>(USERS(`/profile`), {
+  // product-service /my-products returns [{ data: {...product}, admin_status }],
+  // exposing admin-blocked items so the seller is informed instead of seeing them disappear.
+  const payload = await request<RawProduct[]>(CATALOG(`/my-products`), {
     method: 'GET',
     auth: true,
   });
 
-  return payload.data.products
+  const items = Array.isArray(payload) ? payload : [];
+  return items
     .map((item) => (item && typeof item === 'object' ? normalizeProduct(item as RawProduct) : null))
     .filter((item): item is CatalogProduct => item !== null);
 }
