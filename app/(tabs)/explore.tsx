@@ -102,7 +102,7 @@ export default function ExploreScreen() {
   useEffect(() => {
     if (typeof params.category === 'string' && params.category.length > 0) {
       const label = params.category;
-      setSelectedCategories((prev) => (prev.includes(label) ? prev : [...prev, label]));
+      setSelectedCategories([label]);
       router.setParams({ category: undefined });
     }
     if (typeof params.q === 'string' && params.q.length > 0) {
