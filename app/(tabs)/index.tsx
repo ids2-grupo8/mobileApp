@@ -619,7 +619,7 @@ export default function HomeScreen() {
               {categoryShortcuts.map((cat) => (
                 <TouchableOpacity
                   key={cat.code}
-                  onPress={() => router.push({ pathname: '/(tabs)/explore', params: { q: cat.label } })}
+                  onPress={() => router.push({ pathname: '/(tabs)/explore', params: { category: cat.label } })}
                   style={s.catCircleWrap}
                   accessibilityRole="button">
                   <View style={[s.catCircle, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>

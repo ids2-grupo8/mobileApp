@@ -1,6 +1,6 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as SecureStore from '@/services/secure-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -71,6 +71,7 @@ const SORT_LABELS: Record<string, string> = {
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ q?: string; category?: string }>();
   const insets = useSafeAreaInsets();
   const C = useTheme();
 
@@ -94,6 +95,23 @@ export default function ExploreScreen() {
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [filterVisible, setFilterVisible] = useState(false);
   const [sortVisible, setSortVisible] = useState(false);
+
+  // Pre-cargar categoría/texto cuando Inicio nos manda un atajo.
+  // Limpiamos el param después de consumirlo para que volver a tocar
+  // el mismo atajo vuelva a disparar el efecto.
+  useEffect(() => {
+    if (typeof params.category === 'string' && params.category.length > 0) {
+      const label = params.category;
+      setSelectedCategories((prev) => (prev.includes(label) ? prev : [...prev, label]));
+      router.setParams({ category: undefined });
+    }
+    if (typeof params.q === 'string' && params.q.length > 0) {
+      setQuery(params.q);
+      setDebouncedQuery(params.q.trim());
+      router.setParams({ q: undefined });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.category, params.q]);
 
   const refreshAll = useCallback(async () => {
     const [recentList, cats, productList] = await Promise.all([
