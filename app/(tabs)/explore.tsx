@@ -148,9 +148,14 @@ export default function ExploreScreen() {
     [categories],
   );
 
+  const hasPriceFilter = minPrice !== '' || maxPrice !== '';
+  const hasActiveFilters = hasPriceFilter || selectedCategories.length > 0 || sortBy !== null;
+  const hasQuery = submittedQuery.trim().length > 0;
+  const isShowingResults = hasQuery || hasActiveFilters;
+
   const searchResults = useMemo(() => {
+    if (!isShowingResults) return [];
     const q = submittedQuery.trim().toLowerCase();
-    if (q.length === 0) return [];
     const min = minPrice !== '' ? parseFloat(minPrice) : null;
     const max = maxPrice !== '' ? parseFloat(maxPrice) : null;
     const catSet = new Set(selectedCategories);
@@ -159,7 +164,11 @@ export default function ExploreScreen() {
       const title = (p.title ?? '').toLowerCase();
       const sellerName = (getSellerDisplayName(p.sellerInfo) ?? p.seller ?? '').toLowerCase();
       const translatedCat = CATEGORY_TRANSLATIONS[p.category] ?? p.category;
-      const matchesQuery = title.includes(q) || sellerName.includes(q) || translatedCat.toLowerCase().includes(q);
+      const matchesQuery =
+        q.length === 0 ||
+        title.includes(q) ||
+        sellerName.includes(q) ||
+        translatedCat.toLowerCase().includes(q);
       const matchesCategory = catSet.size === 0 || catSet.has(translatedCat);
       const matchesMin = min === null || p.price >= min;
       const matchesMax = max === null || p.price <= max;
@@ -169,11 +178,7 @@ export default function ExploreScreen() {
     if (sortBy === 'price_asc') return [...filtered].sort((a, b) => a.price - b.price);
     if (sortBy === 'price_desc') return [...filtered].sort((a, b) => b.price - a.price);
     return filtered;
-  }, [products, submittedQuery, selectedCategories, minPrice, maxPrice, sortBy]);
-
-  const hasPriceFilter = minPrice !== '' || maxPrice !== '';
-  const hasActiveFilters = hasPriceFilter || selectedCategories.length > 0 || sortBy !== null;
-  const isSearching = submittedQuery.trim().length > 0;
+  }, [products, submittedQuery, selectedCategories, minPrice, maxPrice, sortBy, isShowingResults]);
 
   return (
     <View style={[s.root, { backgroundColor: C.bg, paddingTop: insets.top }]}>
@@ -303,10 +308,11 @@ export default function ExploreScreen() {
           <View style={s.loadingWrap}>
             <ActivityIndicator color={C.accent} size="large" />
           </View>
-        ) : isSearching ? (
+        ) : isShowingResults ? (
           <View style={s.section}>
             <Text style={[s.sectionTitle, { color: C.textPrimary, marginBottom: 14 }]}>
-              {searchResults.length} {searchResults.length === 1 ? 'resultado' : 'resultados'} para "{submittedQuery}"
+              {searchResults.length} {searchResults.length === 1 ? 'resultado' : 'resultados'}
+              {hasQuery ? ` para "${submittedQuery}"` : ''}
             </Text>
             {searchResults.length === 0 ? (
               <View style={s.emptyWrap}>
