@@ -27,6 +27,7 @@ import {
   fetchRecommendedProducts,
   getSellerDisplayName,
 } from '@/services/catalog';
+import { type ActiveCoupon, fetchActiveCoupons } from '@/services/checkout';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { useNotificationsStore } from '@/store/notifications';
@@ -53,9 +54,6 @@ const CATEGORY_TRANSLATIONS: Record<string, string> = {
 const CATEGORY_CODES: Record<string, string> = Object.fromEntries(
   Object.entries(CATEGORY_TRANSLATIONS).map(([code, label]) => [label, code]),
 );
-
-// Promo activa: setear en null cuando no haya cupón vigente y se ocultará el banner.
-const ACTIVE_PROMO: { code: string; percent: number; expiresLabel: string } | null = null;
 
 const CATEGORY_ICONS: Record<string, string> = {
   Electronics: 'devices',
@@ -177,6 +175,22 @@ export default function HomeScreen() {
     (st) => st.notifications.filter((n) => !n.read).length,
   );
   const [ownProductIds, setOwnProductIds] = useState<Set<string>>(new Set());
+  const [activePromo, setActivePromo] = useState<ActiveCoupon | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchActiveCoupons(1)
+      .then((list) => {
+        if (!mounted) return;
+        setActivePromo(list.length > 0 ? list[0] : null);
+      })
+      .catch(() => {
+        if (mounted) setActivePromo(null);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -571,14 +585,19 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Hero promo banner (sólo si hay cupón vigente) ── */}
-        {ACTIVE_PROMO && (
+        {/* ── Hero promo banner (sólo si hay cupón vigente, fetched on mount) ── */}
+        {activePromo && (
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={() => {
+              const expiresLabel = new Date(activePromo.end_date).toLocaleDateString('es-AR', {
+                day: '2-digit',
+                month: 'long',
+                year: 'numeric',
+              });
               Alert.alert(
-                `Cupón ${ACTIVE_PROMO.code}`,
-                `Usá este código en el checkout y obtené ${ACTIVE_PROMO.percent}% OFF en tu próxima compra (${ACTIVE_PROMO.expiresLabel}).`,
+                `Cupón ${activePromo.code}`,
+                `Usá este código en el checkout y obtené ${Math.round(activePromo.discount_percentage)}% OFF en tu próxima compra. Válido hasta el ${expiresLabel}.`,
                 [{ text: 'Entendido' }],
               );
             }}
@@ -592,10 +611,10 @@ export default function HomeScreen() {
               <View style={s.heroBannerText}>
                 <Text style={s.heroBannerKicker}>OFERTA LIMITADA</Text>
                 <Text style={s.heroBannerTitle} numberOfLines={2}>
-                  Aprovechá {ACTIVE_PROMO.percent}% OFF
+                  Aprovechá {Math.round(activePromo.discount_percentage)}% OFF
                 </Text>
                 <Text style={s.heroBannerSubtitle}>
-                  Usá el código <Text style={s.heroBannerCode}>{ACTIVE_PROMO.code}</Text> en el checkout
+                  Usá el código <Text style={s.heroBannerCode}>{activePromo.code}</Text> en el checkout
                 </Text>
               </View>
               <View style={s.heroBannerIcon}>

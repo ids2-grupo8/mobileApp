@@ -23,6 +23,19 @@ export type CouponValidationResponse = {
   error: string | null;
 };
 
+export type ActiveCoupon = {
+  code: string;
+  discount_percentage: number;
+  end_date: string;
+};
+
+export async function fetchActiveCoupons(limit = 1): Promise<ActiveCoupon[]> {
+  return request<ActiveCoupon[]>(
+    `${CHECKOUT('/coupons/active')}?limit=${limit}`,
+    { method: 'GET' },
+  );
+}
+
 // ─── Requests ────────────────────────────────────────────────────────────────
 
 export async function createCheckoutMercadopago(
