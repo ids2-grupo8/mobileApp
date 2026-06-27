@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import ProductReputationSection from '@/components/product-reputation-section';
 import type { ThemeColors } from '@/constants/colors';
-import { useTheme } from '@/hooks/use-theme';
+import { useIsLightTheme, useTheme } from '@/hooks/use-theme';
 import {
     type CatalogProduct,
   getSellerDisplayName,
@@ -278,6 +278,7 @@ export default function ProductDetailScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const C = useTheme();
+  const isLight = useIsLightTheme();
   const addItem = useCartStore((s) => s.addItem);
   const cartItems = useCartStore((s) => s.items);
 
@@ -473,12 +474,14 @@ export default function ProductDetailScreen() {
                 {product.description ?? 'Este producto no tiene descripción cargada por el vendedor.'}
               </Text>
             )}
-            <LinearGradient
-              colors={[C.glassHighlight, 'transparent', 'transparent']}
-              locations={[0, 0.2, 1]}
-              style={s.descGlassEdge}
-              pointerEvents="none"
-            />
+            {!isLight && (
+              <LinearGradient
+                colors={[C.glassHighlight, 'transparent', 'transparent']}
+                locations={[0, 0.2, 1]}
+                style={s.descGlassEdge}
+                pointerEvents="none"
+              />
+            )}
           </View>
         </View>
 
@@ -556,12 +559,14 @@ export default function ProductDetailScreen() {
 
       {/* ── Sticky Action Bar ── */}
       <View style={[s.actionBar, { paddingBottom: insets.bottom + 8, backgroundColor: C.bg }]}>
-        <LinearGradient
-          colors={['transparent', C.bg]}
-          locations={[0, 1]}
-          style={s.actionBarGradient}
-          pointerEvents="none"
-        />
+        {!isLight && (
+          <LinearGradient
+            colors={['transparent', C.bg]}
+            locations={[0, 1]}
+            style={s.actionBarGradient}
+            pointerEvents="none"
+          />
+        )}
         <View style={[s.actionBarInner, { backgroundColor: C.elevated, borderColor: C.glassBorder }]}>
           <View style={s.actionBarLeft}>
             <Text style={[s.actionBarLabel, { color: C.textSecondary }]}>Precio</Text>

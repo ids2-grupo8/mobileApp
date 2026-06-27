@@ -10,3 +10,11 @@ export function useTheme(): ThemeColors {
   if (mode === 'light') return light;
   return system === 'light' ? light : dark;
 }
+
+export function useIsLightTheme(): boolean {
+  const mode = useThemeStore((s) => s.mode);
+  const system = useColorScheme();
+  if (mode === 'light') return true;
+  if (mode === 'dark') return false;
+  return system === 'light';
+}

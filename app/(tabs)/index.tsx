@@ -1,6 +1,7 @@
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { Image } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -567,9 +568,41 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Categorías (atajos) ── */}
+        {/* ── Hero promo banner ── */}
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={() => {
+            Alert.alert(
+              'Cupón BAZAAR20',
+              'Usá este código en el checkout y obtené 20% OFF en tu próxima compra (válido hasta el 31/07).',
+              [{ text: 'Entendido' }],
+            );
+          }}
+          style={s.heroBannerWrap}
+          accessibilityRole="button">
+          <LinearGradient
+            colors={[theme.accent, theme.accentDim]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.heroBanner}>
+            <View style={s.heroBannerText}>
+              <Text style={s.heroBannerKicker}>OFERTA LIMITADA</Text>
+              <Text style={s.heroBannerTitle} numberOfLines={2}>
+                Aprovechá 20% OFF
+              </Text>
+              <Text style={s.heroBannerSubtitle}>
+                Usá el código <Text style={s.heroBannerCode}>BAZAAR20</Text> en el checkout
+              </Text>
+            </View>
+            <View style={s.heroBannerIcon}>
+              <MaterialIcons name="local-offer" size={28} color="#FFFFFF" />
+            </View>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        {/* ── Categorías (atajos circulares, estilo ML) ── */}
         {categoryShortcuts.length > 0 && (
-          <View style={{ marginTop: 4, marginBottom: 8 }}>
+          <View style={{ marginTop: 8, marginBottom: 4 }}>
             <View style={[s.sectionHeaderRow, { marginTop: 4 }]}>
               <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Categorías</Text>
               <View style={[s.sectionLine, { backgroundColor: theme.glassBorder }]} />
@@ -577,21 +610,21 @@ export default function HomeScreen() {
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 12, paddingRight: 4, paddingVertical: 6 }}>
+              contentContainerStyle={{ gap: 14, paddingRight: 4, paddingVertical: 10 }}>
               {categoryShortcuts.map((cat) => (
                 <TouchableOpacity
                   key={cat.code}
                   onPress={() => router.push({ pathname: '/(tabs)/explore', params: { q: cat.label } })}
-                  style={[s.catShortcut, { backgroundColor: theme.glass, borderColor: theme.glassBorder }]}
+                  style={s.catCircleWrap}
                   accessibilityRole="button">
-                  <View style={[s.catShortcutIcon, { backgroundColor: theme.accentGlow }]}>
+                  <View style={[s.catCircle, { backgroundColor: theme.accentGlow, borderColor: theme.accent }]}>
                     <MaterialIcons
                       name={cat.icon as React.ComponentProps<typeof MaterialIcons>['name']}
-                      size={22}
+                      size={28}
                       color={theme.accent}
                     />
                   </View>
-                  <Text style={[s.catShortcutLabel, { color: theme.textPrimary }]} numberOfLines={1}>
+                  <Text style={[s.catCircleLabel, { color: theme.textPrimary }]} numberOfLines={1}>
                     {cat.label}
                   </Text>
                 </TouchableOpacity>
@@ -659,9 +692,15 @@ export default function HomeScreen() {
             {/* ── Recent products — CA1 ── */}
             {recentProducts.length > 0 && (
               <>
-                <View style={[s.sectionHeaderRow, { marginTop: 8 }]}>
-                  <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Recientes</Text>
+                <View style={[s.sectionHeaderRow, { marginTop: 12 }]}>
+                  <View style={[s.sectionBadge, { backgroundColor: theme.accentGlow }]}>
+                    <MaterialIcons name="fiber-new" size={16} color={theme.accent} />
+                  </View>
+                  <Text style={[s.sectionTitle, { color: theme.textPrimary }]}>Lo nuevo</Text>
                   <View style={[s.sectionLine, { backgroundColor: theme.glassBorder }]} />
+                  <Text style={[s.sectionCount, { color: theme.textMuted }]}>
+                    {recentProducts.length}
+                  </Text>
                 </View>
                 <ScrollView
                   horizontal
@@ -882,25 +921,72 @@ const s = StyleSheet.create({
     borderRadius: 3.5,
   },
 
-  // ── Category shortcuts (carousel) ──
-  catShortcut: {
-    width: 96,
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 14,
-    paddingHorizontal: 10,
-    alignItems: 'center',
-    gap: 8,
+  // ── Hero promo banner ──
+  heroBannerWrap: {
+    marginTop: 4,
+    marginBottom: 12,
+    borderRadius: 20,
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 16,
+    elevation: 6,
   },
-  catShortcutIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+  heroBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  heroBannerText: { flex: 1, gap: 4 },
+  heroBannerKicker: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  heroBannerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.4,
+    color: '#FFFFFF',
+  },
+  heroBannerSubtitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: 'rgba(255,255,255,0.92)',
+  },
+  heroBannerCode: {
+    fontWeight: '800',
+    letterSpacing: 0.5,
+    color: '#FFFFFF',
+  },
+  heroBannerIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+
+  // ── Category shortcuts (circles, ML-style) ──
+  catCircleWrap: {
+    width: 72,
+    alignItems: 'center',
+    gap: 6,
+  },
+  catCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  catShortcutLabel: {
-    fontSize: 12,
+  catCircleLabel: {
+    fontSize: 11,
     fontWeight: '700',
     letterSpacing: -0.1,
     textAlign: 'center',
@@ -976,6 +1062,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 14,
+    gap: 8,
   },
   sectionTitle: {
     fontSize: 18,
@@ -990,6 +1077,19 @@ const s = StyleSheet.create({
   sectionMeta: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  sectionBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sectionCount: {
+    fontSize: 12,
+    fontWeight: '700',
+    minWidth: 24,
+    textAlign: 'right',
   },
 
   // ── Loading ──
