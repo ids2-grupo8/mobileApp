@@ -54,6 +54,9 @@ const CATEGORY_CODES: Record<string, string> = Object.fromEntries(
   Object.entries(CATEGORY_TRANSLATIONS).map(([code, label]) => [label, code]),
 );
 
+// Promo activa: setear en null cuando no haya cupón vigente y se ocultará el banner.
+const ACTIVE_PROMO: { code: string; percent: number; expiresLabel: string } | null = null;
+
 const CATEGORY_ICONS: Record<string, string> = {
   Electronics: 'devices',
   Clothing: 'checkroom',
@@ -568,37 +571,39 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* ── Hero promo banner ── */}
-        <TouchableOpacity
-          activeOpacity={0.9}
-          onPress={() => {
-            Alert.alert(
-              'Cupón BAZAAR20',
-              'Usá este código en el checkout y obtené 20% OFF en tu próxima compra (válido hasta el 31/07).',
-              [{ text: 'Entendido' }],
-            );
-          }}
-          style={s.heroBannerWrap}
-          accessibilityRole="button">
-          <LinearGradient
-            colors={[theme.accent, theme.accentDim]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={s.heroBanner}>
-            <View style={s.heroBannerText}>
-              <Text style={s.heroBannerKicker}>OFERTA LIMITADA</Text>
-              <Text style={s.heroBannerTitle} numberOfLines={2}>
-                Aprovechá 20% OFF
-              </Text>
-              <Text style={s.heroBannerSubtitle}>
-                Usá el código <Text style={s.heroBannerCode}>BAZAAR20</Text> en el checkout
-              </Text>
-            </View>
-            <View style={s.heroBannerIcon}>
-              <MaterialIcons name="local-offer" size={28} color="#FFFFFF" />
-            </View>
-          </LinearGradient>
-        </TouchableOpacity>
+        {/* ── Hero promo banner (sólo si hay cupón vigente) ── */}
+        {ACTIVE_PROMO && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              Alert.alert(
+                `Cupón ${ACTIVE_PROMO.code}`,
+                `Usá este código en el checkout y obtené ${ACTIVE_PROMO.percent}% OFF en tu próxima compra (${ACTIVE_PROMO.expiresLabel}).`,
+                [{ text: 'Entendido' }],
+              );
+            }}
+            style={s.heroBannerWrap}
+            accessibilityRole="button">
+            <LinearGradient
+              colors={[theme.accent, theme.accentDim]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={s.heroBanner}>
+              <View style={s.heroBannerText}>
+                <Text style={s.heroBannerKicker}>OFERTA LIMITADA</Text>
+                <Text style={s.heroBannerTitle} numberOfLines={2}>
+                  Aprovechá {ACTIVE_PROMO.percent}% OFF
+                </Text>
+                <Text style={s.heroBannerSubtitle}>
+                  Usá el código <Text style={s.heroBannerCode}>{ACTIVE_PROMO.code}</Text> en el checkout
+                </Text>
+              </View>
+              <View style={s.heroBannerIcon}>
+                <MaterialIcons name="local-offer" size={28} color="#FFFFFF" />
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
 
         {/* ── Categorías (atajos circulares, estilo ML) ── */}
         {categoryShortcuts.length > 0 && (
