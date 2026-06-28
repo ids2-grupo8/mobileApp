@@ -89,10 +89,15 @@ export default function RootLayout() {
     // Deep link post-pago (Mercado Pago): puede llegar sin sesión activa
     const isCheckoutSuccessDeepLink =
       segments[0] === "checkout" && segments[1] === "success";
+    // Deep link de recupero de contraseña: aunque haya sesión activa, el
+    // usuario llegó acá desde el mail para cambiar la contraseña. No lo
+    // expulsemos al catálogo o se pierde el token (de un solo uso).
+    const isRecoveryDeepLink =
+      segments[0] === "(auth)" && segments[1] === "reset-password";
 
     if (!isLoggedIn && !inAuth && !inPublicRoute && !isCheckoutSuccessDeepLink) {
       router.replace("/(auth)/landing");
-    } else if (isLoggedIn && inAuth) {
+    } else if (isLoggedIn && inAuth && !isRecoveryDeepLink) {
       router.replace("/(tabs)");
     }
   }, [isReady, isLoggedIn, segments, router]);

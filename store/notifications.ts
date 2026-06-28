@@ -8,6 +8,9 @@ const MAX_NOTIFICATIONS = 40;
 export type AppNotification = {
   id: string;
   orderId: number;
+  // Alertas de stock no van atadas a una orden (orderId === 0) sino a un
+  // producto: guardamos su id para poder navegar al detalle desde la tarjeta.
+  productId?: string;
   role: 'buyer' | 'seller';
   title: string;
   body: string;

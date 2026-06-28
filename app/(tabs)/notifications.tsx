@@ -39,6 +39,11 @@ function NotificationItem({ item, onPress }: { item: AppNotification; onPress: (
   const C = useTheme();
   const icon = STATUS_ICON[item.status];
   const isError = item.status === 'payment rejected' || item.status === 'canceled';
+  // Las alertas de stock no tienen orden (orderId === 0): mostramos un tag
+  // "Stock" en vez de "Compra/Venta" y omitimos el número de orden.
+  const isOrder = item.orderId > 0;
+  const tagLabel = isOrder ? (item.role === 'buyer' ? 'Compra' : 'Venta') : 'Stock';
+  const tagAccent = isOrder ? item.role === 'buyer' : false;
 
   return (
     <TouchableOpacity
@@ -85,24 +90,28 @@ function NotificationItem({ item, onPress }: { item: AppNotification; onPress: (
           {item.body}
         </Text>
         <View style={s.meta}>
-          <Text style={[s.metaText, { color: C.textMuted }]}>
-            Orden #{item.orderId}
-          </Text>
-          <Text style={[s.metaText, { color: C.textMuted }]}>·</Text>
+          {isOrder && (
+            <>
+              <Text style={[s.metaText, { color: C.textMuted }]}>
+                Orden #{item.orderId}
+              </Text>
+              <Text style={[s.metaText, { color: C.textMuted }]}>·</Text>
+            </>
+          )}
           <Text style={[s.metaText, { color: C.textMuted }]}>
             {timeAgo(item.createdAt)}
           </Text>
           <View
             style={[
               s.roleTag,
-              { backgroundColor: item.role === 'buyer' ? C.accentBg : C.glass },
+              { backgroundColor: tagAccent ? C.accentBg : C.glass },
             ]}>
             <Text
               style={[
                 s.roleText,
-                { color: item.role === 'buyer' ? C.accent : C.textMuted },
+                { color: tagAccent ? C.accent : C.textMuted },
               ]}>
-              {item.role === 'buyer' ? 'Compra' : 'Venta'}
+              {tagLabel}
             </Text>
           </View>
         </View>
@@ -123,7 +132,14 @@ export default function NotificationsScreen() {
 
   function handlePress(item: AppNotification) {
     markRead(item.id);
-    router.push(`/orders/${item.orderId}`);
+    // Notificaciones de orden abren el detalle de la orden; las de stock
+    // (sin orden) abren el detalle del producto. Si no hay destino, solo
+    // se marca como leída.
+    if (item.orderId > 0) {
+      router.push(`/orders/${item.orderId}`);
+    } else if (item.productId) {
+      router.push(`/product/${item.productId}`);
+    }
   }
 
   const isEmpty = notifications.length === 0;

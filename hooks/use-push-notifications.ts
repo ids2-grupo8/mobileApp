@@ -50,6 +50,7 @@ export function usePushNotifications() {
         | undefined;
       addNotification({
         orderId: data?.order_id ? Number(data.order_id) : 0,
+        productId: data?.product_id,
         // order_status va al comprador; new_sale y alertas de stock, al vendedor.
         role: data?.type === 'order_status' ? 'buyer' : 'seller',
         title: event.request.content.title ?? 'Notificación',
