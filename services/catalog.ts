@@ -436,7 +436,7 @@ export async function fetchCatalogProductById(id: string): Promise<CatalogProduc
 export async function fetchMyProducts(): Promise<CatalogProduct[]> {
   // product-service /my-products returns [{ data: {...product}, admin_status }],
   // exposing admin-blocked items so the seller is informed instead of seeing them disappear.
-  const payload = await request<RawProduct[]>(CATALOG(`/my-products`), {
+  const payload = await request<RawProduct[]>(CATALOG(`/products/my-products`), {
     method: 'GET',
     auth: true,
   });
