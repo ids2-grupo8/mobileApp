@@ -6,17 +6,19 @@ import { useNotificationsStore } from '@/store/notifications';
 
 const POLL_INTERVAL_MS = 30_000;
 
+// `delivered` no va acá: la entrega la confirma el comprador, así que esa
+// transición notifica al vendedor (ver SELLER_MESSAGES), no al comprador.
 const BUYER_MESSAGES: Partial<Record<string, { title: string; body: string }>> = {
   'payment confirmed': { title: 'Pago confirmado', body: 'Tu pago fue procesado correctamente.' },
   'payment rejected': { title: 'Pago rechazado', body: 'Hubo un problema con tu pago. Revisá los datos.' },
   processing:         { title: 'Pedido en preparación', body: 'El vendedor está preparando tu pedido.' },
   shipped:            { title: 'Pedido enviado', body: 'Tu pedido está en camino.' },
-  delivered:          { title: 'Pedido entregado', body: '¡Tu pedido fue entregado! No olvides dejar una reseña.' },
   canceled:           { title: 'Pedido cancelado', body: 'Tu pedido fue cancelado.' },
 };
 
 const SELLER_MESSAGES: Partial<Record<string, { title: string; body: string }>> = {
   'payment confirmed': { title: 'Nueva venta', body: 'Recibiste una orden lista para preparar.' },
+  delivered:           { title: 'Pedido entregado', body: 'El comprador confirmó la entrega de la orden.' },
   canceled:            { title: 'Orden cancelada', body: 'Una orden fue cancelada por el comprador.' },
 };
 
